@@ -1,0 +1,31 @@
+### visual studio files
+
+*.cache
+*.suo
+*.vshost*
+*.user
+*.dll.refresh
+*.vsmdi
+
+### end visual studio files
+
+#references/_disabled
+
+BMAlbum/wwwroot/lib/**
+
+Thumbs.db
+**/obj/**
+**/temp/**
+**/bin/**
+**/logs/**
+**/sav/**
+.vs/**
+
+
+*.swp
+*.disabled
+*.old
+*.tmp
+*.bak
+*.ini
+.dropbox

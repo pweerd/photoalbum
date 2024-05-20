@@ -1,0 +1,178 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<root _log="all" autorefresh="true">
+   <ipconfigs defaults="true" catchall="external">
+      <ipconfig name="internal_home">
+         <ip include="true" addr="YOUR_EXTERNAL_IP" />
+      </ipconfig>
+   </ipconfigs>
+
+   <forcehttps active="false">
+      <host incl="YOURHOST"/>
+      <ipclass excl="internal*"/>
+   </forcehttps>
+
+   <errorhandling>
+      <output ipclass="internal*,authenticated">all</output>
+      <output ipclass="*">None</output>
+   </errorhandling>
+
+   <authentication />
+
+   <!-- ELASTIC SERVER -->
+   <server url="http://localhost:9200" debug="true"/>
+
+   <roots>
+      <!-- roots that are used by the importer -->
+      <root name="ROOTNAME" dir="ROOTDIR" />
+   </roots>
+
+   <faces_admin dir="SAME ADMINDIR AS IMPORT" />
+
+   <photocache >
+      <refresh active="false" sleeptime="300" />
+      <shrink_small cache="true" quality="80" tag="1">
+         <factor2 bias=".9" />
+         <factor15 bias=".1" />
+         <sharpen center="10" />
+         <_exact value="true" />
+      </shrink_small>
+      <shrink_large cache="false" quality="80" tag="1" log="true">
+         <min_factor factor="3.5" />;
+         <factor2 bias=".2" />
+         <_factor15 value="0" />
+         <sharpen center="9" />
+      </shrink_large>
+   </photocache>
+
+   <mainindex name="album">
+      <search track_hits="true" debug="false">
+         <fuzzy trigger_at="0" weight="0.45"/>
+         <fieldconfigs>
+            <config name="keyword" select="seizoen" />
+            <config name="normal" select="loc|name" />
+            <config name="default" select="." exact_analyzer="lc_text_search" not_flags="AllowStem" flags="default|constant" fuzzy_rewrite="top_terms_blended_freqs_6"/>
+         </fieldconfigs>
+         <searchers>
+            <searcher field="default" searchfield="text_nl" tiebreaker="0"/>
+            <searcher field="seizoen" searchfield="season"/>
+            <searcher field="jaar" searchfield="year"/>
+            <searcher field="maand" searchfield="month" type="month_searcher"/>
+            <searcher field="loc|location|plaats|locatie" searchfield="location" debug="false" type="location_searcher" score_distance="true"/>
+            <searcher field="name|naam|persoon" type="name_searcher" searchfield="names!name" />
+            <searcher field="personen|gezichten" searchfield="face_count" />
+         </searchers>
+         <boost_query>
+         </boost_query>
+
+         <sortmodes>
+            <sort name="auto" text="Auto" field="_score" direction="desc" />
+            <sort name="oldontop" text="Oudste eerst" field="sort_key" direction="asc" />
+            <sort name="newontop" text="Nieuwste eerst" field="sort_key" direction="desc" />
+            <sort name="relevance" text="Relevantie" field="_score" direction="desc" />
+         </sortmodes>
+
+         <facets />
+      </search>
+   </mainindex>
+
+   <faceindex name="album-faces">
+      <search track_hits="true" debug="false">
+         <fuzzy trigger_at="0" weight="0.45"/>
+         <fieldconfigs>
+            <config name="default" select="."  not_flags="AllowStem" fuzzy_rewrite="top_terms_blended_freqs_6"/>
+         </fieldconfigs>
+         <searchers>
+            <searcher field="default" searchfield="txt" tiebreaker="0"/>
+            <searcher field="name|naam" type="name_searcher" searchfield="names!name" tiebreaker="0"/>
+            <searcher field="personen|gezichten" searchfield="count" />
+         </searchers>
+         <boost_query>
+         </boost_query>
+
+         <sortmodes>
+            <sort name="relevance" text="Relevantie" field="_score" direction="desc" />
+            <sort name="name_down" text="Naam-ID aflopend" field="names!id" direction="desc" />
+            <sort name="name_up" text="Naam-ID" field="names!id" direction="asc" />
+            <sort name="score_down" text="Score aflopend" field="_score" direction="desc" />
+            <sort name="score_up" text="Score" field="_score" direction="asc" />
+            <sort name="allscore_up" text="AllScore" field="names!score_all" direction="asc" />
+            <sort name="allscore_down" text="AllScore aflopend" field="names!score_all" direction="desc" />
+         </sortmodes>
+
+         <facets />
+      </search>
+   </faceindex>
+
+
+
+   <lightbox pagesize="1000" album_mincount="4" cache_version="1" paginate="true" />
+
+   <mvc>
+      <routes authenticate="false" debug="true">
+         <route name="guid" pattern="guid" def_controller="Home" def_action="Guid" />
+         <route name="login" pattern="login" def_controller="Home" def_action="Login" />
+         <route name="faces" pattern="faces" def_controller="Face" def_action="Index" />
+         <route name="user" pattern="{user}" def_controller="Home" def_action="Index" />
+         <route name="default" pattern="{controller}/{action}/{id?}" def_controller="Home" def_action="Index" />
+      </routes>
+
+      <bundles loadbehavior="always">
+         <replace key="$$JQVER$$" value="1.10.2" />
+         <bundle name="main" type="css">
+            <file name="lib/bootstrap/dist/css/bootstrap.min.css" />
+            <file name="css/site.css" />
+            <file name="css/slimbar.css" />
+            <file name="js/overlay/overlay.css" />
+            <file name="js/clipboard/clip.css"/>
+            <file name="lib/lg/css/lightgallery-bundle.css" />
+         </bundle>
+
+         <!--
+         NB: include needed files if you change the code in site.js:
+         plugins: [lgVideo, lgAutoplay, lgFullscreen, lgHash]
+         -->
+         <bundle name="main" type="js">
+            <file name="lib/jquery-ui-1.13.2/external/jquery/jquery.js"  />
+            <file name="lib/jquery-ui-1.13.2/jquery-ui.min.js"  />
+
+            <file name="lib/lg/lightgallery.umd.js" />
+            <file name="lib/lg/plugins/autoplay/lg-autoplay.umd.js" />
+            <file name="lib/lg/plugins/fullscreen/lg-fullscreen.umd.js"  />
+            <file name="lib/lg/plugins/pager/lg-pager.umd.js"  />
+            <file name="lib/lg/plugins/video/lg-video.umd.js"  />
+            <_file name="lib/lg/plugins/hash/lg-hash.umd.js"   />
+            <_file name="lib/lg/plugins/mediumZoom/lg-medium-zoom.umd.js"  />
+            <_file name="lib/lg/plugins/comment/lg-comment.umd.js"   />
+            <_file name="lib/lg/plugins/relativeCaption/lg-relative-caption.umd.js"  />
+            <_file name="lib/lg/plugins/rotate/lg-rotate.umd.js"  />
+            <_file name="lib/lg/plugins/share/lg-share.umd.js"  />
+            <_file name="lib/lg/plugins/thumbnail/lg-thumbnail.umd.js"  />
+            <_file name="lib/lg/plugins/zoom/lg-zoom.umd.js"  />
+
+            <file name="js/bmglobals.js"  />
+            <file name="js/clipboard/clip.js"/>
+            <file name="js/hook_console.js"  />
+            <file name="js/hook_history.js"  />
+            <file name="js/overlay/overlay.js"  />
+            <file name="js/lazyload.js"  />
+            <file name="js/zoomer.js" />
+            <file name="js/site.js"  />
+            <file name="js/splitter-152.js"  />
+         </bundle>
+      </bundles>
+   </mvc>
+
+   <users>
+      <!-- Example of a collection. Accessible as <main_url>/9d71530b1f314b08816dcef2625e85eb -->
+      <user id="9d71530b1f314b08816dcef2625e85eb" name="some_collection" expose="." skip_authenticate=".">
+         <filter field="user" value="peter" clause="must" />
+         <filter field="text" value="familiedag" />
+         <filter field="text" value="lelystad" />
+         <filter field="text" value="geocachen" clause="must_not" />
+      </user>
+      <!-- Default collection(everything). Accessible as <main_url>. External clients will see a 404 -->
+      <user id="*" name="default" expose="^internal|^authenticated" skip_authenticate=".">
+      </user>
+   </users>
+
+</root>

@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AForge" Version="2.2.5" />
+    <PackageReference Include="AForge.Imaging" Version="2.2.5" />
+    <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BMBoolParser200">
+      <HintPath>..\..\_References\BMBoolParser200.dll</HintPath>
+    </Reference>
+    <Reference Include="bmcore102">
+      <HintPath>..\..\_References\BMCore102.dll</HintPath>
+    </Reference>
+    <Reference Include="BMElastic200">
+      <HintPath>..\..\_References\BMElastic200.dll</HintPath>
+    </Reference>
+    <Reference Include="BMHttp200">
+      <HintPath>..\..\_References\BMHttp200.dll</HintPath>
+    </Reference>
+    <Reference Include="BMImage102">
+      <HintPath>..\..\_References\BMImage102.dll</HintPath>
+    </Reference>
+    <Reference Include="BMQuery200">
+      <HintPath>..\..\_References\BMQuery200.dll</HintPath>
+    </Reference>
+    <Reference Include="BMWeb200">
+      <HintPath>..\..\_References\BMWeb200.dll</HintPath>
+    </Reference>
+    <Reference Include="BMWebService200">
+      <HintPath>..\..\_References\BMWebService200.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
