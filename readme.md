@@ -33,6 +33,11 @@ Make sure you pay attention to
 
 If you want to expose your site over the internet, you should use IIS or equivalent server.
 
+#### Compilation
+
+Make sure you have a sub-folder '_references' in your solutions folder. This can be a junction to a common folder (see `@CreateRefsLink`) or a real folder.
+All needed references can be found from the zip that is supplied in the release.
+
 
 
 ## Collections (users)
