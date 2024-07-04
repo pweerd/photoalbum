@@ -109,7 +109,9 @@ namespace BMAlbum {
                      break;
                   }
                }
-               if (val != null && val != "Alle") {
+               if (val == null || val=="Alle") {
+                  if (key == "album") PerAlbum = TriStateBool.False;
+               } else {
                   Facets.Add (new KeyValuePair<string, string> (key, val));
                   Sort = SearchSettings.SortModes.Default;
                }
