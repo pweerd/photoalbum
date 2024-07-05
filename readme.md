@@ -33,10 +33,12 @@ Make sure you pay attention to
 
 If you want to expose your site over the internet, you should use IIS or equivalent server.
 
-#### Compilation
+#### Compilation and needed references
+
+The project is created with VS2022. It is probably not possible to compile the project with earlier versions of VS.
 
 Make sure you have a sub-folder '_references' in your solutions folder. This can be a junction to a common folder (see `@CreateRefsLink`) or a real folder.
-All needed references can be found from the zip that is supplied in the release.
+All needed references can be found from **the zip that is supplied in the release**.
 
 
 
