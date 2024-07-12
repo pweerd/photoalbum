@@ -33,7 +33,7 @@ namespace BMAlbum {
             var settings = g.RegisterSettingsService (services, (fn, oldSettings) => new Settings (fn, oldSettings));
             g.RegisterRequestContextService (services);
             g.RegisterAuthenticationService (services, true);
-            g.RegisterIPBlacklistService (services, false);
+            g.RegisterAccessControlService (services, false);
 
             var app = builder.Build ();
 
@@ -43,8 +43,8 @@ namespace BMAlbum {
 
             app.UseDeveloperExceptionPage ();
             g.RegisterExceptionHandler (app);
-            g.RegisterIPBlacklistHandler (app);
             g.RegisterRedirectHttps (app);
+            g.RegisterAccessControlHandler (app);
             g.RegisterRequestLogging (app);
 
             app.UseStaticFiles ();

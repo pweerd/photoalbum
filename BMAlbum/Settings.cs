@@ -75,16 +75,24 @@ namespace BMAlbum {
 
          Refresher = (oldSettings != null) ? ourOldSettings.Refresher : new Refresher (this);
 
-         Users = new Users (Xml.SelectSingleNode ("users"));
-         Users.Dump (WebGlobals.Instance.SiteLog);
          LightboxSettings = new LightboxSettings (Xml.SelectSingleNode ("lightbox"));
 
          if (oldSettings != null) {
             IndexInfoCache = ((Settings)oldSettings).IndexInfoCache;
          }
-         if (IndexInfoCache == null) IndexInfoCache = new ESIndexInfoCache (ESClient, ComputeID);
+         IndexInfoCache ??= new ESIndexInfoCache (ESClient, ComputeID);
 
          FacesAdmin = new FacesAdmin (Xml.SelectMandatoryNode ("faces_admin"), SiteLog);
+
+         Users = new Users (Xml.SelectSingleNode ("users"), doesUserExist);
+         Users.Dump (WebGlobals.Instance.SiteLog);
+      }
+
+      public bool doesUserExist(User user) {
+         var req = ESClient.CreateSearchRequest (MainIndex);
+         req.Query = user.Filter;
+         var resp = req.Count ();
+         return resp.IsOK() && resp.Count > 0;
       }
 
       private static void Instance_OnStop (object? sender, EventArgs e) {

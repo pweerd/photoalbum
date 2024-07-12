@@ -14,26 +14,38 @@
  * limitations under the License.
  */
 
+using Bitmanager.BoolParser;
+using Bitmanager.Cache;
 using Bitmanager.Core;
 using Bitmanager.Elastic;
 using Bitmanager.Json;
+using Bitmanager.Query;
 using Bitmanager.Web;
 using Bitmanager.Xml;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
-using static BMAlbum.AlbumFilter;
 
 namespace BMAlbum {
 
    public enum _Access { Ok, NotExposed, MustAuthenticate };
-   public class Users {
-      public readonly User DefUser;
-      private readonly Dictionary<string, User> users;
 
-      public Users(XmlNode node) {
-         DefUser = new User ();
+   public class Users {
+      private readonly Func<User, bool> userExists;
+      public readonly User DefUser;
+      public readonly User Template;
+      private readonly Dictionary<string, User> users;
+      private readonly LRUCache dynamicUsers;
+
+      public Users (XmlNode node, Func<User,bool> userChecker) {
+         this.userExists = userChecker;
+         dynamicUsers = new LRUCache (5);
+
+         DefUser = createUser (node.SelectSingleNode ("default"));
+         Template = createUser (node.SelectSingleNode ("template"));
+
          users = new Dictionary<string, User> ();
          if (node != null) {
             foreach (XmlNode sub in node.SelectNodes ("user")) {
@@ -41,9 +53,10 @@ namespace BMAlbum {
                users.Add (user.Id, user);
             }
          }
+      }
 
-         if (users.ContainsKey (DefUser.Id)) DefUser = users[DefUser.Id];
-         else users.Add(DefUser.Id, DefUser);
+      private static User createUser (XmlNode node) {
+         return node==null ? null : new User (node);
       }
 
       /// <summary>
@@ -55,28 +68,51 @@ namespace BMAlbum {
       public User GetUser (string id) {
          User u = DefUser;
          if (id != null) {
-            if (users.TryGetValue (id, out u)) {
-               if (DateTime.UtcNow > u.Expires) u = null;
-            } else {
-               u = new User (DefUser, id);
-            };
+            if (!users.TryGetValue (id, out u)) {
+               if (Template == null) u = null;
+               else {
+                  u = (User)dynamicUsers.Get (id);
+                  if (u == null) {
+                     u = new User (Template, id);
+                     if (userExists (u))
+                        u = (User)dynamicUsers.GetOrAdd (id, u);
+                     else
+                        u = null;
+                  }
+               }
+            }
          }
+         if (u != null && DateTime.UtcNow > u.Expires) u = null;
          return u;
       }
 
       public void Dump (Logger logger) {
          logger.Log("Dumping {0} users:", users.Count);
+         _dumpDefault (DefUser, logger, "default");
+         _dumpDefault (Template, logger, "template");
+
          foreach (var kvp in users) {
             var user = kvp.Value;
             logger.Log ("-- User {0}, name={1}, expose='{2}', skip_auth='{3}', expire={4}:", user.Id, user.Name, user.ExposeExpr, user.SkipAuthenticateExpr, user.Expires);
-            var bq = kvp.Value.CreateFilter ();
-            if (bq == null)
-               logger.Log ("-- -- No filter");
-            else 
-               logger.Log ("-- -- {0}", bq.ToJsonString());
+            _dumpFilter (user, logger);
          }
       }
 
+      private static void _dumpFilter (User user, Logger logger) {
+         var bq = user.Filter;
+         if (bq == null)
+            logger.Log ("-- -- No filter");
+         else
+            logger.Log ("-- -- {0}", bq.ToJsonString ());
+      }
+      private static void _dumpDefault (User user, Logger logger, string type) {
+         if (user == null)
+            logger.Log ("-- {0}: null", type);
+         else {
+            logger.Log ("-- {0}: expose='{1}', skip_auth='{2}', expire={3}:", type, user.ExposeExpr, user.SkipAuthenticateExpr, user.Expires);
+            _dumpFilter (user, logger);
+         }
+      }
    }
 
 
@@ -88,14 +124,13 @@ namespace BMAlbum {
       public readonly string Name;
       public readonly Regex SkipAuthenticateExpr;
       public readonly Regex ExposeExpr;
-      public readonly AlbumFilter[] FilterSources;
+      public readonly ESQuery Filter;
       public readonly DateTime Expires;
 
       public User () {
-         Name = "*";
-         Id = "*";
-         SkipAuthenticateExpr = regexAny;
-         ExposeExpr = regexAny;
+         SkipAuthenticateExpr = regexIntern;
+         ExposeExpr = regexIntern;
+         Expires = DateTime.MaxValue;
       }
 
       public User (User other, string name) {
@@ -103,16 +138,17 @@ namespace BMAlbum {
          Id = name;
          SkipAuthenticateExpr = other.SkipAuthenticateExpr;
          ExposeExpr = other.ExposeExpr;
-         int N = 1 + (other.FilterSources==null ? 0 : other.FilterSources.Length);
-         FilterSources = new AlbumFilter[N];
-         if (N > 1) Array.Copy (other.FilterSources, FilterSources, N - 1);
-         FilterSources[N - 1] = new AlbumTermFilter (_Clause.filter, "user", name);
+         Expires = other.Expires;
+         Filter = ESBoolQuery.CreateFilteredQuery (other.Filter, new ESTermQuery ("user", name));
       }
 
+      enum _Clause { should, must, must_not, filter };
       public User (XmlNode node) {
          const RegexOptions OPTIONS = RegexOptions.Compiled | RegexOptions.CultureInvariant;
-         Name = node.ReadStr ("@name");
-         Id = node.ReadStr ("@id");
+         if (node.Name=="user") {
+            Name = node.ReadStr ("@name");
+            Id = node.ReadStr ("@id");
+         }
          string tmp;
 
          tmp = node.ReadStr ("@skip_authenticate", null);
@@ -125,24 +161,30 @@ namespace BMAlbum {
 
          var list = node.SelectNodes ("filter");
          if (list != null && list.Count>0) {
-            FilterSources = new AlbumFilter[list.Count];
-            for (int i = 0; i < list.Count; i++) {
-               XmlNode sub = list[i];
-               if (sub.HasAttribute ("value")) {
-                  FilterSources[i] = new AlbumTermFilter (sub);
-                  continue;
-               }
-               if (sub.HasAttribute ("prefix")) {
-                  FilterSources[i] = new AlbumPrefixFilter (sub);
-                  continue;
-               }
-               //if (sub.HasAttribute ("expr")) {
-               //   FilterSources[i] = new AlbumRegexFilter (sub);
-               //   continue;
-               //}
-
-               FilterSources[i] = new AlbumCustomFilter (sub);
+            ESQuery filter = null;
+            switch (list.Count) {
+               case 0: break;
+               case 1:
+                  filter = AlbumCollectionParser.ParseNode (list[0]);
+                  break;
+               default:
+                  var bq = new ESBoolQuery (1);
+                  filter = bq;
+                  for (int i = 0; i < list.Count; i++) {
+                     var q = AlbumCollectionParser.ParseNode (list[i]);
+                     switch (node.ReadEnum ("@clause", _Clause.should)) {
+                        case _Clause.should: bq.AddShould (q); break;
+                        case _Clause.filter: bq.AddFilter (q); break;
+                        case _Clause.must: bq.AddMust (q); break;
+                        case _Clause.must_not: bq.AddNot (q); break;
+                        default:
+                           node.ReadEnum ("@clause", _Clause.should).ThrowUnexpected ();
+                           break;
+                     }
+                  }
+                  break;
             }
+            Filter = filter;
          }
       }
 
@@ -162,92 +204,31 @@ namespace BMAlbum {
          return _Access.Ok;
       }
 
-      public ESQuery CreateFilter() {
-         if (FilterSources == null) return null;
-         if (FilterSources.Length == 1) return FilterSources[0].CreateFilter ();
-         var bq = new ESBoolQuery (1);
-         for (int i = 0; i < FilterSources.Length; i++) {
-            var filterSrc = FilterSources[i];
-            var q = filterSrc.CreateFilter ();
-            switch (filterSrc.Clause) {
-               case _Clause.should:
-                  bq.ShouldClauses.Add (q);
-                  continue;
-               case _Clause.must:
-                  bq.MustClauses.Add (q);
-                  continue;
-               case _Clause.must_not:
-                  bq.NotClauses.Add (q);
-                  continue;
-               case _Clause.filter:
-                  bq.FilterClauses.Add (q);
-                  continue;
-               default:
-                  filterSrc.Clause.ThrowUnexpected (); break;
-            }
-         }
-         return bq;
-      }
-
       public override string ToString () {
          return Invariant.Format ("User[id={0}, n={1}]", Id, Name);
       }
    }
 
 
-   public abstract class AlbumFilter {
-      public enum _Clause { should, must, must_not, filter };
-      public readonly _Clause Clause;
-      public abstract ESQuery CreateFilter ();
 
-      public AlbumFilter (XmlNode node) {
-         Clause = node.ReadEnum ("@clause", _Clause.should);
-      }
-      public AlbumFilter (_Clause c) {
-         Clause = c;
-      }
-   }
-   public abstract class AlbumFieldFilter : AlbumFilter {
-      public readonly string Field;
-      public AlbumFieldFilter (XmlNode node) : base(node) {
-         Field = node.ReadStr ("@field");
-      }
-      public AlbumFieldFilter (_Clause c, string field) : base (c) {
-         Field = field;
-      }
-   }
-
-   public class AlbumTermFilter : AlbumFieldFilter {
-      public readonly string Value;
-      public AlbumTermFilter (XmlNode node) : base (node) {
-         Value = node.ReadStr ("@value");
-      }
-      public AlbumTermFilter (_Clause c, string field, string value) : base (c, field) {
-         Value = value;
-      }
-
-      public override ESQuery CreateFilter () {
-         return new ESMatchQuery (Field, Value).SetOperator(ESQueryOperator.and);
-      }
-   }
-
-   public class AlbumPrefixFilter : AlbumFieldFilter {
-      public readonly string Value;
-      public AlbumPrefixFilter (XmlNode node) : base (node) {
-         Value = node.ReadStr ("@prefix");
-      }
-      public override ESQuery CreateFilter () {
-         return new ESPrefixQuery (Field, Value);
-      }
-   }
-
-   public class AlbumCustomFilter : AlbumFilter {
-      private readonly JsonObjectValue json;
-      public AlbumCustomFilter (XmlNode node) : base (node) {
-         json = JsonObjectValue.Parse (node.InnerText.Trim ());
-      }
-      public override ESQuery CreateFilter () {
+   public class AlbumCollectionParser {
+      public static ESQuery ParseNode(XmlNode node) {
+         if (node.HasAttribute ("value")) {
+            return new ESMatchQuery (node.ReadStr("@field"), node.ReadStr ("@value")).SetOperator (ESQueryOperator.and);
+         }
+         if (node.HasAttribute ("prefix")) {
+            return new ESPrefixQuery (node.ReadStr ("@field"), node.ReadStr ("@prefix"));
+         }
+         if (node.HasAttribute ("query")) {
+            var qg = new FilterGenerator (node.ReadStr ("@query"), node.ReadBool ("@debug", false));
+            //var qg = new QueryGenerator (searchSettings, indexInfo, node.ReadStr ("@query"));
+            var ret = qg.GenerateQuery ();
+            if (ret==null) throw new BMNodeException (node, "Filter did not result in a query.");
+            return ret;
+         }
+         var json = JsonObjectValue.Parse (node.InnerText.Trim ());
          return new ESJsonQuery (json);
       }
    }
+
 }

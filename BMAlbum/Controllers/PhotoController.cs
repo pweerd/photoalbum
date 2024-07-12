@@ -78,7 +78,7 @@ namespace BMAlbum.Controllers {
             clientState.Unhide = false;
             notFilter = hideAll;
          }
-         userFilter = clientState.User.CreateFilter ();
+         userFilter = clientState.User.Filter;
          int SIZE = clientState.ActualPageSize;
          string what = "no filter";
          if (notFilter == hideExternal) what = "hideExternal";
