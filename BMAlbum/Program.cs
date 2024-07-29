@@ -59,9 +59,8 @@ namespace BMAlbum {
             app.Run ();
 
          } catch (Exception e) {
-            string msg = Invariant.Format ("Error during initialization: {0}", e.GetBestMessage ());
-            Console.Error.WriteLine (msg);
-            Logs.ErrorLog.Log (e, msg);
+            Console.Error.WriteLine ("Error during initialization: {0}", e.GetBestMessage ());
+            Logs.ErrorLog.Log (e, "Error during initialization");
          }
       }
    }
