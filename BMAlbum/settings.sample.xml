@@ -1,5 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <root _log="all" autorefresh="true">
+
+   <!-- Adds a class to the client IP
+        By default non-routable IP's get a class 'internal'.
+        It is advisable to specify your own external IP as internal as well
+   -->
    <ipconfigs defaults="true" catchall="external">
       <ipconfig name="internal_home">
          <ip include="true" addr="YOUR_EXTERNAL_IP" />
@@ -18,8 +23,25 @@
 
    <authentication />
 
+   <!-- You don't need the access_control element.
+        If you use it, it will be used to block certain request from
+        - an IP blacklist
+        - bogus user_agents
+        - unexpected referrers
+        The check=xxx determines what is checked
+   -->
+   <access_control check="CheckIP|CheckUserAgent|CheckReferrer|LogBlocked">
+      <!-- syncs the blacklist with bitmanager and put the downloaded list into the tempdir -->
+      <ipblacklist sync_url="default" generations="2" root="temp\ipblacklist.txt" check_period="1h" mandatory="true"/>
+      <user_agent excl="^curl|^python|^Go-http-client|AsyncHttpClient" allow_empty="false"/>
+      <referrer dynamic="true" root_expr="^/$|^/[^/]+$">
+         <incl url="https://bitmanager.nl" />
+      </referrer>
+   </access_control>
+
+
    <!-- ELASTIC SERVER -->
-   <server url="http://localhost:9200" debug="true"/>
+   <server url="http://localhost:9200" debug="true" _trusted_ca="" _apikey="" _allow_cert_errors="true"/>
 
    <roots>
       <!-- roots that are used by the importer -->
@@ -57,7 +79,7 @@
             <searcher field="seizoen" searchfield="season"/>
             <searcher field="jaar" searchfield="year"/>
             <searcher field="maand" searchfield="month" type="month_searcher"/>
-            <searcher field="loc|location|plaats|locatie" searchfield="location" debug="false" type="location_searcher" score_distance="true"/>
+            <searcher field="loc|location|plaats|locatie" searchfield="location" debug="false" type="location_searcher" score_distance="true" api_key="YOUR GOOGLE_API_KEY OR EMPTY"/>
             <searcher field="name|naam|persoon" type="name_searcher" searchfield="names!name" />
             <searcher field="personen|gezichten" searchfield="face_count" />
          </searchers>
@@ -163,16 +185,41 @@
    </mvc>
 
    <users>
-      <!-- Example of a collection. Accessible as <main_url>/9d71530b1f314b08816dcef2625e85eb -->
+      <!-- Example of a collection. Accessible as <main_url>/9d71530b1f314b08816dcef2625e85eb
+           expose="." means: expose to all IP's
+           skip_authenticate="." means: do not authenticate for all IP's
+      -->
       <user id="9d71530b1f314b08816dcef2625e85eb" name="some_collection" expose="." skip_authenticate=".">
          <filter field="user" value="peter" clause="must" />
          <filter field="text" value="familiedag" />
          <filter field="text" value="lelystad" />
          <filter field="text" value="geocachen" clause="must_not" />
       </user>
-      <!-- Default collection(everything). Accessible as <main_url>. External clients will see a 404 -->
-      <user id="*" name="default" expose="^internal|^authenticated" skip_authenticate=".">
+
+      <!-- 2nd Example of a collection, using a query as filter
+      -->
+      <user id="9d71530b1f314b08816dcef2625e85eb" name="some_collection" expose="." skip_authenticate=".">
+         <filter field="user" value="peter" clause="must" />
+         <filter field="query" value="text:(familiedag OR lelystad NOT:geocachen)" />
+         <filter field="text" value="lelystad" />
+         <filter field="text" value="geocachen" clause="must_not" />
       </user>
+
+      <!-- Default collection(everything). Accessible as <main_url>. External clients will see a 404
+           If not specified, external clients will see a 404. This is especially handy to 'hide' your album from bots and other bogus clients
+      -->
+      <default  expose="^internal|^authenticated" skip_authenticate=".">
+        <!-- optional specify some filters here -->
+      </default>
+
+      <!-- Template collection.
+           Suppose you specified user X in the import, and a request for <main_url>/X is done.
+           Then a dynamic collection with id=X will be created from the filters you specify in the temple-element, ANDed with user=X
+           If not specified, no dynamic collection is created, resulting in a 404.
+      -->
+      <template  expose="^internal|^authenticated" skip_authenticate=".">
+        <!-- optional specify some filters here -->
+      </template>
    </users>
 
 </root>
