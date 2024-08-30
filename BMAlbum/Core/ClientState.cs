@@ -154,6 +154,7 @@ namespace BMAlbum {
          container["per_album"] = PerAlbum == TriStateBool.False ? false : true;
          container["sort"] = Sort?.Name;
          container["face_mode"] = FaceMode;
+         container["lightbox_settings"] = settings.LightboxSettings.SettingsForClient;
          if (Slide != null) container["slide"] = Slide;
          if (Facets != null && Facets.Count > 0) {
             foreach (var kvp in Facets) {

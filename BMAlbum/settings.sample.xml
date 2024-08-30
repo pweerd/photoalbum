@@ -127,8 +127,19 @@
 
 
 
-   <lightbox pagesize="1000" album_mincount="4" cache_version="1" paginate="true" />
-
+   <lightbox pagesize="1000" album_mincount="4" cache_version="1" paginate="true" >
+      <sizes device="phone">
+         <size width="0"   target_count="2" max_ratio="1" _fixed="150" />
+         <size width="400" target_count="4" max_ratio="1" />
+      </sizes>
+      <sizes device="all">
+         <size width="0"   target_count="3" max_ratio="1" />
+         <size width="400" target_count="4" max_ratio="1" />
+         <size width="600" target_count="5" max_ratio="1" />
+         <size width="800" target_count="5" max_ratio="3:4" attr_justify_content="space-between" />
+      </sizes>
+   </lightbox>
+   
    <mvc>
       <routes authenticate="false" debug="true">
          <route name="guid" pattern="guid" def_controller="Home" def_action="Guid" />

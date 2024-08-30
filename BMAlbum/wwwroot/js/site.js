@@ -16,18 +16,52 @@
 
 
 function createApplication(state) {
+   class LightboxState {
+      imgHeight;
+      ratio;
+      sizeSettings;
+
+      constructor(imgHeight, sizeSettings, ratio) {
+         this.imgHeight = imgHeight;
+         this.sizeSettings = sizeSettings;
+         this.ratio = ratio;
+      }
+
+      isChanged(oldState) {
+         return this.imgHeight != oldState.imgHeight || this.sizeSettings != oldState.sizeSettings;
+      };
+
+      limitRatio(ratio) {
+         if (_device & this.sizeSettings.square_on) return 1;
+
+         if (ratio < this.sizeSettings.ratio_lo) return this.sizeSettings.ratio_lo;
+         if (ratio > this.sizeSettings.ratio_hi) return this.sizeSettings.ratio_hi;
+         return ratio;
+      }
+   }
+
+   if ((state.debug_flags & 0x10000) !== 0 && bmGlobals.hookConsole)
+      bmGlobals.hookConsole([state.home_url, 'clientlog/log?', state.home_url_params].join(''));
+
+
+
    const dbg_overlay = false;
+   //NB these constants should match the BrowserType enum in LightboxSettings.cs
+   const DESKTOP = 1;
+   const PHONE = 2;
+   const TABLET = 4;
+
    let _state = state;
    let _data;
    let _lg;
    let _curDims = [0,0];
-   let _lastLbImgHeight = -1;  //Last used img height for lightbox
-   let _lastLbRatio = 1;       //Ratio on which _lastLbImgHeight was based
+   let _lastLbState = new LightboxState(-1, null, 0);  //Last state of the lightbox
    let _isTouch = false;
    let _zoomer; 
    let _multipleAlbums = false;
    let _unique = 0;
-   let _faceNames = {chgid:-1};
+   let _faceNames = { chgid: -1 };
+   let _lightboxSizes = state.lightbox_settings;
 
    //Save the original url for using in the history
    _state.entryUrl = new URL(window.location);
@@ -42,6 +76,16 @@ function createApplication(state) {
       })
       ;
 
+   let _device = function () {
+      let ua = navigator.userAgent.toLowerCase();
+      let mobile = /iphone|ipad|ipod|android/.test(ua);
+
+      if (mobile) {
+         return (/mobile/.test(ua)) ? PHONE : TABLET;
+      }
+      return DESKTOP;
+   }();
+   console.log("DEVICE", _device);
 
    function modulo(val, m) {
       return Math.floor(val / m) * m;
@@ -108,7 +152,7 @@ function createApplication(state) {
       });
    }
 
-   function _createImgMarkup(sb, photo, h) {
+   function _createImgMarkup(sb, photo, lbState) {
       sb.push('<a href="" class="lb-item" data-src="'); //PW:  jg-entry jg-entry-visible
       sb.push(photo.imgUrl);
       sb.push('" thumb="');
@@ -120,12 +164,18 @@ function createApplication(state) {
       sb.push('"><div class="lb-wrapper"><img class="lb-image lazyload" src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src="');
       sb.push(photo.imgUrl);
 
-      let w = Math.round((photo.w * h) / photo.h);
-      sb.push('&h=' + 240 + '" width="' + w + '" height="' + h);
+      let aspect = lbState.limitRatio(photo.w / photo.h);
+      let h = lbState.imgHeight;
+      let w = Math.round(h * aspect);
+      sb.push('&h=240" width="' + w + '" height="' + h);
       sb.push('"><div class="txtbadge info-badge bottom-right-4"></div></div></a>');
    }
 
-   function _createFaceMarkup(sb, photo, h) {
+   function _createFaceMarkup(sb, photo, lbState) {
+      let ratio = lbState.limitRatio (photo.w0 / photo.h0);
+      let h = lbState.imgHeight;
+      let w = Math.round(h * ratio);
+
       function round2(v) {
          return v ? v.toFixed(2) : '';
          //return Math.round((v + Number.EPSILON) * 100) / 100;
@@ -134,8 +184,8 @@ function createApplication(state) {
       sb.push(photo.imgUrl);
       sb.push('" data-photo="');
       sb.push(photo.photoUrl);
-      sb.push('"><div class="lb-wrapper"><img class="lb-image lazyload" width="' + photo.w0);
-      sb.push(' height="' + photo.h0 + '" src = "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src="');
+      sb.push('"><div class="lb-wrapper"><img class="lb-image lazyload" width="' + w);
+      sb.push('" height="' + h + '" src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src="');
       sb.push(photo.imgUrl);
       sb.push('"><div class="face_name">'); 
       if (photo.names) {
@@ -158,33 +208,67 @@ function createApplication(state) {
       sb.push('</div></div>');
    }
 
+   //Initializes the lightbox style and returns a LightboxState
+   function _prepareLightboxAndGetHeight($elt, _ratio) {
+      let w = $elt.width()-9; //9 for the scrollbar
+      let sizeSettings;
 
-   function _getLightboxImgHeight($elt, ratio) {
-      let w = $elt.width();
-      let h = 240;
-      let n = 4;
-      if (w < 512) n = 2;
-      else if (w < 1024) n = 3;
+      //Search correct settings, based on device type and width
+      for (let i = 0; i < _lightboxSizes.length; i++) {
+         if ((_lightboxSizes[i].device & _device) == 0) continue;
 
-      let maxH = (w - n * 20) / (n * ratio);
-      if (maxH < h) h = Math.floor(maxH / 10) * 10;
-      console.log("maxH", maxH, h, ratio, n);
-      return h;
+         //Correct device type
+         let sizes = _lightboxSizes[i].sizes;
+         let j = sizes.length - 1;
+         //Search correct width entry. The 1st entry should have width=0
+         for (; j >= 0; j--) if (w >= sizes[j].width) break; 
+         sizeSettings = sizes[j];
+         break;
+      }
+
+      //Set the associated styles
+      for (const [k, v] of Object.entries(sizeSettings.attr)) {
+         $elt.css(k, v);
+      }
+
+      let h = sizeSettings.fixed;
+      if (h <= 0) {
+         h = 240;
+         let ratio = _ratio;
+         if (ratio < sizeSettings.ratio_lo) ratio = sizeSettings.ratio_lo;
+         else if (ratio > sizeSettings.ratio_hi) ratio = sizeSettings.ratio_hi;
+
+         let n = sizeSettings.target_count;
+         if (n <= 0) {
+            n = 4;
+            if (w < 512) n = 2;
+            else if (w < 1024) n = 3;
+            if (ratio > .95 && ratio < 1.05) n++;
+         }
+
+         let availableW = (w - n * 4) / n; //4 because of margin
+         console.log("w, n, availableW=", w, n, availableW);
+         let availableH = availableW / ratio;
+         if (availableH < h) h = Math.floor(availableH);
+         console.log("availableW, h, ratio, n=", availableH, h, ratio, n);
+      }
+      if (_state.face_mode && h < 200) h = 200;
+      return new LightboxState(h, sizeSettings, _ratio);
    }
 
    let _resizeTimer;
    function _resizeHandler(ev) {
-      if (!_lg || !_lg.el || ev.target !== window) return;
+      if (ev.target !== window) return;
+      if (!_state.face_mode && (!_lg || !_lg.el)) return;
 
       if (_resizeTimer) clearTimeout(_resizeTimer);
       _resizeTimer = setTimeout(function () {
          _updateDims();
-         _setGalleryTitle();
-         let $elt = $(_lg.el);
-         let h = _getLightboxImgHeight($elt, _lastLbRatio);
-         if (h !== _lastLbImgHeight) {
-            console.log('RESIZE old h=', _lastLbImgHeight, ', new H=', h);
-            _lastLbImgHeight = h;
+         if (!_state.face_mode) _setGalleryTitle();
+         let $elt = $("#lightbox");
+         const lbState = _prepareLightboxAndGetHeight($elt, _lastLbState.ratio);
+         if (_lastLbState.isChanged(lbState)) {
+            console.log('RESIZE changed states: old=', _lastLbState);
             _updateLightBox("resize");
          }
       }, 300);
@@ -197,7 +281,6 @@ function createApplication(state) {
          if (v) sb.push("<tr><td>" + k + ":</td><td>" + v + "</td?</tr>");
       }
       let photo = _lg.galleryItems[ix].file;
-      let ix0 = photo.f.indexOf('\\');
       let ix1 = photo.f.lastIndexOf('\\');
 
       sb.push("<table class='meta_table'>");
@@ -301,7 +384,7 @@ function createApplication(state) {
    }
 
    function _selectOptionByText($elt, valueToSelect) {
-      console.log('select optin by value: ', valueToSelect);
+      console.log('select option by value: ', valueToSelect);
       if (valueToSelect) {
          let options = $elt[0].options;
          for (let i = 0; i < options.length; i++) {
@@ -384,9 +467,9 @@ function createApplication(state) {
       let imgUrl = _state.home_url + 'photo/get?id=';
 
       //Determine best height of the images and save the value for later usage
-      let h = _getLightboxImgHeight($elt, data.max_w_ratio);
-      _lastLbImgHeight = h;
-      _lastLbRatio = data.max_w_ratio;
+      const lbState = _prepareLightboxAndGetHeight($elt, data.max_w_ratio, true);
+      _lastLbState = lbState;
+      console.log("lbState=", lbState);
 
       let files = data.files;
       let multipleAlbums = false;
@@ -401,7 +484,7 @@ function createApplication(state) {
          let ix2 = file.f.lastIndexOf('\\', ix - 1);
          if (ix2 >= 0) file.dir = file.f.substring(ix2 + 1, ix);
 
-         _createImgMarkup(sb, file, h);
+         _createImgMarkup(sb, file, lbState);
       }
       sb.push("<div class='lb-sentinel-item'></div>")
       $elt.html(sb.join(''));
@@ -438,9 +521,10 @@ function createApplication(state) {
       let photoUrl = _state.home_url + 'photo/get?id=';
 
       //Determine best height of the images and save the value for later usage
-      let h = _getLightboxImgHeight($elt, data.max_w_ratio);
-      _lastLbImgHeight = h;
-      _lastLbRatio = data.max_w_ratio;
+      const lbState = _prepareLightboxAndGetHeight($elt, data.max_w_ratio || 1, true);
+      _lastLbState = lbState;
+      console.log("Faces lbState=", lbState);
+
 
       let files = data.files;
       for (let i = 0; i < files.length; i++) {
@@ -449,7 +533,7 @@ function createApplication(state) {
          let ix = file.id.lastIndexOf('~');
          file.photoUrl = photoUrl + encodeURIComponent(file.id.substring(0,ix));
 
-         _createFaceMarkup(sb, file, h);
+         _createFaceMarkup(sb, file, lbState);
       }
       sb.push("<div class='lb-sentinel-item'></div>")
       $elt.html(sb.join(''));
@@ -879,9 +963,6 @@ function createApplication(state) {
    }
 
    let _overlay = createOverlay('#overlay');
-
-   if ((_state.debug_flags & 0x10000) !== 0 && bmGlobals.hookConsole)
-      bmGlobals.hookConsole([_state.home_url, 'clientlog/log?', _state.home_url_params].join(''));
 
    $('#albums').on('change', function () {
       let ix = parseInt(this.value);

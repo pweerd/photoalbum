@@ -86,6 +86,8 @@ namespace BMAlbum {
 
          Users = new Users (Xml.SelectSingleNode ("users"), doesUserExist);
          Users.Dump (WebGlobals.Instance.SiteLog);
+
+         WebGlobals.Instance.SiteLog.Log("Lightbox client settings:\n{0}", LightboxSettings.SettingsForClient);
       }
 
       public bool doesUserExist(User user) {

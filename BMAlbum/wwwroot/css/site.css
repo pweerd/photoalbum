@@ -101,12 +101,14 @@ body {
 #lightbox {
    display: flex;
    flex-direction: row;
-   justify-content: space-between;
+   justify-content:  unset;
    flex-wrap: wrap;
 }
 
 .lb-image {
-   margin: 4px;
+   margin: 2px;
+   object-fit: cover;
+   object-position: center;
    /*image-rendering: pixelated;*/
 }
 
