@@ -46,12 +46,22 @@
 
    function _logToServer(type, args) {
       if (type === 'log' || type === 'trace') type = 'debug';
-      let payload = [];
+      let payload = [], str;
       if (arguments) {
          for (let i = 0; i < args.length; i++) {
             if (i > 0) payload.push(' ');
-            //payload.push(JSON.stringify(args[i]));
-            payload.push(args[i].toString());
+
+            let v = args[i];
+            try {
+               switch (typeof v) {
+                  case "object": str = JSON.stringify(v); break;
+                  case "undefined": str = "undefined"; break;
+                  default: str = v.toString(); break;
+               }
+            } catch (err) {
+               str = err;
+            }
+            payload.push(str);
          }
       }
       _addToCache({ t: type, m: payload.join('') });
