@@ -21,8 +21,10 @@ using Bitmanager.Http;
 using Bitmanager.Json;
 using Bitmanager.Query;
 using Bitmanager.Web;
+using BMAlbum.Core;
 using Microsoft.AspNetCore.Mvc;
 using System.Drawing;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace BMAlbum.Controllers {
    public class FacePhotoController : BaseController {
@@ -113,10 +115,7 @@ namespace BMAlbum.Controllers {
          var entry = storage.GetFileEntry (storId);
          if (entry == null) goto NOT_FOUND;
 
-         byte[] buf;
-         lock (storage) {
-            buf = storage.GetBytes (entry);
-         }
+         byte[] buf = FileStorageAccessor.GetBytes (storage, entry);
          return new BytesActionResult ("image/jpeg", buf);
 
          NOT_FOUND: return new ActionResult404 ();

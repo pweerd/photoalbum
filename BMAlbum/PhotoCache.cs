@@ -18,6 +18,7 @@ using Bitmanager.Core;
 using Bitmanager.IO;
 using Bitmanager.Json;
 using Bitmanager.Storage;
+using BMAlbum.Core;
 using System.Runtime;
 using System.Text.RegularExpressions;
 
@@ -74,16 +75,10 @@ namespace BMAlbum {
          var store = getStore (type);
          Stream ret = null;
          if (store != null) {
-            lock (store) {
-               var strm = store.GetStream (name, false);
-               if (strm != null) {
-                  using (strm) {
-                     var mem = new MemoryStream ();
-                     strm.CopyTo (mem);
-                     mem.Position = 0;
-                     ret = mem;
-                  }
-               }
+            var e = store.GetFileEntry (name);
+            if (e != null) {
+               var bytes = FileStorageAccessor.GetBytes(store, e);
+               ret = new MemoryStream (bytes);
             }
          }
          return ret;
