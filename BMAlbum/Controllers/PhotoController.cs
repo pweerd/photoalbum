@@ -104,9 +104,7 @@ namespace BMAlbum.Controllers {
          var agg = new ESTermsAggregation ("album", "album.facet");
          agg.Sort.Add ("sort_key", false);
          agg.Size = SIZE;
-         if (lbSettings.MinCountForAlbum > 0)
-            agg.MinDocCount = lbSettings.MinCountForAlbum;
-         agg.MinDocCount = 4;
+         agg.MinDocCount = lbSettings.MinCountForAlbum > 0 ? lbSettings.MinCountForAlbum : 4;
          var subJson = new JsonObjectValue ("field", "sort_key");
          subJson = new JsonObjectValue ("max", subJson);
          agg.SubAggs.Add (new ESJsonAggregation ("sort_key", subJson));
@@ -443,6 +441,7 @@ namespace BMAlbum.Controllers {
 
          json.WriteStartArray ("albums");
          var aggItems = agg.Items;
+         AlbumWithoutDateComparer.INSTANCE.SortAlbumsWithoutDate (aggItems);
          for (int i=0; i< aggItems.Count; i++) {
             var item = aggItems[i];
             string album = item.GetKey ();
@@ -457,6 +456,7 @@ namespace BMAlbum.Controllers {
          json.WriteEndArray ();
          return first;
       }
+
 
       private void writeYears (JsonBuffer json, ESTermsAggregationResult agg) {
          json.WriteStartArray ("years");
@@ -622,6 +622,28 @@ namespace BMAlbum.Controllers {
          return exists;
       }
 
+      private class AlbumWithoutDateComparer : IComparer<ESAggregationResultItem> {
+         public readonly static AlbumWithoutDateComparer INSTANCE = new AlbumWithoutDateComparer ();
+
+         private AlbumWithoutDateComparer () {}
+
+         public int Compare (ESAggregationResultItem x, ESAggregationResultItem y) {
+            return string.CompareOrdinal (x.GetKey (), y.GetKey ());
+         }
+
+         public void SortAlbumsWithoutDate (List<ESAggregationResultItem> items) {
+            int i = items.Count;
+            while (--i > 0) {
+               if (!items[i].GetKey ().StartsWith ("[0]")) break;
+            }
+
+            //i contains index of last album WITH date
+            ++i;
+            int N = items.Count - i;
+            if (N > 1)
+               items.Sort (i, N, this);
+         }
+      }
 
    }
 
