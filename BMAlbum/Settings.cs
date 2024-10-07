@@ -42,6 +42,7 @@ namespace BMAlbum {
       public readonly ESConnection ESClient;
       public readonly ESIndexInfoCache IndexInfoCache;
       public readonly Shrinker ShrinkerSmall, ShrinkerLarge;
+      public readonly MapSettings MapSettings;
 
       public Settings (string fn, SettingsBase oldSettings = null, string expectedVersion = null) : base (fn, oldSettings, expectedVersion) {
          SearcherCollection.SearcherFactory = SearcherFactory.Instance;
@@ -87,6 +88,8 @@ namespace BMAlbum {
          Users = new Users (Xml.SelectSingleNode ("users"), doesUserExist);
          Users.Dump (WebGlobals.Instance.SiteLog);
 
+         MapSettings = new MapSettings (Xml.SelectSingleNode ("map"));
+
          WebGlobals.Instance.SiteLog.Log("Lightbox client settings:\n{0}", LightboxSettings.SettingsForClient);
       }
 
@@ -104,7 +107,7 @@ namespace BMAlbum {
          if (settings != null) {
             settings.Refresher?.StopThread ();
             settings.PhotoCache?.Dispose ();
-            settings.FacesAdmin?.Dispose ();
+            settings.FacesAdmin?.Dispose (); 
          }
       }
       static Settings () {

@@ -38,8 +38,8 @@ namespace BMAlbum.Controllers {
 
 
    public class PhotoController : BaseController {
-      private static readonly ESQuery hideAll = new ESTermQuery ("hide", "always");
-      private static readonly ESQuery hideExternal= new ESTermQuery ("hide", "external");
+      internal static readonly ESQuery hideAll = new ESTermQuery ("hide", "always");
+      internal static readonly ESQuery hideExternal= new ESTermQuery ("hide", "external");
       private PhotoCache cache;
       private Settings settings;
 

@@ -1,0 +1,23 @@
+﻿@model MapModel
+@{
+   ViewData["Title"] = "Map";
+}
+
+<div id="main" class="scroll_container bordered-slimbar" style="height:100%; width:100%;">
+   <div id="map" style="height:100%; width:100%;"></div>
+   Map enzo @Model.MapSettings.GoogleKey
+</div>
+
+@section Scripts {
+   <script type="text/javascript">
+      function initMap() {
+         console.log("initMap");
+         globals.initMap();
+      }
+
+      console.log("init1");
+      window.globals = createMapApplication(@Model.GetStateAsHtmlString());
+      console.log("init2");
+   </script>
+   <script defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=@Model.MapSettings.GoogleKey&libraries=places,marker&callback=initMap"></script>
+}

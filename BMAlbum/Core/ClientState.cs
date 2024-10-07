@@ -32,7 +32,7 @@ namespace BMAlbum {
    }
 
    public class ClientState : Bitmanager.Web.ClientState {
-      private readonly Settings settings;
+      public readonly Settings Settings;
       private readonly SearchSettings SearchSettings;
       public string CacheVersion;
       public User User;
@@ -48,7 +48,7 @@ namespace BMAlbum {
       public int ActualPageSize;
 
       public ClientState (RequestContext ctx, Settings settings) : base (ctx.HttpContext.Request, settings.LightboxSettings.PageSize, false) {
-         this.settings = settings;
+         this.Settings = settings;
          InternalIp = ctx.IsInternalIp;
          User = settings.Users.DefUser;
          PerAlbum = TriStateBool.True;
@@ -84,7 +84,7 @@ namespace BMAlbum {
       protected override void parseParm (string key, string val) {
          switch (key) {
             case "u":
-               User = settings.Users.GetUser (val);
+               User = Settings.Users.GetUser (val);
                break;
             case "q":
                Query = val.TrimToNull ();
@@ -136,7 +136,7 @@ namespace BMAlbum {
             optAppend (sb, Facets[i].Key, Facets[i].Value);
          }
 
-         if (Sort != settings.MainSearchSettings.SortModes.Default)
+         if (Sort != Settings.MainSearchSettings.SortModes.Default)
             sb.Append ("&sort=").Append (Sort?.Name);
 
          //optAppend (sb, "slide", Slide);
@@ -148,13 +148,13 @@ namespace BMAlbum {
          if (cmd != null) container["cmd"] = cmd;
 
          //Return the state of the controls
-         if (User != null && User != settings.Users.DefUser) container["u"] = User.Id;
+         if (User != null && User != Settings.Users.DefUser) container["u"] = User.Id;
          container["sortmodes"] = SearchSettings.SortModes.AsJsonObject ();
          container["q"] = Query ?? string.Empty;
          container["per_album"] = PerAlbum == TriStateBool.False ? false : true;
          container["sort"] = Sort?.Name;
          container["face_mode"] = FaceMode;
-         container["lightbox_settings"] = settings.LightboxSettings.SettingsForClient;
+         container["lightbox_settings"] = Settings.LightboxSettings.SettingsForClient;
          if (Slide != null) container["slide"] = Slide;
          if (Facets != null && Facets.Count > 0) {
             foreach (var kvp in Facets) {
