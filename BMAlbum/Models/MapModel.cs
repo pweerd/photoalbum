@@ -15,7 +15,9 @@
  */
 
 using Bitmanager.Core;
+using Bitmanager.Json;
 using Bitmanager.Web;
+using BMAlbum.Controllers;
 using Microsoft.AspNetCore.Html;
 
 namespace BMAlbum.Models {
@@ -24,16 +26,20 @@ namespace BMAlbum.Models {
       public readonly RequestContext RequestCtx;
       public readonly MapSettings MapSettings;
       public readonly string GoogleKey;
+      public readonly string Pin;
 
-      public MapModel (BaseController c, ClientState state) {
+      public MapModel (MapController c, ClientState state) {
          RequestCtx = c.RequestCtx;
          State = state;
          MapSettings = ((Settings)c.Settings).MapSettings;
          GoogleKey = MapSettings.GoogleKey;
+         Pin = c.Pin;
       }
 
       public HtmlString GetStateAsHtmlString() {
-         return State.ToJsonAsHtmlString ();
+         var json = State.ToJson ();
+         if (Pin != null) json["pin"] = Pin;
+         return new HtmlString (json.ToJsonString (false));
       }
    }
 }

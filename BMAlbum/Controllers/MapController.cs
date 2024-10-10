@@ -1,4 +1,5 @@
-﻿using Bitmanager.Elastic;
+﻿using Bitmanager.Core;
+using Bitmanager.Elastic;
 using Bitmanager.Json;
 using Bitmanager.Query;
 using Bitmanager.Web;
@@ -6,40 +7,114 @@ using BMAlbum.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using NuGet.Configuration;
+using System.Text.RegularExpressions;
 
 namespace BMAlbum.Controllers {
    public class MapController : BaseController {
-      private static readonly int[] googleZoomToEsZoom = {
-         1,  //0
-         1,  //1
-         1,  //2
-         2,  //3
-         2,  //4
-         3,  //5
-         3,  //6
-         1,  //7
-         4,  //8
-         4,  //9
-         5,  //10
-         5,  //11
-         6,  //12
-         6,  //13
-         6,  //14
-         7,  //15
-         7,  //16
-         7,  //17
-         8,  //18
-         8,  //19
-         8,  //20
-         9,  //21
-         9   //22
-      };
       const string FIELD = "location";
+      readonly static Regex locExpr = new Regex (@"^[\d ,+\-]+$", RegexOptions.Compiled);
+      public string Pin;
+
       public IActionResult Index () {
+         var pin = Request.ReadStr ("pin", null);
+         if (pin != null) {
+            SiteLog.Log ("Pin1={0}", pin);
+            if (!locExpr.IsMatch(pin)) {
+               var settings = (Settings)Settings;
+               var c = settings.ESClient;
+               var req = c.CreateSearchRequest (settings.MainIndex);
+               req.Size = 1;
+               req.Query = new ESIdsQuery ("_doc", pin);
+               req.SetSource (FIELD, null);
+
+               var resp = req.Search ();
+               resp.ThrowIfError ();
+               if (resp.Documents.Count == 0) pin = null;
+               else pin = resp.Documents[0].ReadStr (FIELD, null);
+            }
+            SiteLog.Log ("Pin2={0}", pin);
+            Pin = pin;
+         }
+
          return View (new MapModel (this, new ClientState (RequestCtx, (Settings)Settings)));
       }
 
-      public IActionResult Clusters (int zoom, string bounds) {
+      private enum _Mode { clusters, photos};
+      public IActionResult Clusters () {
+         var zoom = Request.Query.ReadInt ("zoom", -1);
+         var bounds = Request.Query.ReadStr ("bounds", null);
+         var mode = Request.Query.ReadEnum ("mode", _Mode.clusters);
+         var settings = (Settings)Settings;
+         var clientState = new ClientState (RequestCtx, settings);
+         var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
+         ESQuery notFilter;
+         if (RequestCtx.IsInternalIp)
+            notFilter = clientState.Unhide ? null : PhotoController.hideExternal;
+         else {
+            clientState.Unhide = false;
+            notFilter = PhotoController.hideAll;
+         }
+
+         var c = settings.ESClient;
+         var req = c.CreateSearchRequest (settings.MainIndex);
+         if (mode==_Mode.clusters) {
+            req.Size = 0;
+            var agg = new ESGeoHashAggregation ("clusters", FIELD, zoom);
+            req.Aggregations.Add (agg);
+         } else {
+            req.Size = 100;
+            req.SetSource (FIELD + ",album", null);
+         }
+         var bq = new ESBoolQuery ();
+         bq.AddFilter (clientState.User.Filter);
+         bq.AddNot (notFilter);
+         bq.AddFilter(bounds != null ? new ESGeoBoundingBoxQuery (FIELD, bounds) 
+                                     : new ESExistsQuery (FIELD));
+         req.Query = bq;
+
+         var resp = req.Search ();
+         resp.ThrowIfError ();
+
+         var json = new JsonMemoryBuffer ();
+         json.WriteStartObject ();
+         json.WriteProperty ("zoom", zoom);
+
+         json.WriteStartObject ("clusters");
+         if (mode == _Mode.clusters) {
+            var aggResult = (ESGeoAggregationResult)resp.Aggregations.FindByName ("clusters", true);
+            for (int i = 0; i < aggResult.ItemCount; i++) {
+               var item = aggResult.Items[i];
+               var k = item.GetKey ();
+               json.WriteStartObject (k);
+               json.WriteProperty ("loc", hashToLocation (k));
+               json.WriteProperty ("count", item.Count);
+               json.WriteEndObject ();
+            }
+         }
+         json.WriteEndObject ();
+
+         json.WriteStartObject ("photos");
+         foreach (var d in resp.Documents) {
+            var src = d._Source;
+            json.WriteStartObject (d.Id);
+            json.WriteProperty ("loc", src.ReadStr (FIELD, string.Empty));
+            json.WriteProperty ("album", src.ReadStr ("album", string.Empty));
+            json.WriteProperty ("count", 1);
+            json.WriteEndObject ();
+         }
+         json.WriteEndObject ();
+
+         json.WriteEndObject ();
+         return new JsonActionResult (json);
+      }
+
+      private static string hashToLocation(string hash) {
+         var lat = GeoHash.Decode (hash, out var lon);
+         return Invariant.Format ("{0},{1}", lat, lon);
+      }
+
+
+      public IActionResult H3Clusters (int geoZoom, string bounds) {
          var settings = (Settings)Settings;
          var clientState = new ClientState (RequestCtx, settings);
          var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
@@ -54,30 +129,29 @@ namespace BMAlbum.Controllers {
          var c = settings.ESClient;
          var req = c.CreateSearchRequest (settings.MainIndex);
          req.Size = 0;
-         var geoHashZoom = googleZoomToEsZoom[zoom];
 
-         var agg = new ESGeoHashAggregation ("clusters", FIELD, geoHashZoom);
+         var agg = new ESGeoH3Aggregation ("clusters", FIELD, geoZoom);
          req.Aggregations.Add (agg);
          var bq = new ESBoolQuery ();
          bq.AddFilter (clientState.User.Filter);
          bq.AddNot (notFilter);
-         bq.AddFilter(bounds != null ? new ESGeoBoundingBoxQuery (FIELD, bounds) 
+         bq.AddFilter (bounds != null ? new ESGeoBoundingBoxQuery (FIELD, bounds)
                                      : new ESExistsQuery (FIELD));
          req.Query = bq;
 
          var resp = req.Search ();
          resp.ThrowIfError ();
 
-         var aggResult = (ESGeoHashAggregationResult)resp.Aggregations.FindByName ("clusters", true);
+         var aggResult = (ESGeoAggregationResult)resp.Aggregations.FindByName ("clusters", true);
          var json = new JsonMemoryBuffer ();
          json.WriteStartObject ();
-         json.WriteProperty ("zoom", geoHashZoom);
+         json.WriteProperty ("zoom", geoZoom);
          json.WriteStartArray ("clusters");
 
          for (int i = 0; i < aggResult.ItemCount; i++) {
             json.WriteStartObject ();
             var item = aggResult.Items[i];
-            json.WriteProperty ("loc", item.GetKey ());
+            json.WriteProperty ("key", item.GetKey ());
             json.WriteProperty ("count", item.Count);
             json.WriteEndObject ();
 
