@@ -22,10 +22,12 @@
    let _oldForward;
 
    function _pushState(state, title, url) {
+      console.log('HISTORY old:', history.state);
       console.log('HISTORY push:', state, title, url);
       _oldPush.apply(history, arguments);
    }
    function _replaceState(state, title, url) {
+      console.log('HISTORY old:', history.state);
       console.log('HISTORY replace:', state, title, url);
       _oldReplace.apply(history, arguments);
    }
