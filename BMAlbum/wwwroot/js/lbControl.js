@@ -15,7 +15,7 @@
  */
 
 
-function createApplication(state) {
+function createLightboxControl(app) {
    class LightboxState {
       imgHeight;
       ratio;
@@ -40,117 +40,41 @@ function createApplication(state) {
       }
    }
 
-   if ((state.debug_flags & 0x10000) !== 0 && bmGlobals.hookConsole)
-      bmGlobals.hookConsole([state.home_url, 'clientlog/log?', state.home_url_params].join(''));
+   const _getJSON = app.getJSON;
+   const _device = app.device;
 
-
-
-   const dbg_overlay = false;
-   //NB these constants should match the BrowserType enum in LightboxSettings.cs
-   const DESKTOP = 1;
-   const PHONE = 2;
-   const TABLET = 4;
-
-   let _state = state;
+   let _state;
+   let _faceMode;
    let _data;
    let _lg;
-   let _curDims = [0,0];
    let _lastLbState = new LightboxState(-1, null, 0);  //Last state of the lightbox
    let _isTouch = false;
    let _zoomer; 
    let _multipleAlbums = false;
    let _unique = 0;
    let _faceNames = { chgid: -1 };
-   let _lightboxSizes = state.lightbox_settings;
+   let _lightboxSizes;
+   let _t0;
 
-   //Save the original url for using in the history
-   _state.entryUrl = new URL(window.location);
-   _state.entryUrl.search = ''
-   _state.entryUrl = _state.entryUrl.href;
-   _state.cmd ||= '';
+   function _prepareTiming() {
+      _t0 = Date.now();
+   }
+   function _addTiming(data, action) {
+      let dbg = data.dbg;
+      if (!dbg) return;
+      let t1 = Date.now();
+      dbg.timings.push({
+         took: t1 - _t0,
+         action: action,
+         count: data.files.length
+      });
+      _t0 = t1;
+   }
 
    //Register keydown as first thing: we need to be able to cancel processing from lg...
-   $(window)
-      .on('keydown', function (ev) {
-         if (_zoomer) return _zoomer.onKeyDown(ev);
-      })
-      ;
-
-   let _device = function () {
-      let ua = navigator.userAgent.toLowerCase();
-      let mobile = /iphone|ipad|ipod|android/.test(ua);
-
-      if (mobile) {
-         return (/mobile/.test(ua)) ? PHONE : TABLET;
-      }
-      return DESKTOP;
-   }();
-   console.log("DEVICE", _device);
-
-   function modulo(val, m) {
-      return Math.floor(val / m) * m;
-   }
-   function roundModulo(val, m) {
-      return Math.round(val / m) * m;
-   }
-
-   function _updateDims() {
-      let $window = $(window);
-      _curDims[0] = $window.width();
-      _curDims[1] = $window.height();
-   }
-   _updateDims();
-
-
-   function _createUrlParts(url) {
-      return [_state.home_url, url, "?", _state.home_url_params];
-   }
-
-   function _createUrl(url, parms) {
-      console.log("CreateUrl", url, parms);
-      var parts = _createUrlParts(url);
-      if (parms instanceof Array) {
-         parts = parts.concat(parms);
-      } else {
-         parts.push(parms);
-      }
-      console.log("-->", parts.join(""));
-      return parts.join("");
-   }
-
-   function _getJSON(url, parms, func) {
-      let realUrl = _createUrl(url, parms);
-      $.ajax({
-         dataType: "json",
-         url: realUrl,
-         complete: function (jqXHR) {
-            let json;
-            let unknownMsg = 'Unknown error: ';
-            try {
-               json = JSON.parse(jqXHR.responseText);
-            } catch (err) {
-               unknownMsg = err + ': ';
-            }
-            if (jqXHR.status === 200 && json && json.bm_error === undefined) {
-               func(json, jqXHR);
-               return;
-            }
-            let arr = [];
-            if (json && json.bm_error) {
-               arr.push(json.bm_error.message);
-            } else {
-               arr.push(unknownMsg + jqXHR.responseText);
-            }
-            arr.push("\r\n\r\nUrl=");
-            arr.push(realUrl);
-            if ((_state.debug_flags & 4) != 0 && json && json.bm_error.stacktrace) {
-               arr.push("\r\nTrace=");
-               arr.push(json.bm_error.stacktrace);
-            }
-            alert(arr.join(''));
-         }
-      });
-   }
+   $(window).on('keydown', function (ev) {
+      if (_zoomer) return _zoomer.onKeyDown(ev);
+   });
 
    function _createImgMarkup(sb, photo, lbState) {
       sb.push('<a href="" class="lb-item" data-src="'); //PW:  jg-entry jg-entry-visible
@@ -252,19 +176,18 @@ function createApplication(state) {
          if (availableH < h) h = Math.floor(availableH);
          console.log("availableW, h, ratio, n=", availableH, h, ratio, n);
       }
-      if (_state.face_mode && h < 200) h = 200;
+      if (_faceMode && h < 200) h = 200;
       return new LightboxState(h, sizeSettings, _ratio);
    }
 
    let _resizeTimer;
    function _resizeHandler(ev) {
       if (ev.target !== window) return;
-      if (!_state.face_mode && (!_lg || !_lg.el)) return;
+      if (!_faceMode && (!_lg || !_lg.el)) return;
 
       if (_resizeTimer) clearTimeout(_resizeTimer);
       _resizeTimer = setTimeout(function () {
-         _updateDims();
-         if (!_state.face_mode) _setGalleryTitle();
+         if (!_faceMode) _setGalleryTitle();
          let $elt = $("#lightbox");
          const lbState = _prepareLightboxAndGetHeight($elt, _lastLbState.ratio);
          if (_lastLbState.isChanged(lbState)) {
@@ -399,9 +322,10 @@ function createApplication(state) {
    function _setTitle(data, newState) {
       let sb = [];
       if (newState.q) sb.push(newState.q);
+      else if (newState.pin) sb.push('Rondom pin');
       if (newState.year) sb.push(newState.year);
       if (data.cur_album) sb.push(data.cur_album);
-      sb.push(_state.face_mode ? "Gezichten" : "Foto's");
+      sb.push(_faceMode ? "Gezichten" : "Foto's");
 
       document.title = sb.join(" | ");
    }
@@ -464,7 +388,7 @@ function createApplication(state) {
 
    function _updateLightboxPhotos($elt, data) {
       let sb = [];
-      let imgUrl = _state.home_url + 'photo/get?id=';
+      let imgUrl = app.createUrl('photo/get') + "&id=";
 
       //Determine best height of the images and save the value for later usage
       const lbState = _prepareLightboxAndGetHeight($elt, data.max_w_ratio, true);
@@ -490,6 +414,7 @@ function createApplication(state) {
       $elt.html(sb.join(''));
       _multipleAlbums = multipleAlbums;
 
+
       //Unfortunately this event is needed, since otherwise the gallery item would be opened before the infoHandler is called.
       $elt.find('.info-badge').on('click', ev => {
          ev.stopImmediatePropagation();
@@ -497,12 +422,15 @@ function createApplication(state) {
          _infoHandler(ev);
       });
 
+      _prepareTiming();
       if (_lg) _lg.refresh();
       else _createGallery($elt, 'a');
+      _addTiming(data, "gallery");
 
       //Make sure the galleryItems contain references to our files
       let galItems = _lg.galleryItems;
-      let dimsSuffix = '&w=' + _curDims[0] + '&h=' + _curDims[1];
+      let $window = $(window);
+      let dimsSuffix = '&w=' + $window.width() + '&h=' + $window.height();
       for (let i = 0; i < files.length; i++) {
          let galItem = galItems[i];
          let file = files[i];
@@ -517,8 +445,10 @@ function createApplication(state) {
    let _photoWindow = null;
    function _updateLightboxFaces($elt, data) {
       let sb = [];
-      let imgUrl = _state.home_url + 'facephoto/get?storid=';
-      let photoUrl = _state.home_url + 'photo/get?id=';
+      let imgUrl = app.createUrl('facephoto/get') + "&storid=";
+      let photoUrl = app.createUrl('photo/get') + "&id=";
+      //let imgUrl = _state.home_url + 'facephoto/get?storid=';
+      //let photoUrl = _state.home_url + 'photo/get?id=';
 
       //Determine best height of the images and save the value for later usage
       const lbState = _prepareLightboxAndGetHeight($elt, data.max_w_ratio || 1, true);
@@ -568,17 +498,17 @@ function createApplication(state) {
          if (mouseAt && mouseAt[0] === $searchBox[0]) _triggerSearchTooltip();
       }
 
-      let dims = {
-         sx: screen.width,
-         sy: screen.height,
-         wx: $(window).width(),
-         wy: $(window).height(),
-         wiw: window.innerWidth,
-         cx: $elt.width()
-      };
-      console.log('DIMS=' + JSON.stringify(dims));
+      //let dims = {
+      //   sx: screen.width,
+      //   sy: screen.height,
+      //   wx: $(window).width(),
+      //   wy: $(window).height(),
+      //   wiw: window.innerWidth,
+      //   cx: $elt.width()
+      //};
+      //console.log('DIMS=' + JSON.stringify(dims));
 
-      if (_state.face_mode) _updateLightboxFaces($elt, data); else _updateLightboxPhotos($elt, data);
+      if (_faceMode) _updateLightboxFaces($elt, data); else _updateLightboxPhotos($elt, data);
 
       //Only load images that are visible
       _lazyLoader = lazyload(document.querySelectorAll(".lazyload"));
@@ -772,21 +702,22 @@ function createApplication(state) {
          }
       }
 
-      let parms = [_state.cmd];
-      if (_state.u) parms.push('&u=' + _state.u);
-      _getJSON(_state.face_mode ? 'facephoto/index' : 'photo/index', parms, function (data) {
+      _prepareTiming();
+      _getJSON(_faceMode ? 'facephoto/index' : 'photo/index', _state.cmd, function (data) {
+         _addTiming(data, "Trip");
          _overlay.hideNow();
          _data = data;
          let newState = data.new_state;
-         $("#dbg-label").text(_data.dbg);
          _setTitle(data, newState);
 
          console.log('send:', _state);
          console.log('recv:', newState);
          _state.activeCmd = _state.cmd = newState.cmd || '';
          _updateLightboxContainer($elt, _data);
+         _addTiming(data, "Build html");
 
-         if (!_state.face_mode) {
+
+         if (!_faceMode) {
             //Fill albums and years and select the correct one
             _fillCombo($("#albums"), data.albums, newState.album ? newState.album : data.cur_album);
             _fillCombo($("#years"), data.years, newState.year ? newState.year : data.cur_year);
@@ -803,7 +734,7 @@ function createApplication(state) {
             _pushHistoryCmd(_state.activeCmd);
          } else console.log("NO push: is from " + from);
 
-         if (!_state.face_mode) {
+         if (!_faceMode) {
             let slide = newState.slide;
             if (!slide) slide = _state.slide;
             _state.slide = undefined;
@@ -880,10 +811,10 @@ function createApplication(state) {
       let url = new URL(_state.entryUrl);
       url.search = _state.home_url_params + cmd;
       url.hash = '';
-      let histState = { cmd: cmd, title: document.title, url: url.href };
-      //history.pushState(histState, histState.title, histState.url);
-      if (history.state) history.pushState(histState, histState.title, histState.url);
-      else history.replaceState(histState, histState.title, histState.url);
+      let histState = { mode: _state.mode, cmd: cmd, title: document.title, url: url.href };
+
+      let pushHist = history.state ? history.pushState : history.replaceState;
+      pushHist (histState, histState.title, histState.url);
       console.log('PUSHed cmd');
    }
 
@@ -892,18 +823,18 @@ function createApplication(state) {
          let url = new URL(_state.entryUrl);
          url.search = _state.home_url_params + _state.cmd + '&slide=' + encodeURIComponent(slide);
          url.hash = '';
-         let histState = { slide: slide, title:document.title, url: url.href };
+         let histState = { mode: _state.mode, slide: slide, title:document.title, url: url.href };
 
-         if (history.state && history.state.slide) history.replaceState(histState, histState.title, histState.url);
-         else history.pushState(histState, histState.title, histState.url);
+         let pushHist = history.replaceState;
+         if (history.state && !history.state.slide) pushHist = history.pushState;
+         pushHist(histState, histState.title, histState.url);
          console.log('PUSHed slide');
          _lg.needBack = true;
       }
    }
 
-   function _onPopState(ev) {
+   function _onPopHistory(ev) {
       let state = ev.originalEvent.state || {};
-      console.log('popped state:', state);
       if (state.slide) {
          _positionToSlide(state.slide);
       } else {
@@ -912,6 +843,7 @@ function createApplication(state) {
          _state.cmd = state ? state.cmd : '';
          _updateLightBox("history");
       }
+      return true;
    }
 
    function _setSort(newState) {
@@ -924,41 +856,26 @@ function createApplication(state) {
       var $cb = $('#cb_sort');
       if ($cb.length === 0) return;
 
-      var sortModes = state.sortmodes;
+      var sortModes = _state.sortmodes;
       for (var prop in sortModes) {
          $cb.append($('<option>', { value: prop, text: sortModes[prop] }));
       }
-      _setSort(state);
+      _setSort(_state);
       $cb.on('change', function () {
          console.log('changed sort:', this.value);
          if (_lg) _lg.needBack = true;
-         _state.cmd += "&sort=" + encodeURIComponent(this.value);
+         _state.cmd += "&pin=&sort=" + encodeURIComponent(this.value);
          _updateLightBox();
       });
    }
 
 
-   //function _resetScroll() {
-   //   //let $elt = $('#albums');
-   //   //$elt.css("max-width", "50px");
-
-   //   console.log("RESET_SCROLL2");
-   //   let $vp = $("meta[name=viewport]");
-   //   console.log('VIEWPORT=', $vp);
-   //   if ($vp.length <= 0) return;
-   //   $vp.attr("content", "width=device-width, user-scalable=no");
-   //   console.log("RESET_SCROLL2a");
-   //   setTimeout(function () {
-   //      console.log("RESET_SCROLL3");
-   //      $vp.attr("content", "width=device-width, initial-scale=1");
-   //   }, 200);
-   //}
    function _search() {
       //Don't honor the album and year facet: its really confusing somethimes
       //In case of a query, the per_album setting is ignored
       let q = $("#searchq").val();
       let perAlbum = q ? '' : $("#per_album")[0].checked;
-      _state.cmd = "&q=" + encodeURIComponent(q) + "&per_album=" + perAlbum;
+      _state.cmd = "&pin=&q=" + encodeURIComponent(q) + "&per_album=" + perAlbum;
       _updateLightBox();
    }
 
@@ -966,16 +883,16 @@ function createApplication(state) {
 
    $('#albums').on('change', function () {
       let ix = parseInt(this.value);
-      _state.cmd += "&album=" + (ix < 0 ? "" : encodeURIComponent(_data.albums[ix].v));
+      _state.cmd += "&pin=&album=" + (ix < 0 ? "" : encodeURIComponent(_data.albums[ix].v));
       _updateLightBox();
    });
    $('#years').on('change', function () {
       let ix = parseInt(this.value);
-      _state.cmd += "&year=" + (ix < 0 ? "" : encodeURIComponent(_data.years[ix].v));
+      _state.cmd += "&pin=&year=" + (ix < 0 ? "" : encodeURIComponent(_data.years[ix].v));
       _updateLightBox();
    });
    $("#per_album").on('change', function () {
-      _state.cmd += "&per_album=" + this.checked;
+      _state.cmd += "&pin=&per_album=" + this.checked;
       _updateLightBox();
    });
    $('#icon_search').on('click', _search);
@@ -1037,7 +954,9 @@ function createApplication(state) {
    }
    function _touchEnd(ev) {
       console.log('touchend', _touchTriggered);
-      if (_touchTriggered) ev.preventDefault();
+      if (_touchTriggered) {
+         ev.stopImmediatePropagation(); ev.preventDefault();
+      }
       _resetTouchAdmin();
    }
 
@@ -1065,18 +984,26 @@ function createApplication(state) {
 
       //console.log('-- target=', $target, ', ix=', ix);
       if (ix < 0 || ix >= _data.files.length) return;
+      let curPhoto = _data.files[ix];
+      console.log('start ctx-menu', ix, curPhoto);
 
-      let $item = $("#ctx_goto_track");
-      if (_data.files[ix].trkid === undefined) $item.addClass("bm_menu_disabled");
-      else $item.removeClass("bm_menu_disabled");
+      function enableMenuItem(key, enable) {
+         const CLASS = "hidden"; //"bm_menu_disabled" //"hidden";
+         let $item = $(key);
+         if (enable) $item.removeClass(CLASS); else $item.addClass(CLASS);
+      }
+
+      enableMenuItem("#ctx_goto_track", curPhoto.trkid !== undefined);
+      enableMenuItem("#ctx_goto_map", curPhoto.l !== undefined);
 
       ev.preventDefault();
-      console.log("Open context menu. photo-ix:", ix);
+      console.log("Open context menu. photo-ix:", ix, curPhoto);
       $('#context_menu').data('ix', ix).addClass('bm_menu_active').position({
          my: "left-4px top-4px",
          of: ev,
          collision: "fit"
       });
+      console.log("STYLE:", getComputedStyle(document.getElementById('context_menu'))["z-index"]);
    }
    $('.bm_menu_item').on('click', ev => {
       ev.preventDefault();
@@ -1087,19 +1014,32 @@ function createApplication(state) {
 
       let ix = $item.closest('.bm_menu').data('ix');
       let clickId = $(ev.currentTarget).closest('.bm_menu_item')[0].id;
-      console.log('handle click on', clickId, ix);
+      let clickedPhoto = _data.files[ix]; 
+      console.log('handle click on', clickId, ix, clickedPhoto);
 
       if (clickId === 'ctx_goto_album') {
          _lg.needBack = false;
-         _state.cmd += "&q=&sort=&slide=&album=" + encodeURIComponent(_data.files[ix].a);
+         _state.cmd += "&pin=&q=&sort=&slide=&album=" + encodeURIComponent(clickedPhoto.a);
          _updateLightBox();
       } else if (clickId === 'ctx_goto_track') {
-         console.log("trkid=", _data.files[ix].trkid, ", ix=", ix);
-         window.open("https://bitmanager.nl/tracks?t=" + _unique++ + "#" + encodeURIComponent(_data.files[ix].trkid),
+         console.log("trkid=", clickedPhoto.trkid, ", ix=", ix);
+         window.open("https://bitmanager.nl/tracks?t=" + _unique++ + "#" + encodeURIComponent(clickedPhoto.trkid),
             "trackstab");
       } else if (clickId === 'ctx_goto_faces') {
-         window.open(_createUrl('faces', '&q=' + encodeURIComponent(_data.files[ix].f.replace(/\\/g, ' '))),
-            "facestab");
+         window.open(app.createUrl('', '&mode=faces&q=' + encodeURIComponent(clickedPhoto.f.replace(/\\/g, ' '))),
+            "faces_tab");
+      } else if (clickId === 'ctx_goto_map') {
+         if (ev.ctrlKey) {
+            window.open(app.createUrl('', '&mode=map&pin=' + encodeURIComponent(clickedPhoto.f)),
+               "maps_tab");
+         } else {
+            app.start({
+               mode: 'map',
+               photo_id: clickedPhoto.f,
+               album: clickedPhoto.a,
+               pin: clickedPhoto.l
+            });
+         }
       } else if (clickId === 'ctx_info') {
          _openedInfoViaClick = true;
          _showInfo(ix, true);
@@ -1110,7 +1050,6 @@ function createApplication(state) {
       .on('resize', _resizeHandler)
       .on('click', _infoHandler)
       .on('mouseenter', _infoHandler)
-      .on('popstate', _onPopState)
       .on('touchstart', _touchStart)
       .on('touchend', _touchEnd)
       .on('touchmove touchcancel gesturestart', _touchCancel)
@@ -1131,17 +1070,7 @@ function createApplication(state) {
       .on('lgAfterSlide', _onGallerySlide)
       ;
 
-   _initSortCombo();
    console.log('INIT done. State=', history.state);
-   setTimeout(function () {
-      if (_state.face_mode) {
-         _loadFaceNames(function () {
-            _updateLightBox(history.state ? "history" : undefined);
-         });
-      } else {
-         _updateLightBox(history.state ? "history" : undefined);
-      }
-   }, 50);
 
    function _hookDbgBadge(idSelection, func) {
       $(idSelection).on("mouseenter", function (ev) {
@@ -1289,8 +1218,30 @@ function createApplication(state) {
       console.log('Drag ', ev.target.textContent);
    };
 
-   return window.globals = {
-      getJSON: _getJSON
+   function _start(parms, from) {
+      _state = app.state;
+      _faceMode = _state.mode === 'faces';
+      _lightboxSizes = _state.lightbox_settings;
+      _initSortCombo();
+
+      if (parms && parms.pin) {
+         _state.cmd += "&pin=" + encodeURIComponent(parms.pin) + "&per_album=false";
+      }
+
+      console.log('Start: hist state=', history.state);
+      if (_faceMode) {
+         _loadFaceNames(function () {
+            _updateLightBox(from);// history.state ? "history" : undefined);
+         });
+      } else {
+         _updateLightBox(from);// history.state ? "history" : undefined);
+      }
+      return true;
+   }
+
+   return {
+      start: _start,
+      onPopHistory: _onPopHistory
    };
 }
 

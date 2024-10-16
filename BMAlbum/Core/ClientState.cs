@@ -30,21 +30,28 @@ namespace BMAlbum {
       True,
       False
    }
+   public enum AppMode {
+      Photos,
+      Faces,
+      Map
+   }
 
    public class ClientState : Bitmanager.Web.ClientState {
       public readonly Settings Settings;
       private readonly SearchSettings SearchSettings;
+      private string sortName;
       public string CacheVersion;
       public User User;
+      public Pin Pin;
       public string Query;
       public string LastFacet;
       public string Slide;
       public readonly List<KeyValuePair<string, string>> Facets;
       public TriStateBool PerAlbum;
       public SortMode Sort;
+      public AppMode AppMode;
       public bool Unhide;
       public bool InternalIp;
-      public bool FaceMode;
       public int ActualPageSize;
 
       public ClientState (RequestContext ctx, Settings settings) : base (ctx.HttpContext.Request, settings.LightboxSettings.PageSize, false) {
@@ -55,12 +62,21 @@ namespace BMAlbum {
          Facets = new List<KeyValuePair<string, string>>();
          CacheVersion = settings.LightboxSettings.CacheVersion;
 
-         FaceMode = ((string)ctx.HttpContext.Request.RouteValues["controller"]).StartsWith("Face");
-         SearchSettings = FaceMode ? settings.FaceSearchSettings : settings.MainSearchSettings;
-         Sort = SearchSettings.SortModes.Default;
+         var req = ctx.HttpContext.Request;
+         if (req.RouteValues.TryGetValue ("user", out var uid)) {
+            User = settings.Users.GetUser (uid.ToString ());
+         } 
+         if (User==null) User = settings.Users.DefUser;
 
+         req.RouteValues.TryGetValue ("mode", out var appModeId);
+         AppMode = Invariant.ToEnum((string)appModeId, AppMode.Photos);
+
+         sortName = null;
          parseRequestParms (ctx.HttpContext.Request);
          ActualPageSize = (DebugFlags & Bitmanager.Web.DebugFlags.ONE) != 0 ? 1 : PageSize;
+
+         SearchSettings = (AppMode== AppMode.Faces) ? settings.FaceSearchSettings : settings.MainSearchSettings;
+         Sort = sortName == null ? SearchSettings.SortModes.Default : SearchSettings.SortModes.Find (sortName, true);
       }
 
       public bool ContainsFacetRequest(string what) {
@@ -88,6 +104,17 @@ namespace BMAlbum {
                break;
             case "q":
                Query = val.TrimToNull ();
+               if (Query != null) Pin = null;
+               break;
+            case "pin":
+               var v = val.TrimToNull ();
+               if (v == null)
+                  Pin = null;
+               else {
+                  Pin = new Pin (v);
+                  Query = null;
+                  Facets.Clear ();
+               }
                break;
             case "per_album":
                PerAlbum = Invariant.ToEnum (val, TriStateBool.Unspecified);
@@ -96,8 +123,10 @@ namespace BMAlbum {
                Slide = val.TrimToNull ();
                break;
             case "sort":
-               val = val.TrimToNull ();
-               if (val != null) Sort = SearchSettings.SortModes.Find (val, true);
+               sortName = val.TrimToNull ();
+               break;
+            case "mode":
+               AppMode = Invariant.ToEnum (val, AppMode);
                break;
             case "album":
             case "year":
@@ -113,7 +142,7 @@ namespace BMAlbum {
                   if (key == "album") PerAlbum = TriStateBool.False;
                } else {
                   Facets.Add (new KeyValuePair<string, string> (key, val));
-                  Sort = SearchSettings.SortModes.Default;
+                  sortName = null;
                }
                break;
             default:
@@ -128,9 +157,11 @@ namespace BMAlbum {
       public string GetCommand() {
          var sb = new StringBuilder ().Append('&');
          optAppend (sb, "q", Query);
-         switch(PerAlbum) {
+         if (Pin != null) optAppend (sb, "pin", Pin.ToUrlValue());
+         switch (PerAlbum) {
             case TriStateBool.False: optAppend (sb, "per_album=false"); break;
          }
+         if (AppMode != AppMode.Photos) optAppend (sb, "mode=" + AppMode.ToString ().ToLowerInvariant ());
 
          for (int i = 0; i < Facets.Count; i++) {
             optAppend (sb, Facets[i].Key, Facets[i].Value);
@@ -148,13 +179,15 @@ namespace BMAlbum {
          if (cmd != null) container["cmd"] = cmd;
 
          //Return the state of the controls
-         if (User != null && User != Settings.Users.DefUser) container["u"] = User.Id;
+         if (User != null) container["user"] = User.Id;
          container["sortmodes"] = SearchSettings.SortModes.AsJsonObject ();
-         container["q"] = Query ?? string.Empty;
+         if (Query != null) container["q"] = Query;
+         if (Pin != null) container["pin"] = Pin.ToJson();
          container["per_album"] = PerAlbum == TriStateBool.False ? false : true;
+         container["mode"] = AppMode.ToString ().ToLowerInvariant ();
          container["sort"] = Sort?.Name;
-         container["face_mode"] = FaceMode;
          container["lightbox_settings"] = Settings.LightboxSettings.SettingsForClient;
+         container["map_settings"] = Settings.MapSettings.ToJson ();
          if (Slide != null) container["slide"] = Slide;
          if (Facets != null && Facets.Count > 0) {
             foreach (var kvp in Facets) {

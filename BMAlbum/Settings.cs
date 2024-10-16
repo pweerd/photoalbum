@@ -45,6 +45,7 @@ namespace BMAlbum {
       public readonly MapSettings MapSettings;
 
       public Settings (string fn, SettingsBase oldSettings = null, string expectedVersion = null) : base (fn, oldSettings, expectedVersion) {
+         var g = WebGlobals.Instance;
          SearcherCollection.SearcherFactory = SearcherFactory.Instance;
 
          ESClient = new ESConnection (Xml.SelectMandatoryNode ("server"));
@@ -86,11 +87,11 @@ namespace BMAlbum {
          FacesAdmin = new FacesAdmin (Xml.SelectMandatoryNode ("faces_admin"), SiteLog);
 
          Users = new Users (Xml.SelectSingleNode ("users"), doesUserExist);
-         Users.Dump (WebGlobals.Instance.SiteLog);
+         Users.Dump (g.SiteLog);
 
-         MapSettings = new MapSettings (Xml.SelectSingleNode ("map"));
+         MapSettings = new MapSettings (Xml.SelectMandatoryNode ("map"), Path.Combine(g.SiteRoot, "images"));
 
-         WebGlobals.Instance.SiteLog.Log("Lightbox client settings:\n{0}", LightboxSettings.SettingsForClient);
+         g.SiteLog.Log("Lightbox client settings:\n{0}", LightboxSettings.SettingsForClient);
       }
 
       public bool doesUserExist(User user) {

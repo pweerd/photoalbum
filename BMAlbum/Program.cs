@@ -52,8 +52,7 @@ namespace BMAlbum {
             g.RegisterAuthenticationHandler (app);
 
             app.UseEndpoints (endpoints => {
-               g.RegisterBundleHandler (endpoints);
-               g.RegisterDumpHandler (endpoints);
+               g.RegisterInternalHandlers (endpoints);
                g.RegisterRoutesFromSettings (endpoints, settings);
             });
             app.Run ();

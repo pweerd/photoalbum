@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-function createMapApplication(state) {
-   if ((state.debug_flags & 0x10000) !== 0 && bmGlobals.hookConsole)
-      bmGlobals.hookConsole([state.home_url, 'clientlog/log?', state.home_url_params].join(''));
+function createMapControl(app) {
 
    const googleZoomToEsZoom = [
       2,  //0
@@ -45,82 +43,34 @@ function createMapApplication(state) {
    ];
    const maxGoogleZoom = 13;
    const maxEsZoom = googleZoomToEsZoom[maxGoogleZoom];
+   let _map;
+   let _markers = {
+      zoom: -1,
+      clusters: {},
+      photos: {}
+   };
 
-
-   let _state = state;
-
-   //Save the original url for using in the history
-   _state.entryUrl = new URL(window.location);
-   _state.entryUrl.search = ''
-   _state.entryUrl = _state.entryUrl.href;
-   _state.cmd ||= '';
-
-
-
-
-   function _createUrlParts(url) {
-      return [_state.home_url, url, "?", _state.home_url_params];
-   }
-
-   function _createUrl(url, parms) {
-      console.log("CreateUrl", url, parms);
-      var parts = _createUrlParts(url);
-      if (parms instanceof Array) {
-         parts = parts.concat(parms);
-      } else {
-         parts.push(parms);
-      }
-      console.log("-->", parts.join(""));
-      return parts.join("");
-   }
-
-   function _getJSON(url, parms, func) {
-      let realUrl = _createUrl(url, parms);
-      $.ajax({
-         dataType: "json",
-         url: realUrl,
-         complete: function (jqXHR) {
-            let json;
-            let unknownMsg = 'Unknown error: ';
-            try {
-               json = JSON.parse(jqXHR.responseText);
-            } catch (err) {
-               unknownMsg = err + ': ';
-            }
-            if (jqXHR.status === 200 && json && json.bm_error === undefined) {
-               func(json, jqXHR);
-               return;
-            }
-            let arr = [];
-            if (json && json.bm_error) {
-               arr.push(json.bm_error.message);
-            } else {
-               arr.push(unknownMsg + jqXHR.responseText);
-            }
-            arr.push("\r\n\r\nUrl=");
-            arr.push(realUrl);
-            if ((_state.debug_flags & 4) != 0 && json && json.bm_error.stacktrace) {
-               arr.push("\r\nTrace=");
-               arr.push(json.bm_error.stacktrace);
-            }
-            alert(arr.join(''));
-         }
-      });
-   }
+   let _getJSON = app.getJSON;
+   let _postJSON = app.postJSON;
+   let _needHistory;
 
    function _normalizePosition(pos) {
+      //console.log('typeof pos1=', typeof pos, pos instanceof google.maps.LatLng);
       if (Array.isArray(pos)) {
          pos = new google.maps.LatLng(pos[0], pos[1]);
       } else if (typeof (pos) === "string") {
          let arr = pos.split(',');
          pos = new google.maps.LatLng(arr[0], arr[1]);
+      } if (!(pos instanceof google.maps.LatLng)) {
+         pos = new google.maps.LatLng(pos.lat, pos.lon | pos.lng);
       }
+      //console.log('typeof pos2=', typeof pos, pos instanceof google.maps.LatLng);
       return pos;
    }
 
    function _createGroupMarker(cl) {
       const img = document.createElement('img');
-      img.src = '/images/redgrouppin.svg';
+      img.src = _state.home_url + 'images/' + _state.map_settings.group_pin;
       let tit = cl.count + " photo's";
       if (cl.album) tit = tit + " (" + cl.album + ")";
       const marker = new google.maps.marker.AdvancedMarkerElement({
@@ -136,9 +86,27 @@ function createMapApplication(state) {
       });
       return marker;
    }
+
+   function _firePhoto() {
+      let thisLoc = _positionToString(this.position);
+      let loc = this.photo_id;
+      if (!loc) loc = thisLoc;
+
+      //Mark the current item
+      _createMainPhotoMarker(thisLoc, this);
+      _pushHistory();
+
+      //Update UI
+      setTimeout(function () {
+         app.start({
+            mode: 'photos',
+            pin: loc
+         });
+      });
+   }
    function _createPhotoMarker(cl) {
       const img = document.createElement('img');
-      img.src = '/images/redpin.svg';
+      img.src = _state.home_url + 'images/' + _state.map_settings.other_pins[cl.color | 0];
       let tit = cl.album;
       if (!tit) tit = cl.photo_id;
       const marker = new google.maps.marker.AdvancedMarkerElement({
@@ -148,34 +116,39 @@ function createMapApplication(state) {
          title: tit
       });
       marker.photo_id = cl.photo_id;
-      marker.addListener('click', () => {
-         alert('clicked on ' + marker.photo_id)
-         console.log('click photomarker', marker);
-      });
+      marker.album = cl.album;
+      marker.addListener('click', _firePhoto);
       return marker;
    }
-   function _createMainPhotoMarker(loc) {
+   function _createMainPhotoMarker(loc, parms) {
       const img = document.createElement('img');
-      img.src = '/images/redpin.svg';
+      img.src = _state.home_url + 'images/' + _state.map_settings.selected_pin;
       img.width = 48;
       img.height = 48;
       const marker = new google.maps.marker.AdvancedMarkerElement({
          map: _map,
-         title: 'position of selected photo',
+         title: 'positie geselecteerde foto',
          content: img,
-         position: _normalizePosition(loc)
+         position: _normalizePosition(loc),
+         zIndex: 999
       });
-      if (_markers.mainPin) _markers.mainPin.setMap(null);
-      _markers.mainPin = marker;
-      return marker;
+      if (parms) {
+         if (parms.photo_id) {
+            marker.photo_id = parms.photo_id;
+            marker.addListener('click', _firePhoto);
+         }
+         if (parms.album) marker.title = parms.album + " (geselecteerd)";
+      }
+      return _setMainMarker(marker);
    }
 
-   let _map;
-   let _markers = {
-      zoom: -1,
-      clusters: {},
-      photos: {}
-   };
+   function _setMainMarker(marker) {
+      if (_markers.mainPin !== marker) {
+         if (_markers.mainPin) _markers.mainPin.setMap(null);
+         _markers.mainPin = marker;
+      }
+      return marker;
+   }
 
    function _removeUntouchedMarkers() {
       function getTouched(coll) {
@@ -195,17 +168,42 @@ function createMapApplication(state) {
       _markers.photos = getTouched(_markers.photos);
    }
 
+   function _positionToString(pos) {
+      return (typeof pos.lat === 'function') ? pos.lat() + ',' + pos.lng() : pos.lat + ',' + pos.lng;
+   }
+   function _boundsToString(bounds) {
+      let ne = bounds.getNorthEast();
+      let sw = bounds.getSouthWest();
+      return ne.lat() + "," + sw.lng() + "," + sw.lat() + "," + ne.lng();
+   }
+   function _stringToBounds(bounds) {
+      let arr = bounds.split(',');
+      return new google.maps.LatLngBounds(
+         new google.maps.LatLng(arr[2], arr[1]), //sw
+         new google.maps.LatLng(arr[0], arr[3])  //ne
+      );
+   }
+
    let _reposTimer;
+   let _lastColors = undefined;
    function _fetchMarkers() {
+      console.log("_fetchMarkers");
       clearTimeout(_reposTimer);
       _reposTimer = setTimeout(() => {
-         console.log('zoom', _map.getZoom(), 'bounds', _map.getBounds(), _map.getBounds().toUrlValue());
-         //return;
-         _state.user = 'alles';
+         let bounds = _map.getBounds();
          let zoom = _map.getZoom();
+         console.log('delayed _fetchMarkers: zoom', zoom, 'bounds', bounds);
+         if (!bounds) {
+            console.log("no bounds!");
+            return;
+         }
+         if (bounds.getNorthEast().lat() == bounds.getSouthWest().lat()) {
+            console.log("empty bounds!");
+            return;
+         }
+
          let parms = [];
-         parms.push("&u=" + _state.user);
-         parms.push("&bounds=" + _map.getBounds().toUrlValue());
+         parms.push("&bounds=" + _boundsToString(_map.getBounds()));
 
          if (zoom < maxGoogleZoom) {
             zoom = googleZoomToEsZoom[zoom];
@@ -215,11 +213,12 @@ function createMapApplication(state) {
          }
          parms.push("&zoom=" + zoom);
 
-         _getJSON(_state.user + '/map/clusters', parms, function (json) {
+         _postJSON('map/clusters', _lastColors, parms, function (json) {
 
             //Process clusters (groups)
             let markers = _markers.clusters;
             let clusters = json.clusters;
+            _lastColors = json.colors; //if (json.colors)
             let totBefore = 0;
             let totAfter = 0;
             for (let k in clusters) {
@@ -284,13 +283,15 @@ function createMapApplication(state) {
             }
             _markers.zoom = zoom;
             _removeUntouchedMarkers();
+
+            if (history.state && history.state.mode==='map') _pushHistory();
          });
 
       }, 100);
    }
 
    //function _createH3Marker(key, cnt) {
-   //   const pos = _normalizePosition(h3.cellToLatLng(key)); 
+   //   const pos = _normalizePosition(h3.cellToLatLng(key));
    //   const marker = new google.maps.marker.AdvancedMarkerElement({//
    //      map: _map,
    //      position: pos,
@@ -313,11 +314,9 @@ function createMapApplication(state) {
    //   _reposTimer = setTimeout(() => {
    //      console.log('zoom', _map.getZoom(), 'bounds', _map.getBounds(), _map.getBounds().toUrlValue());
    //      //return;
-   //      _state.user = 'alles';
    //      let zoom = _map.getZoom();
    //      let bnds = _map.getBounds().toUrlValue();
    //      let parms = [];
-   //      parms.push("&u=" + _state.user);
    //      parms.push("&zoom=" + zoom);
    //      parms.push("&bounds=" + bnds);
 
@@ -333,27 +332,102 @@ function createMapApplication(state) {
    //   }, 100);
    //}
 
-   async function _initMap() {
-      //quarterly
-      console.log('initmap2');
-      //const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
-      _map = new google.maps.Map(document.getElementById("map"), {
-         center: { lat: 52.09, lng: 5.10 },
-         zoom: 10,
-         mapId: "DEMO_MAP_ID"
-      });
-      console.log('initmap3', map);
-      if (_state.pin) _createMainPhotoMarker(_state.pin);
-      _map.addListener('bounds_changed', _fetchMarkers);
 
-   //   console.log('h3=', h3);
-   //   const h3Index = h3.latLngToCell(37.3615593, -122.0553238, 7);
-   //   console.log('h3Index=', h3Index);
+   function _onPopHistory(ev) {
+      _start(ev.originalEvent.state, 'history');
+      return true;
    }
 
-   return window.globals = {
-      getJSON: _getJSON,
-      initMap: _initMap
+   function _pushHistory() {
+      let url = new URL(_state.entryUrl);
+      url.search = _state.home_url_params + _state.cmd;
+      url.hash = '';
+      let histState = {
+         mode: _state.mode,
+         cmd: _state.cmd,
+         title: document.title,
+         url: url.href,
+         center: _positionToString(_map.getCenter()),
+         zoom: _map.getZoom()
+      };
+      if (_markers.mainPin) {
+         histState.pin = _positionToString(_markers.mainPin.position);
+         histState.album = _markers.mainPin.album;
+         histState.photo_id = _markers.mainPin.photo_id;
+      }
+
+      let pushHist = history.replaceState;
+      if (history.state && history.state.mode !== 'map') pushHist = history.pushState;
+      pushHist (histState, histState.title, histState.url); 
+      console.log('PUSHed map hist');
+   }
+
+
+
+   function _start(parms, from) {
+      console.log("startmap", parms, from, _map);
+      document.title = "Kaart | Foto's";
+      _state = app.state;
+      if (!_map) {
+         console.log("GOOGLE", typeof google);
+         if (!Object.hasOwn(window, 'google') || !Object.hasOwn(window.google,'maps')) {
+            window._initMap = function () {
+               console.log("lazy loading:", parms, from);
+               app.start(parms, from);
+            };
+            const script = document.createElement('script')
+            const src = "https://maps.googleapis.com/maps/api/js?libraries=places,marker&callback=_initMap&key=";
+            script.src = src + encodeURIComponent(_state.map_settings.key);
+            document.body.appendChild(script);
+            return false;
+         }
+         console.log('create map');
+         _map = new google.maps.Map(document.getElementById("map"), {
+            center: _normalizePosition(_state.map_settings.start_position),
+            zoom: _state.map_settings.start_zoom,
+            mapId: "ALBUM_MAP"
+         });
+         _map.addListener('bounds_changed', _fetchMarkers);
+         console.log('map', _map);
+      }
+
+      let zoom = -1;
+      let loc = null;
+      if (parms && parms.pin) {
+         zoom = maxGoogleZoom;
+         loc = parms.pin;
+         _createMainPhotoMarker(loc, parms);
+      } else {
+         if (_state.pin) {
+            zoom = maxGoogleZoom;
+            loc = _state.pin.position;
+            _createMainPhotoMarker(loc, _state.pin);
+         }
+      }
+
+      if (parms) {
+         if (parms.center) loc = parms.center;
+         zoom = parms.zoom !== undefined ?parms.zoom : maxGoogleZoom;
+      }
+
+      //Now position the map
+      if (loc != null) {
+         _map.panTo(_normalizePosition(loc));
+         _map.setZoom(zoom);
+
+         //Sometimes the map isn't updated completely
+         //also the bounds have a same value for hi- and lo-lat
+         //Hide/show forces a refresh
+         $("#map").hide().show(0); //Forces a repaint in the map
+         //google.maps.event.trigger(_map, 'resize');
+      }
+      if (from !== 'history') _pushHistory();
+      return true;
+   }
+
+   return {
+      start: _start,
+      onPopHistory: _onPopHistory
    };
 }
 

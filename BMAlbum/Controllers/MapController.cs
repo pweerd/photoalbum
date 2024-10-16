@@ -7,6 +7,8 @@ using BMAlbum.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using NuGet.Configuration;
+using System.Collections.Generic;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace BMAlbum.Controllers {
@@ -41,6 +43,12 @@ namespace BMAlbum.Controllers {
 
       private enum _Mode { clusters, photos};
       public IActionResult Clusters () {
+         var mem = new MemoryStream ();
+         using (var strm = Request.Body) {
+            strm.CopyToAsync (mem).GetAwaiter ().GetResult ();
+         }
+         mem.Position = 0;
+
          var zoom = Request.Query.ReadInt ("zoom", -1);
          var bounds = Request.Query.ReadStr ("bounds", null);
          var mode = Request.Query.ReadEnum ("mode", _Mode.clusters);
@@ -57,13 +65,17 @@ namespace BMAlbum.Controllers {
 
          var c = settings.ESClient;
          var req = c.CreateSearchRequest (settings.MainIndex);
+         var albumAgg = new ESTermsAggregation ("albums", "album.facet", 3);
          if (mode==_Mode.clusters) {
             req.Size = 0;
             var agg = new ESGeoHashAggregation ("clusters", FIELD, zoom);
             req.Aggregations.Add (agg);
+            agg.SubAggs.Add (albumAgg);
          } else {
-            req.Size = 100;
+            req.Size = 500;
             req.SetSource (FIELD + ",album", null);
+            req.Aggregations.Add (albumAgg);
+            albumAgg.Size = 10;
          }
          var bq = new ESBoolQuery ();
          bq.AddFilter (clientState.User.Filter);
@@ -88,24 +100,77 @@ namespace BMAlbum.Controllers {
                json.WriteStartObject (k);
                json.WriteProperty ("loc", hashToLocation (k));
                json.WriteProperty ("count", item.Count);
+               var str = fetchAlbumsAsString (item);
+               if (str != null) json.WriteProperty ("albums", str);
+
                json.WriteEndObject ();
             }
          }
          json.WriteEndObject ();
 
+         MapColorDict colorDict = null;
          json.WriteStartObject ("photos");
-         foreach (var d in resp.Documents) {
-            var src = d._Source;
-            json.WriteStartObject (d.Id);
-            json.WriteProperty ("loc", src.ReadStr (FIELD, string.Empty));
-            json.WriteProperty ("album", src.ReadStr ("album", string.Empty));
-            json.WriteProperty ("count", 1);
-            json.WriteEndObject ();
+         if (resp.Documents.Count>0) {
+            colorDict = new MapColorDict (settings.MapSettings);
+            if (mem.Length>2) {
+               var existingColors = JsonObjectValue.Load (mem);
+               foreach (var kvp in existingColors) {
+                  colorDict.SetColorIndex (kvp.Key, kvp.Value.AsInt ());
+               }
+            }
+
+            markBestAlbums (colorDict, resp.Aggregations);
+            foreach (var d in resp.Documents) {
+               var src = d._Source;
+               json.WriteStartObject (d.Id);
+               json.WriteProperty ("loc", src.ReadStr (FIELD, string.Empty));
+               var a = src.ReadStr ("album", string.Empty);
+               json.WriteProperty ("album", a);
+               json.WriteProperty ("count", 1);
+               json.WriteProperty ("color", colorDict.GetColorIndex(a));
+               json.WriteEndObject ();
+            }
          }
          json.WriteEndObject ();
+         if (colorDict != null) colorDict.ExportToJson (json);
 
          json.WriteEndObject ();
          return new JsonActionResult (json);
+      }
+
+      string fetchAlbumsAsString (ESAggregationResultItem agg) {
+         var albums = agg.FindInnerAggregation ("albums", false);
+         if (albums == null || albums.ItemCount == 0) return null;
+
+         var sb = new StringBuilder ();
+         for (int i = 0; i < albums.ItemCount; i++) {
+            if (sb.Length > 0) sb.Append ('\n');
+            var item = albums.Items[i];
+            var k = item.GetKey ();
+            sb.Append (item.GetKey ()).Append (' ').Append ('(').Append (item.Count).Append (')');
+         }
+         return sb.ToString ();
+      }
+
+      class AlbumAdmin {
+         public readonly string Album;
+         public readonly int Count;
+         public readonly int Index;
+         public AlbumAdmin (ESAggregationResultItem item, int index) {
+            Album = item.GetKey ();
+            Count = item.Count;
+            Index = index; 
+         }
+
+      }
+      void markBestAlbums (MapColorDict dict, ESAggregationResults agg) {
+         var ret = new Dictionary<string,AlbumAdmin> ();
+         var albums = agg.FindByName ("albums", false);
+         if (albums != null && albums.ItemCount > 0){
+            for (int i = 0; i < albums.ItemCount; i++) {
+               dict.GetColorIndex (albums.Items[i].GetKey());
+            }
+         }
       }
 
       private static string hashToLocation(string hash) {
@@ -219,11 +284,6 @@ namespace BMAlbum.Controllers {
 
          return new JsonActionResult (json);
 
-      }
-
-
-      private static int googleZoomToGeoHashZoom(int zoom) {
-         return (int)Math.Round(1 + 11 * (zoom / 23.0)); 
       }
    }
 }

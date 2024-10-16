@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg width="32" height="32" viewBox="0 0 8.4666665 8.4666666" version="1.1" id="svg1" inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)" sodipodi:docname="blackpin.svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview id="namedview1" pagecolor="#ffffff" bordercolor="#000000" borderopacity="0.25" inkscape:showpageshadow="2" inkscape:pageopacity="0.0" inkscape:pagecheckerboard="0" inkscape:deskcolor="#d1d1d1" inkscape:document-units="mm" inkscape:zoom="11.702245" inkscape:cx="-11.578975" inkscape:cy="22.004325" inkscape:window-width="1920" inkscape:window-height="1017" inkscape:window-x="-8" inkscape:window-y="118" inkscape:window-maximized="1" inkscape:current-layer="layer1" />
+  <defs id="defs1" />
+  <g inkscape:label="Layer 1" inkscape:groupmode="layer" id="layer1">
+    <g id="g4">
+      <path style="fill:#626262;stroke:#626262;stroke-width:0.41232;stroke-linecap:round;stroke-dasharray:none;paint-order:stroke fill markers" d="M 3.9434799,8.1752775 5.7334384,3.8304318" id="path2" />
+      <circle style="fill:#FF8C00;fill-opacity:1;stroke:#FF8C00;stroke-width:1.32292;stroke-linecap:round;stroke-opacity:1;paint-order:stroke fill markers" id="path1" cx="6.3759131" cy="2.1705239" r="1.3113581" />
+      <path style="display:inline;fill:#fffcfe;fill-opacity:0.0206612;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers" id="path3" sodipodi:type="arc" sodipodi:cx="6.3646083" sodipodi:cy="2.1366091" sodipodi:rx="1.1191763" sodipodi:ry="1.1191763" sodipodi:start="5.2225147" sodipodi:end="0.781499" sodipodi:open="true" sodipodi:arc-type="arc" d="m 6.9110875,1.1599228 a 1.1191763,1.1191763 0 0 1 0.5618116,0.820972 1.1191763,1.1191763 0 0 1 -0.313834,0.9439997" />
+    </g>
+  </g>
+</svg>

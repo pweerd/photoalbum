@@ -21,11 +21,13 @@ using Microsoft.AspNetCore.Html;
 namespace BMAlbum.Models {
    public class HomeModel {
       public readonly ClientState State;
+      public readonly MapSettings MapSettings;
       public readonly RequestContext RequestCtx;
 
       public HomeModel (BaseController c, ClientState state) {
          RequestCtx = c.RequestCtx;
          State = state;
+         MapSettings = state.Settings.MapSettings;
       }
 
       public HtmlString GetStateAsHtmlString() {

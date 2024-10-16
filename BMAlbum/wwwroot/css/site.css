@@ -194,6 +194,7 @@ body {
 }
 
 .hidden {
+   display:none;
    visibility:hidden;
 }
 
@@ -248,7 +249,7 @@ body {
    top:0px;
    left:0px;
    opacity: 0;
-   z-index:10000;
+   z-index:1000000;
    pointer-events: none;
    transition: opacity 500ms ease;
 }
@@ -261,7 +262,7 @@ body {
 .bm_menu ul li a {
    text-decoration: none;
    /*font-family: "Roboto", sans-serif;*/
-   padding: 10px 32px;
+   padding: 4px 20px;
    display: inline-block;
    /*font-size: 16px;*/
    /*font-weight: bold;*/

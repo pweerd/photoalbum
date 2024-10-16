@@ -52,5 +52,6 @@ namespace BMAlbum.Controllers {
          }
          return Redirect ("~/");
       }
+
    }
 }

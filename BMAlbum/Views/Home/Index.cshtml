@@ -45,17 +45,24 @@
 </header>
 <div id="lightbox" class="full-width"></div>
 </div>
+<div id="map" style="height:100%; width:100%;" class="hidden"></div>
+
 <div id="overlay" class="slimbar" style="z-index:9999; transition: visibility 1s"></div>
 <div id="context_menu" class="bm_menu">
    <ul>
       <li id="ctx_goto_album" class="bm_menu_item">
          <a href="#"> Ga naar album </a>
       </li>
-      <li id="ctx_goto_track" class="bm_menu_item bm_menu_disabled">
+      <li id="ctx_goto_track" class="bm_menu_item">
          <a href="#"> Ga naar track </a>
       </li>
+      @if (Model.RequestCtx.IsInternalIp) {
       <li id="ctx_goto_faces" class="bm_menu_item">
          <a href="#"> Ga naar gezichten </a>
+      </li>
+      }
+      <li id="ctx_goto_map" class="bm_menu_item">
+         <a href="#"> Ga naar kaart </a>
       </li>
       <li id="ctx_info" class="bm_menu_item">
          <a href="#"> Toon informatie </a>
@@ -65,6 +72,9 @@
 
 @section Scripts {
    <script type="text/javascript">
-      createApplication(@Model.GetStateAsHtmlString());
+      app = createApplication(@Model.GetStateAsHtmlString());
+      app.mapControl = createMapControl(app);
+      app.lbControl = createLightboxControl(app);
+      app.start(undefined, history.state ? "history" : undefined); 
    </script>
-}
+}   
