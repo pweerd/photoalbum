@@ -191,20 +191,6 @@ namespace BMAlbum.Controllers {
             json.WriteValue (req);
             json.WriteEndObject ();
          }
-         json.WriteStartArray ("sort_options");
-         json.WriteStartObject ();
-         json.WriteProperty ("name", "oldestontop");
-         json.WriteProperty ("value", "");
-         json.WriteEndObject ();
-         json.WriteStartObject ();
-         json.WriteProperty ("name", "newestontop");
-         json.WriteProperty ("value", "");
-         json.WriteEndObject ();
-         json.WriteStartObject ();
-         json.WriteProperty ("name", "");
-         json.WriteProperty ("value", "");
-         json.WriteEndObject ();
-         json.WriteEndArray ();
 
          json.WriteEndObject ();
 
@@ -451,20 +437,6 @@ namespace BMAlbum.Controllers {
             json.WriteValue (req);
             json.WriteEndObject ();
          }
-         json.WriteStartArray ("sort_options");
-         json.WriteStartObject ();
-         json.WriteProperty ("name", "oldestontop");
-         json.WriteProperty ("value", "");
-         json.WriteEndObject ();
-         json.WriteStartObject ();
-         json.WriteProperty ("name", "newestontop");
-         json.WriteProperty ("value", "");
-         json.WriteEndObject ();
-         json.WriteStartObject ();
-         json.WriteProperty ("name", "");
-         json.WriteProperty ("value", "");
-         json.WriteEndObject ();
-         json.WriteEndArray ();
 
          json.WriteEndObject ();
 
