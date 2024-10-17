@@ -855,6 +855,7 @@ function createLightboxControl(app) {
    function _initSortCombo() {
       var $cb = $('#cb_sort');
       if ($cb.length === 0) return;
+      if ($cb.find('option').length > 0) return;
 
       var sortModes = _state.sortmodes;
       for (var prop in sortModes) {
