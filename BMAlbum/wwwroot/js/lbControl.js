@@ -216,7 +216,7 @@ function createLightboxControl(app) {
       addRow("Tit_en", photo.t_en);
       addRow("Text", photo.t_txt);
       addRow("Camera", photo.c);
-      if (_state.debug || _state.extInfo) {
+      if (_state.debug || _state.is_local) {
          addRow("Dir", photo.f.substring(0, ix1));
          addRow("Sortkey", photo.sk);
       }
@@ -995,6 +995,8 @@ function createLightboxControl(app) {
 
       enableMenuItem("#ctx_goto_track", curPhoto.trkid !== undefined);
       enableMenuItem("#ctx_goto_map", curPhoto.l !== undefined);
+      enableMenuItem("#ctx_goto_faces", _state.is_local);
+
 
       ev.preventDefault();
       console.log("Open context menu. photo-ix:", ix, curPhoto);

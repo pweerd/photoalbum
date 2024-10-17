@@ -26,10 +26,10 @@ namespace BMAlbum.Controllers {
       public IActionResult Index () {
          var settings = (Settings)base.Settings;
          var clientState = new ClientState (RequestCtx, settings);
-         if (Request.RouteValues.TryGetValue ("user", out var uid)) {
-            clientState.User = settings.Users.GetUser (uid.ToString ());
-         } else
-            clientState.User = settings.Users.DefUser;
+         if (clientState.PerAlbum == TriStateBool.Unspecified && clientState.User.InitialPerAlbum != TriStateBool.Unspecified)
+            clientState.PerAlbum = clientState.User.InitialPerAlbum;
+         if (clientState.SortName == null && clientState.User.InitialSortMode != null)
+            clientState.SetSortMode (clientState.User.InitialSortMode);
 
          switch (BMAlbum.User.CheckAccess(clientState.User, RequestCtx.RemoteIPClass, isAuthenticated())) {
             case _Access.NotExposed: return new ActionResult404 ();

@@ -39,7 +39,7 @@ namespace BMAlbum {
    public class ClientState : Bitmanager.Web.ClientState {
       public readonly Settings Settings;
       private readonly SearchSettings SearchSettings;
-      private string sortName;
+      public string SortName;
       public string CacheVersion;
       public User User;
       public Pin Pin;
@@ -58,7 +58,7 @@ namespace BMAlbum {
          this.Settings = settings;
          InternalIp = ctx.IsInternalIp;
          User = settings.Users.DefUser;
-         PerAlbum = TriStateBool.True;
+         PerAlbum = TriStateBool.Unspecified;
          Facets = new List<KeyValuePair<string, string>>();
          CacheVersion = settings.LightboxSettings.CacheVersion;
 
@@ -71,12 +71,16 @@ namespace BMAlbum {
          req.RouteValues.TryGetValue ("mode", out var appModeId);
          AppMode = Invariant.ToEnum((string)appModeId, AppMode.Photos);
 
-         sortName = null;
+         SortName = null;
          parseRequestParms (ctx.HttpContext.Request);
          ActualPageSize = (DebugFlags & Bitmanager.Web.DebugFlags.ONE) != 0 ? 1 : PageSize;
 
          SearchSettings = (AppMode== AppMode.Faces) ? settings.FaceSearchSettings : settings.MainSearchSettings;
-         Sort = sortName == null ? SearchSettings.SortModes.Default : SearchSettings.SortModes.Find (sortName, true);
+         SetSortMode (SortName);
+      }
+
+      public void SetSortMode (string sortModeName) {
+         Sort = sortModeName == null ? SearchSettings.SortModes.Default : SearchSettings.SortModes.Find (sortModeName, true);
       }
 
       public bool ContainsFacetRequest(string what) {
@@ -123,7 +127,7 @@ namespace BMAlbum {
                Slide = val.TrimToNull ();
                break;
             case "sort":
-               sortName = val.TrimToNull ();
+               SortName = val.TrimToNull ();
                break;
             case "mode":
                AppMode = Invariant.ToEnum (val, AppMode);
@@ -142,7 +146,7 @@ namespace BMAlbum {
                   if (key == "album") PerAlbum = TriStateBool.False;
                } else {
                   Facets.Add (new KeyValuePair<string, string> (key, val));
-                  sortName = null;
+                  SortName = null;
                }
                break;
             default:
@@ -196,7 +200,7 @@ namespace BMAlbum {
          }
 
          if (CacheVersion != null) container["cache_version"] = CacheVersion;
-         if (InternalIp) container["extInfo"] = true;
+         if (InternalIp) container["is_local"] = true;
          return base.ToJson (container);
       }
 

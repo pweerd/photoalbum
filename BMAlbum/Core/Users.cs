@@ -122,10 +122,12 @@ namespace BMAlbum {
       
       public readonly string Id;
       public readonly string Name;
+      public readonly string InitialSortMode;
       public readonly Regex SkipAuthenticateExpr;
       public readonly Regex ExposeExpr;
       public readonly ESQuery Filter;
       public readonly DateTime Expires;
+      public readonly TriStateBool InitialPerAlbum;
 
       public User () {
          SkipAuthenticateExpr = regexIntern;
@@ -151,6 +153,8 @@ namespace BMAlbum {
          }
          string tmp;
 
+         InitialPerAlbum = node.ReadEnum ("@per_album", TriStateBool.Unspecified);
+         InitialSortMode = node.ReadStr ("@sort", null);
          tmp = node.ReadStr ("@skip_authenticate", null);
          SkipAuthenticateExpr = tmp == null ? regexIntern : new Regex (tmp, OPTIONS);
 
