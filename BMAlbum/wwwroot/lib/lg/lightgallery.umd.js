@@ -368,13 +368,18 @@
             var _this = this;
             if (!this.selector) {
                 return this;
-            }
+           }
             events.split(' ').forEach(function (event) {
-                if (!Array.isArray(lgQuery.eventListeners[event])) {
-                    lgQuery.eventListeners[event] = [];
-                }
-                lgQuery.eventListeners[event].push(listener);
-                _this.selector.addEventListener(event.split('.')[0], listener);
+               let parts = event.split('.');
+               if (parts.length == 1) parts.push('');
+               let v0 = lgQuery.eventListeners[parts[0]];
+               if (!v0) {
+                  lgQuery.eventListeners[parts[0]] = v0 = {};
+               } 
+               let v1 = v0[parts[1]];
+               if (!Array.isArray(v1)) v0[parts[1]] = v1 = [];
+               v1.push(listener);
+               _this.selector.addEventListener(parts[0], listener);
             });
             return this;
         };
@@ -392,15 +397,18 @@
             if (!this.selector) {
                 return this;
            }
-           Object.keys(lgQuery.eventListeners).forEach(function (eventName) {
-              if (_this.isEventMatched(event, eventName)) {
-                 lgQuery.eventListeners[eventName].forEach(function (listener) {
-                    _this.selector.removeEventListener(eventName.split('.')[0], listener);
+           let parts = event.split('.');
+           if (parts.length == 1) parts.push('');
+           let v0 = lgQuery.eventListeners[parts[0]];
+           if (v0) {
+              let v1 = v0[parts[1]];
+              if (Array.isArray(v1)) {
+                 v1.forEach(function (listener) {
+                    _this.selector.removeEventListener(parts[0], listener);
                  });
-                 //PW Bugfix: see issue in LightGallery github
-                 delete lgQuery.eventListeners[eventName];// = [];
+                 delete v0[parts[1]];
               }
-           });
+           }
            return this;
         };
         lgQuery.prototype.trigger = function (event, detail) {
