@@ -62,6 +62,7 @@ function createLightboxControl(app) {
    function _addTiming(data, action) {
       let dbg = data.dbg;
       if (!dbg) return;
+      if (dbg.timings===undefined) dbg.timings = [];
       let t1 = Date.now();
       dbg.timings.push({
          took: t1 - _t0,
@@ -1029,7 +1030,7 @@ function createLightboxControl(app) {
          window.open("https://bitmanager.nl/tracks?t=" + _unique++ + "#" + encodeURIComponent(clickedPhoto.trkid),
             "trackstab");
       } else if (clickId === 'ctx_goto_faces') {
-         window.open(app.createUrl('', '&mode=faces&q=' + encodeURIComponent(clickedPhoto.f.replace(/\\/g, ' '))),
+         window.open(app.createUrl('', '&mode=faces&q=' + encodeURIComponent(clickedPhoto.f.replace(/[\\\-\.]/g, ' '))),
             "faces_tab");
       } else if (clickId === 'ctx_goto_map') {
          if (ev.ctrlKey) {
