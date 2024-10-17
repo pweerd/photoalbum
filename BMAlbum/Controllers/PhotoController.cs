@@ -126,7 +126,7 @@ namespace BMAlbum.Controllers {
          knownFacets.Add ("album", agg);
 
          agg = new ESTermsAggregation ("year", "year");
-         agg.Sort.Add (ESAggregation.AggSortMethod.Asc | ESAggregation.AggSortMethod.Item);
+         agg.Sort.Add (ESAggregation.AggSortMethod.Desc | ESAggregation.AggSortMethod.Item);
          agg.Size = SIZE;
          knownFacets.Add ("year", agg);
 
@@ -261,7 +261,7 @@ namespace BMAlbum.Controllers {
          knownFacets.Add ("album", agg);
 
          agg = new ESTermsAggregation ("year", "year");
-         agg.Sort.Add (ESAggregation.AggSortMethod.Asc | ESAggregation.AggSortMethod.Item);
+         agg.Sort.Add (ESAggregation.AggSortMethod.Desc | ESAggregation.AggSortMethod.Item);
          agg.Size = SIZE;
          knownFacets.Add ("year", agg);
 
