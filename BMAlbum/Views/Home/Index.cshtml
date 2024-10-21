@@ -43,9 +43,17 @@
       </div>
    </nav>
 </header>
-<div id="lightbox" class="full-width"></div>
+<div id="content" class="full-width">
+   @if (Model.State.AppMode == AppMode.Faces) {
+      <div id="face_names" class="scroll_container_y bordered-slimbar"></div>
+   }
+   <div id="lightbox" class="scroll_container_y slimbar"></div>
 </div>
-<div id="map" style="height:100%; width:100%;" class="hidden"></div>
+
+</div>
+@if (Model.State.AppMode != AppMode.Faces) {
+   <div id="map" style="height:100%; width:100%;" class="hidden"></div>
+}
 
 <div id="overlay" class="slimbar" style="z-index:9999; transition: visibility 1s"></div>
 <div id="context_menu" class="bm_menu">
@@ -69,6 +77,8 @@
       </li>
    </ul>
 </div>
+<div id="drag_proxy" style="z-index:9999; position:absolute; visibility:hidden"></div>
+
 
 @section Scripts {
    <script type="text/javascript">

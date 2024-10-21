@@ -26,6 +26,10 @@ namespace BMAlbum.Controllers {
       public IActionResult Index () {
          var settings = (Settings)base.Settings;
          var clientState = new ClientState (RequestCtx, settings);
+         if (clientState.AppMode == AppMode.Faces) {
+            if (!clientState.InternalIp) return new ActionResult404 ();
+         }
+         if (clientState.User==null) return new ActionResult404 ();
          if (clientState.PerAlbum == TriStateBool.Unspecified && clientState.User.InitialPerAlbum != TriStateBool.Unspecified)
             clientState.PerAlbum = clientState.User.InitialPerAlbum;
          if (clientState.SortName == null && clientState.User.InitialSortMode != null)
