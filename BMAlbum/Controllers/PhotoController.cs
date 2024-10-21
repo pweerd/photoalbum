@@ -524,6 +524,9 @@ namespace BMAlbum.Controllers {
             json.WriteProperty ("h", h);
             json.WriteProperty ("t_nl", doc.ReadStr ("text_nl", null));
             json.WriteProperty ("t_ocr", doc.ReadStr ("ocr", null));
+            int faces = doc.ReadInt ("face_count", 0);
+            if (faces>0) json.WriteProperty ("fcnt", faces);
+
             if (dbg) {
                json.WriteProperty ("t_en", doc.ReadStr ("text_en", null));
                json.WriteProperty ("t_txt", doc.ReadStr ("text", null));

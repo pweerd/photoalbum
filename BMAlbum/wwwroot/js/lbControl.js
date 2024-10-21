@@ -1001,7 +1001,7 @@ function createLightboxControl(app) {
 
       enableMenuItem("#ctx_goto_track", curPhoto.trkid !== undefined);
       enableMenuItem("#ctx_goto_map", curPhoto.l !== undefined);
-      enableMenuItem("#ctx_goto_faces", _state.is_local);
+      enableMenuItem("#ctx_goto_faces", _state.is_local && curPhoto.fcnt > 0);
 
 
       ev.preventDefault();
