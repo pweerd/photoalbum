@@ -23,8 +23,6 @@ using Bitmanager.Query;
 using Bitmanager.Web;
 using BMAlbum.Core;
 using Microsoft.AspNetCore.Mvc;
-using System.Drawing;
-using static System.Formats.Asn1.AsnWriter;
 
 namespace BMAlbum.Controllers {
    public class FacePhotoController : BaseController {
@@ -32,12 +30,11 @@ namespace BMAlbum.Controllers {
          var settings = (Settings)base.Settings;
          var faceNames = settings.FacesAdmin.Names;
          var clientState = new ClientState (RequestCtx, settings);
+         if (!clientState.InternalIp) return new JsonActionResult ();
+
          var c = settings.ESClient;
          var req = c.CreateSearchRequest (settings.FaceIndex);
          clientState.Sort.ToSearchRequest (req);
-         //req.Sort.Add (new ESSortField ("names.id", ESSortDirection.desc, "names"));
-         //if (req.Sort.Count == 1) clientState.Sort = settings.FaceSearchSettings.SortModes[0];
-         req.TrackTotalHits = true;
          req.Size = 1000;
          var bq = new ESBoolQuery ();
          req.Query = bq;
