@@ -903,6 +903,10 @@ function createLightboxControl(app) {
          _search();
          e.preventDefault();
       }
+   }).on('input', function (e) {
+      if (!e.originalEvent.inputType && $("#searchq").val() === '') {
+         _search();
+      }
    });
 
    $("#lightbox")[0].addEventListener('lgAfterOpen', function (e) {
