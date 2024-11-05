@@ -18,10 +18,6 @@ using Bitmanager.Core;
 using Bitmanager.Json;
 using Bitmanager.Query;
 using Bitmanager.Web;
-using Microsoft.AspNetCore.DataProtection.KeyManagement;
-using Microsoft.AspNetCore.Identity;
-using System.Diagnostics;
-using System.Globalization;
 using System.Text;
 
 namespace BMAlbum {
@@ -101,7 +97,7 @@ namespace BMAlbum {
       }
 
 
-      protected override void parseParm (string key, string val) {
+      protected override bool parseParm (string key, string val) {
          switch (key) {
             case "u":
                User = Settings.Users.GetUser (val);
@@ -150,17 +146,22 @@ namespace BMAlbum {
                }
                break;
             default:
-               base.parseParm (key, val);
-               break;
+               return base.parseParm (key, val);
             case "unhide":
                if (!Invariant.TryParse (val, out Unhide)) Unhide = true;
                break;
          }
+         return true;
       }
 
       public string GetCommand() {
          var sb = new StringBuilder ().Append('&');
-         optAppend (sb, "q", Query);
+         //pw
+         if (Query != null) 
+            optAppend (sb, "q", Query);
+         else if (Slide != null)
+            optAppend (sb, "slide", Slide);
+
          if (Pin != null) optAppend (sb, "pin", Pin.ToUrlValue());
          switch (PerAlbum) {
             case TriStateBool.False: optAppend (sb, "per_album=false"); break;
@@ -192,6 +193,8 @@ namespace BMAlbum {
          container["sort"] = Sort?.Name;
          container["lightbox_settings"] = Settings.LightboxSettings.SettingsForClient;
          container["map_settings"] = Settings.MapSettings.ToJson ();
+         if (Settings.ExternalTracksUrl != null)
+            container["external_tracks_url"] = Settings.ExternalTracksUrl;
          if (Slide != null) container["slide"] = Slide;
          if (Facets != null && Facets.Count > 0) {
             foreach (var kvp in Facets) {

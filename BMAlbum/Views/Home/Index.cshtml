@@ -56,25 +56,15 @@
 }
 
 <div id="overlay" class="slimbar" style="z-index:9999; transition: visibility 1s"></div>
-<div id="context_menu" class="bm_menu">
+<div id="context_menu" class="bm_menu bm_menu_round">
    <ul>
-      <li id="ctx_goto_album" class="bm_menu_item">
-         <a href="#"> Ga naar album </a>
-      </li>
-      <li id="ctx_goto_track" class="bm_menu_item">
-         <a href="#"> Ga naar track </a>
-      </li>
+      <li id="ctx_goto_album" class="bm_menu_item">Ga naar album</li>
+      <li id="ctx_goto_track" class="bm_menu_item">Ga naar track</li>
       @if (Model.RequestCtx.IsInternalIp) {
-      <li id="ctx_goto_faces" class="bm_menu_item">
-         <a href="#"> Ga naar gezichten </a>
-      </li>
+      <li id="ctx_goto_faces" class="bm_menu_item">Ga naar gezichten</li>
       }
-      <li id="ctx_goto_map" class="bm_menu_item">
-         <a href="#"> Ga naar kaart </a>
-      </li>
-      <li id="ctx_info" class="bm_menu_item">
-         <a href="#"> Toon informatie </a>
-      </li>
+      <li id="ctx_goto_map" class="bm_menu_item">Ga naar kaart</li>
+      <li id="ctx_info" class="bm_menu_item">Toon informatie</li>
    </ul>
 </div>
 <div id="drag_proxy" style="z-index:9999; position:absolute; visibility:hidden"></div>

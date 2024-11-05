@@ -51,6 +51,11 @@ namespace BMAlbum {
             foreach (XmlNode sub in node.SelectNodes ("user")) {
                var user = new User (sub);
                users.Add (user.Id, user);
+               var alias = sub.ReadStr ("@alias", null);
+               if (alias != null) {
+                  foreach (var a in alias.SplitStandard())
+                     users.Add (a, user);
+               }
             }
          }
       }

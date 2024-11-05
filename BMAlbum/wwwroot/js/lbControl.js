@@ -790,16 +790,24 @@ function createLightboxControl(app) {
          let files = _data.files;
          for (let i = 0; i < files.length; i++) {
             if (files[i].f !== slide) continue;
-            console.log('found at pos=', i);
+            console.log('found exact at pos=', i);
             $(document.body).addClass('lg-from-hash');  //Prevent animation. See hash-plugin
             _lg.openGallery(i);
-            break;
+            return;
          }
-      } else {
-         console.log('No slide, closing gallery');
-         $(document.body).removeClass('lg-from-hash');  //Prevent animation. See hash-plugin
-         _lg.closeGallery();
+         slide = slide.toLowerCase();
+         for (let i = 0; i < files.length; i++) {
+            if (!files[i].f.toLowerCase().endsWith(slide)) continue;
+            console.log('found as tail at pos=', i);
+            $(document.body).addClass('lg-from-hash');  //Prevent animation. See hash-plugin
+            _lg.openGallery(i);
+            return;
+         }
       }
+
+      console.log('No slide, closing gallery');
+      $(document.body).removeClass('lg-from-hash');  //Prevent animation. See hash-plugin
+      _lg.closeGallery();
    }
 
    function _pushHistoryCmd(cmd) {
@@ -815,20 +823,20 @@ function createLightboxControl(app) {
       let histState = { mode: _state.mode, cmd: cmd, title: document.title, url: url.href };
 
       let pushHist = history.state ? history.pushState : history.replaceState;
-      pushHist (histState, histState.title, histState.url);
+      pushHist.call (history, histState, histState.title, histState.url);
       console.log('PUSHed cmd');
    }
 
    function _pushHistorySlide(slide) {
       if (slide !== undefined) {
          let url = new URL(_state.entryUrl);
-         url.search = _state.home_url_params + _state.cmd + '&slide=' + encodeURIComponent(slide);
+         url.search = _state.home_url_params + app.normalizeCmd(_state.cmd + '&slide=' + encodeURIComponent(slide));
          url.hash = '';
          let histState = { mode: _state.mode, slide: slide, title:document.title, url: url.href };
 
          let pushHist = history.replaceState;
          if (history.state && !history.state.slide) pushHist = history.pushState;
-         pushHist(histState, histState.title, histState.url);
+         pushHist.call(history, histState, histState.title, histState.url);
          console.log('PUSHed slide');
          _lg.needBack = true;
       }
@@ -966,6 +974,16 @@ function createLightboxControl(app) {
       _resetTouchAdmin();
    }
 
+   //let _ctxLbMenu = createContextMenu($("#lightbox"), ".lb-item", $("#context_menu"), _onMenuClick);
+   //let _ctxGalMenu = createContextMenu($(".lg-inner"), ".lg-item", $("#context_menu"), _onMenuClick);
+   //_ctxMenu.onMenu(function (ev, $target, $positionTarget) {
+   //   let data = _getTrack($target[0]);
+   //   _ctxMenu.enableMenuItem("#ctx_download_photos", data && data.epl);
+   //   $("#ctx_download_track").text(data && data.rte ? "Download route" : "Download track");
+   //   return true;
+   //});
+
+
    $('.bm_menu')
       .on('click mouseleave', ev => {
          console.log('ctx:click or leave', this, ev);
@@ -975,6 +993,7 @@ function createLightboxControl(app) {
       .on('click', ev => {
          $(ev.currentTarget).closest('.bm_menu').removeClass("bm_menu_active");
       });
+
 
    function _contextMenu(ev) {
       const $evTarget = $(ev.target);
@@ -999,7 +1018,7 @@ function createLightboxControl(app) {
          if (enable) $item.removeClass(CLASS); else $item.addClass(CLASS);
       }
 
-      enableMenuItem("#ctx_goto_track", curPhoto.trkid !== undefined);
+      enableMenuItem("#ctx_goto_track", _state.external_tracks_url && curPhoto.trkid);
       enableMenuItem("#ctx_goto_map", curPhoto.l !== undefined);
       enableMenuItem("#ctx_goto_faces", _state.is_local && curPhoto.fcnt > 0);
 
@@ -1031,7 +1050,10 @@ function createLightboxControl(app) {
          _updateLightBox();
       } else if (clickId === 'ctx_goto_track') {
          console.log("trkid=", clickedPhoto.trkid, ", ix=", ix);
-         window.open("https://bitmanager.nl/tracks?t=" + _unique++ + "#" + encodeURIComponent(clickedPhoto.trkid),
+         let f = clickedPhoto.f;
+         let idx = f.lastIndexOf('\\');
+         if (idx > 0) f = f.substring(idx + 1);
+         window.open(_state.external_tracks_url.format(_unique++, encodeURIComponent(clickedPhoto.trkid + "|" + f)),
             "trackstab");
       } else if (clickId === 'ctx_goto_faces') {
          window.open(app.createUrl('', '&mode=faces&q=' + encodeURIComponent(clickedPhoto.f.replace(/[\\\-\.]/g, ' '))),

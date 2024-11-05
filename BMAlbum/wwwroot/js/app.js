@@ -25,6 +25,13 @@ function createApplication(state) {
    if ((state.debug_flags & 0x10000) !== 0 && bmGlobals.hookConsole)
       bmGlobals.hookConsole(state.home_url + '_clientlog');
 
+   String.prototype.format = function () {
+      var args = arguments;
+      return this.replace(/{([0-9]+)}/g, function (match, index) {
+         return typeof args[index] == 'undefined' ? match : args[index];
+      });
+   };
+
 
    let _state = state;
    let _isTouch = false;

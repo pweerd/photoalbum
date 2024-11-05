@@ -242,59 +242,6 @@ body {
    vertical-align: top;
 }
 
-.bm_menu {
-   width: auto;
-   box-shadow: 2px 4px 6px 1px rgba(0, 0, 0, 0.6);
-   position: absolute;
-   top:0px;
-   left:0px;
-   opacity: 0;
-   z-index:1000000;
-   pointer-events: none;
-   transition: opacity 500ms ease;
-}
-
-.bm_menu.bm_menu_active {
-   opacity: 1;
-   pointer-events: auto;
-}
-
-.bm_menu ul li a {
-   text-decoration: none;
-   /*font-family: "Roboto", sans-serif;*/
-   padding: 4px 20px;
-   display: inline-block;
-   /*font-size: 16px;*/
-   /*font-weight: bold;*/
-   color: #222;
-   background: #fff;
-   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-   width: 100%;
-   box-sizing: border-box;
-   border-left: 4px solid transparent;
-   transition: all 400ms ease;
-}
-   .bm_menu ul li.bm_menu_disabled a {
-      color: lightgray;
-      background: #fff;
-   }
-
-   .bm_menu ul li a:hover {
-      background: lightgray;
-      border-left: 4px solid red;
-   }
-   .bm_menu ul li.bm_menu_disabled a:hover {
-      color: lightgray;
-      background: #fff;
-      border-left: 4px solid #fff;
-   }
-
-.bm_menu ul {
-   list-style: none;
-   margin: 0;
-   padding: 0;
-}
-
 .btn_up_down {
    color: lightgray;
    font-size: small;

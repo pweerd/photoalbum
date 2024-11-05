@@ -358,7 +358,7 @@ function createMapControl(app) {
 
       let pushHist = history.replaceState;
       if (history.state && history.state.mode !== 'map') pushHist = history.pushState;
-      pushHist (histState, histState.title, histState.url); 
+      pushHist.call(history, histState, histState.title, histState.url); 
       console.log('PUSHed map hist');
    }
 

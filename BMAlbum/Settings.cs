@@ -43,6 +43,7 @@ namespace BMAlbum {
       public readonly ESIndexInfoCache IndexInfoCache;
       public readonly Shrinker ShrinkerSmall, ShrinkerLarge;
       public readonly MapSettings MapSettings;
+      public readonly string ExternalTracksUrl;
 
       public Settings (string fn, SettingsBase oldSettings = null, string expectedVersion = null) : base (fn, oldSettings, expectedVersion) {
          var g = WebGlobals.Instance;
@@ -90,6 +91,7 @@ namespace BMAlbum {
          Users.Dump (g.SiteLog);
 
          MapSettings = new MapSettings (Xml.SelectMandatoryNode ("map"), Path.Combine(g.SiteRoot, "images"));
+         ExternalTracksUrl = Xml.ReadStr ("external_tracks/@url", null);
 
          g.SiteLog.Log("Lightbox client settings:\n{0}", LightboxSettings.SettingsForClient);
       }

@@ -63,6 +63,7 @@ namespace BMAlbum.Controllers {
             notFilter = PhotoController.hideAll;
          }
 
+         SEARCH:
          var c = settings.ESClient;
          var req = c.CreateSearchRequest (settings.MainIndex);
          var albumAgg = new ESTermsAggregation ("albums", "album.facet", 3);
@@ -86,6 +87,13 @@ namespace BMAlbum.Controllers {
 
          var resp = req.Search ();
          resp.ThrowIfError ();
+
+         //If the #photo's is limied and we are clustering, we redo the search,
+         //but now for getting photo's
+         if (resp.TotalHits < 40 && mode == _Mode.clusters) {
+            mode = _Mode.photos;
+            goto SEARCH; 
+         }
 
          var json = new JsonMemoryBuffer ();
          json.WriteStartObject ();

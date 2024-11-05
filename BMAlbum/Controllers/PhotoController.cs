@@ -237,10 +237,16 @@ namespace BMAlbum.Controllers {
 
          var knownFacets = new Dictionary<string, ESAggregation> ();
 
+         string query = clientState.Query;
          var agg = new ESTermsAggregation ("album", "album.facet");
          agg.Sort.Add ("sort_key", false);
          agg.Size = SIZE;
-         agg.MinDocCount = lbSettings.MinCountForAlbum > 0 ? lbSettings.MinCountForAlbum : 4;
+
+         if (query==null && clientState.Slide != null) {
+            clientState.PerAlbum = TriStateBool.True;
+            query = clientState.Slide;
+         } else 
+            agg.MinDocCount = lbSettings.MinCountForAlbum > 0 ? lbSettings.MinCountForAlbum : 4;
          var subJson = new JsonObjectValue ("field", "sort_key");
          subJson = new JsonObjectValue ("max", subJson);
          agg.SubAggs.Add (new ESJsonAggregation ("sort_key", subJson));
@@ -298,9 +304,9 @@ namespace BMAlbum.Controllers {
 
          bool hasFuzzy = false;
          bool scoresNeeded = false;
-         if (clientState.Query != null) {
+         if (query != null) {
 
-            queryGenerator = new QueryGenerator (searchSettings, settings.IndexInfoCache.GetIndexInfo(settings.MainIndex), clientState.Query);
+            queryGenerator = new QueryGenerator (searchSettings, settings.IndexInfoCache.GetIndexInfo(settings.MainIndex), query);
             if (queryGenerator.ParseResult.Root is ParserEmptyNode) queryGenerator = null;
             else {
                int phraseNodes = 0;
@@ -381,7 +387,7 @@ namespace BMAlbum.Controllers {
       
          if (debug) timings.Add (new ESTimerStats ("search", resp));
          SiteLog.Log ("HasAlbum={0}, PerAlbum={1}, oneQueryIsEnough={2}", hasAlbum, clientState.PerAlbum, oneQueryIsEnough);
-         SiteLog.Log ("Query [{0}] has {1} total results.", clientState.Query, resp.TotalHits);
+         SiteLog.Log ("Query [{0}] has {1} total results.", query, resp.TotalHits);
 
          int firstAlbumCount;
          string firstAlbum = writeAlbums (json, findResult (resp.Aggregations, "album"), out firstAlbumCount);
