@@ -105,6 +105,7 @@ namespace BMAlbum {
             case "q":
                Query = val.TrimToNull ();
                if (Query != null) Pin = null;
+               Slide = null;
                break;
             case "pin":
                var v = val.TrimToNull ();
@@ -117,6 +118,7 @@ namespace BMAlbum {
                }
                break;
             case "per_album":
+               Slide = null;
                PerAlbum = Invariant.ToEnum (val, TriStateBool.Unspecified);
                break;
             case "slide":
@@ -130,6 +132,7 @@ namespace BMAlbum {
                break;
             case "album":
             case "year":
+               Slide = null;
                LastFacet = key;
                val = val.TrimToNull ();
                for (int i=0; i<Facets.Count; i++) {
