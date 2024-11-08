@@ -12,7 +12,7 @@
    </ipconfigs>
 
    <forcehttps active="false">
-      <host incl="YOURHOST"/>
+      <host incl="YOURHOST, excluding schema"/>
       <ipclass excl="internal*"/>
    </forcehttps>
 
@@ -35,7 +35,7 @@
       <ipblacklist sync_url="default" generations="2" root="temp\ipblacklist.txt" check_period="1h" mandatory="true"/>
       <user_agent excl="^curl|^python|^Go-http-client|AsyncHttpClient" allow_empty="false"/>
       <referrer dynamic="true" root_expr="^/$|^/[^/]+$">
-         <incl url="https://bitmanager.nl" />
+         <incl url="YOUR HOST, including schema" />
       </referrer>
    </access_control>
 
@@ -59,7 +59,7 @@
          <_exact value="true" />
       </shrink_small>
       <shrink_large cache="false" quality="80" tag="1" log="true">
-         <min_factor factor="3.5" />;
+         <min_factor factor="2" />;
          <factor2 bias=".2" />
          <_factor15 value="0" />
          <sharpen center="9" />
@@ -79,7 +79,12 @@
             <searcher field="seizoen" searchfield="season"/>
             <searcher field="jaar" searchfield="year"/>
             <searcher field="maand" searchfield="month" type="month_searcher"/>
-            <searcher field="loc|location|plaats|locatie" searchfield="location" debug="false" type="location_searcher" score_distance="true" api_key="YOUR GOOGLE_API_KEY OR EMPTY"/>
+            <searcher field="loc|location|plaats|locatie" searchfield="location"
+                      debug="false"
+                      type="location_searcher"
+                      text_location="extra_location"
+                      score_distance="true"
+                      api_key="YOUR GOOGLE_API_KEY OR EMPTY"/>
             <searcher field="name|naam|persoon" type="name_searcher" searchfield="names!name" />
             <searcher field="personen|gezichten" searchfield="face_count" />
          </searchers>
@@ -128,8 +133,9 @@
 
 
    <lightbox pagesize="1000" album_mincount="4" cache_version="1" paginate="true" >
+      <!-- see app.js for device types -->
       <sizes device="phone">
-         <size width="0"   target_count="2" max_ratio="1" _fixed="150" />
+         <size width="0"   target_count="2" max_ratio="1" />
          <size width="400" target_count="4" max_ratio="1" />
       </sizes>
       <sizes device="all">
@@ -139,22 +145,24 @@
          <size width="800" target_count="5" max_ratio="3:4" attr_justify_content="space-between" />
       </sizes>
    </lightbox>
-   
+
    <mvc>
       <routes authenticate="false" debug="true">
          <route name="guid" pattern="guid" def_controller="Home" def_action="Guid" />
          <route name="login" pattern="login" def_controller="Home" def_action="Login" />
-         <route name="faces" pattern="faces" def_controller="Face" def_action="Index" />
+         <route name="faces" pattern="faces" def_controller="Home" def_action="Index" def_mode="faces" />
+         <route name="map" pattern="{user}/map" def_controller="Home" def_action="Index" def_mode="map"/>
          <route name="user" pattern="{user}" def_controller="Home" def_action="Index" />
-         <route name="default" pattern="{controller}/{action}/{id?}" def_controller="Home" def_action="Index" />
+         <route name="default" pattern="{user}/{controller}/{action}/{id?}" def_controller="Home" def_action="Index" />
       </routes>
 
       <bundles loadbehavior="always">
-         <replace key="$$JQVER$$" value="1.10.2" />
          <bundle name="main" type="css">
             <file name="lib/bootstrap/dist/css/bootstrap.min.css" />
             <file name="css/site.css" />
-            <file name="css/slimbar.css" />
+            <file name="css/bmslimbar.css" />
+            <file name="css/bmCtxMenu.css" />
+            <file name="css/map.css" />
             <file name="js/overlay/overlay.css" />
             <file name="js/clipboard/clip.css"/>
             <file name="lib/lg/css/lightgallery-bundle.css" />
@@ -182,14 +190,16 @@
             <_file name="lib/lg/plugins/thumbnail/lg-thumbnail.umd.js"  />
             <_file name="lib/lg/plugins/zoom/lg-zoom.umd.js"  />
 
-            <file name="js/bmglobals.js"  />
+            <file name="js/bmCommon.js"  />
+            <file name="js/bmCtxMenu.js" />
             <file name="js/clipboard/clip.js"/>
-            <file name="js/hook_console.js"  />
-            <file name="js/hook_history.js"  />
             <file name="js/overlay/overlay.js"  />
             <file name="js/lazyload.js"  />
             <file name="js/zoomer.js" />
-            <file name="js/site.js"  />
+            <file name="js/app.js"  />
+            <file name="js/mapControl.js"  />
+            <file name="js/lbControl.js"  />
+            <file name="js/geohash.js"  />
             <file name="js/splitter-152.js"  />
          </bundle>
       </bundles>
@@ -232,5 +242,15 @@
         <!-- optional specify some filters here -->
       </template>
    </users>
+
+   <map>
+      <google key="YOUR MAPS GOOGLE CLIENT KEY" />
+      <start center="52.177513910134806,5.861052751913665" zoom="8" />
+      <pins search_distance="4km" >
+         <group pin="redgrouppin.svg"/>
+         <selected pin="blackpin.svg"/>
+         <other pin="redpin.svg|greenpin.svg|bluepin.svg|fuchsiapin.svg|orangepin.svg"/>
+      </pins>
+   </map>
 
 </root>
