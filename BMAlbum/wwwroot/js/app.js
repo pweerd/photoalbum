@@ -22,8 +22,8 @@ const TABLET = 4;
 
 function createApplication(state) {
 
-   if ((state.debug_flags & 0x10000) !== 0 && bmGlobals.hookConsole)
-      bmGlobals.hookConsole(state.home_url + '_clientlog');
+   if ((state.debug_flags & 0x10000) !== 0 && hookConsole)
+      hookConsole(state.home_url + '_clientlog');
 
    String.prototype.format = function () {
       var args = arguments;
