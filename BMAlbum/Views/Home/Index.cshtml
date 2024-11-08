@@ -1,4 +1,5 @@
-﻿@model HomeModel
+﻿@using Bitmanager.Web
+@model HomeModel
 @{
     ViewData["Title"] = "Foto-albums";
 }
@@ -37,7 +38,7 @@
                <select id="cb_sort" class="input-cell"></select>
             </div>
          </div>
-         @if (Model.State.DebugFlags != 0) {
+         @if ((Model.State.DebugFlags & DebugFlags.TRUE) != 0) {
                <span id="dbg_timings" class="txtbadge dbg-badge">T</span> <span id="dbg_esrequest" class="txtbadge  dbg-badge">Q</span>
          }
       </div>
@@ -46,8 +47,10 @@
 <div id="content" class="full-width">
    @if (Model.State.AppMode == AppMode.Faces) {
       <div id="face_names" class="scroll_container_y bordered-slimbar"></div>
+      <div id="lightbox" class="scroll_container_y slimbar"></div>
+   } else {
+      <div id="lightbox"></div>
    }
-   <div id="lightbox" class="scroll_container_y slimbar"></div>
 </div>
 
 </div>
