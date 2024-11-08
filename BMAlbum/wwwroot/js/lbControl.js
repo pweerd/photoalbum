@@ -77,8 +77,14 @@ function createLightboxControl(app) {
       if (_zoomer) return _zoomer.onKeyDown(ev);
    });
 
+   function _resetAll() {
+      _overlay.hideNow();
+      _ctxMenu.close();
+      _zoomer.reset();
+   }
+
    function _createImgMarkup(sb, photo, lbState) {
-      sb.push('<a href="" class="lb-item" data-src="'); //PW:  jg-entry jg-entry-visible
+      sb.push('<a href="" class="lb-item" data-src="'); 
       sb.push(photo.imgUrl);
       sb.push('" thumb="');
       sb.push(photo.imgUrl + '&h=76"');
@@ -105,7 +111,7 @@ function createLightboxControl(app) {
          return v ? v.toFixed(2) : '';
          //return Math.round((v + Number.EPSILON) * 100) / 100;
       }
-      sb.push('<div class="lb-item cursor_pointer" data-src="'); //PW:  jg-entry jg-entry-visible
+      sb.push('<div class="lb-item cursor_pointer" data-src="');
       sb.push(photo.imgUrl);
       sb.push('" data-photo="');
       sb.push(photo.photoUrl);
@@ -135,7 +141,8 @@ function createLightboxControl(app) {
 
    //Initializes the lightbox style and returns a LightboxState
    function _prepareLightboxAndGetHeight($elt, _ratio) {
-      let w = $elt.width()-9; //9 for the scrollbar
+      //console.log("PREPARE LB (w, cw, w, pw)", $elt.width(), $elt[0].clientWidth, $elt.width() - 9, $elt.parent()[0].clientWidth);
+      let w = $elt.width() - 9; //width without an eventual scrollbar
       let sizeSettings;
 
       //Search correct settings, based on device type and width
@@ -171,7 +178,7 @@ function createLightboxControl(app) {
             if (ratio > .95 && ratio < 1.05) n++;
          }
 
-         let availableW = (w - n * 4) / n; //4 because of margin
+         let availableW = Math.floor(w / n) - 4; //4 because of margin
          console.log("w, n, availableW=", w, n, availableW);
          let availableH = availableW / ratio;
          if (availableH < h) h = Math.floor(availableH);
@@ -181,21 +188,17 @@ function createLightboxControl(app) {
       return new LightboxState(h, sizeSettings, _ratio);
    }
 
-   let _resizeTimer;
    function _resizeHandler(ev) {
       if (ev.target !== window) return;
       if (!_faceMode && (!_lg || !_lg.el)) return;
 
-      if (_resizeTimer) clearTimeout(_resizeTimer);
-      _resizeTimer = setTimeout(function () {
-         if (!_faceMode) _setGalleryTitle();
-         let $elt = $("#lightbox");
-         const lbState = _prepareLightboxAndGetHeight($elt, _lastLbState.ratio);
-         if (_lastLbState.isChanged(lbState)) {
-            console.log('RESIZE changed states: old=', _lastLbState);
-            _updateLightBox("resize");
-         }
-      }, 300);
+      if (!_faceMode) _setGalleryTitle();
+      let $elt = $("#lightbox");
+      const lbState = _prepareLightboxAndGetHeight($elt, _lastLbState.ratio);
+      if (_lastLbState.isChanged(lbState)) {
+         console.log('RESIZE changed states: old=', _lastLbState);
+         _updateLightBox("resize");
+      }
    }
 
    function _getMetaTable(ix) {
@@ -424,8 +427,7 @@ function createLightboxControl(app) {
       });
 
       _prepareTiming();
-      if (_lg) _lg.refresh();
-      else _createGallery($elt, 'a');
+      _lg.refresh();
       _addTiming(data, "gallery");
 
       //Make sure the galleryItems contain references to our files
@@ -498,16 +500,6 @@ function createLightboxControl(app) {
          var mouseAt = $(':hover').last();
          if (mouseAt && mouseAt[0] === $searchBox[0]) _triggerSearchTooltip();
       }
-
-      //let dims = {
-      //   sx: screen.width,
-      //   sy: screen.height,
-      //   wx: $(window).width(),
-      //   wy: $(window).height(),
-      //   wiw: window.innerWidth,
-      //   cx: $elt.width()
-      //};
-      //console.log('DIMS=' + JSON.stringify(dims));
 
       if (_faceMode) _updateLightboxFaces($elt, data); else _updateLightboxPhotos($elt, data);
 
@@ -623,8 +615,8 @@ function createLightboxControl(app) {
    function _handleSlideChange(idx) {
       _zoomer.setPhoto(_data.files[_lg.index]);
    }
-   function _createGallery($elt, selector) {
-      _lg = lightGallery($elt[0], {
+   function _createGallery() {
+      _lg = lightGallery(document.getElementById('lightbox'), {
          licenseKey: '1000-0000-000-0000',
          mode: 'lg-fade',
          captions: false,
@@ -633,7 +625,7 @@ function createLightboxControl(app) {
          margins: 50,
          preload: 1,
          download: true,
-         selector: selector,
+         selector: 'a',
          //exThumbImage: 'thumb', //Where did we put the thumb in the html. Currently not needed
          slideShowInterval: 2500,
          closeOnTap: false,
@@ -706,7 +698,7 @@ function createLightboxControl(app) {
       _prepareTiming();
       _getJSON(_faceMode ? 'facephoto/index' : 'photo/index', _state.cmd, function (data) {
          _addTiming(data, "Trip");
-         _overlay.hideNow();
+         _resetAll();
          _data = data;
          let newState = data.new_state;
          _setTitle(data, newState);
@@ -752,6 +744,7 @@ function createLightboxControl(app) {
       if (_lg.needBack) history.back();
    }
    function _onGallerySlide(ev) {
+      _resetAll();
       let elt = _data.files[ev.detail.index];
       console.log('goto slide', ev.detail.index, elt.fn);
       _setTitleForSlide(elt);
@@ -763,11 +756,12 @@ function createLightboxControl(app) {
     * Hooked preload: fixed repping around array limits and delayed preloading with 0.5 seconds
     */
    function _hookedPreload(index) {
+      //console.log("PRELOAD", index, this.settings);
       let self = this;
       setTimeout(function () {
-         let N = self.galleryItems.length;
-         let preload = self.settings.preload;
-         //console.log('Actual preload', index, preload);
+         const N = self.galleryItems.length;
+         const preload = 1; //settings will be reset to 0. Bug in LightGallery// self.settings.preload;
+         //console.log('Actual preload (index,num)', index, preload);
          for (let i = 1; i <= preload; i++) {
             let nextIndex = index + i;
             if (nextIndex >= N) nextIndex -= N;
@@ -778,7 +772,7 @@ function createLightboxControl(app) {
             if (nextIndex < 0) nextIndex += N;
             self.loadContent(nextIndex, false);
          }
-      }, 500);
+      }, 50);
    }
 
    //function _dumpHistory(why) {
@@ -922,143 +916,27 @@ function createLightboxControl(app) {
       console.log('lgAfterOpen', e);
    });
 
-   let _touchTriggered;
-   let _touchTimer;
-   let _touchStartEvent; 
-   function _resetTouchAdmin() {
-      console.log('_resetTouchAdmin', _resetTouchAdmin.caller.name);
-      _touchTriggered = false;
-      _touchStartEvent = undefined;
-      if (_touchTimer) {
-         clearTimeout(_touchTimer);
-         _touchTimer = undefined;
-      }
-   }
-   function _touchStart(ev) {
-      _isTouch = true;
-      console.log('touchstart', ev.targetTouches.length);
-      const $evTarget = $(ev.target);
-      if ($evTarget.closest('.bm_menu').length === 0) { //outside a context menu: close 'm all
-         $('.bm_menu').removeClass('bm_menu_active');
-      } 
-      if ($evTarget.closest('#overlay').length === 0) { //outside an overlay: close
-         _overlay.hideNow();
-      }
 
-      _resetTouchAdmin();
-      if (ev.targetTouches.length > 1) return;
-      _touchStartEvent = ev;
-      console.log('touchstart: setting timer');
-      _touchTimer = setTimeout(() => {
-         console.log('in timer', _touchTriggered);
-         _touchTimer = undefined;
-         _touchTriggered = true;
-         _contextMenu(ev);
-         console.log('timer done', _touchTriggered);
-      }, 650);
-   }
-   function _touchCancel(ev) {
-      if (ev.type === 'touchmove') {
-         if (Math.abs(ev.pageX - _touchStartEvent.pageX) <= 20 && Math.abs(ev.pageY - _touchStartEvent.pageY) <= 20)
-            return;
-         console.log('touchMove too far from start');
-      } else
-         console.log('_touchCancel', _touchTriggered, ev.type);
-      _resetTouchAdmin();
-   }
-   function _touchEnd(ev) {
-      console.log('touchend', _touchTriggered);
-      if (_touchTriggered) {
-         ev.stopImmediatePropagation(); ev.preventDefault();
-      }
-      _resetTouchAdmin();
-   }
-
-   //let _ctxLbMenu = createContextMenu($("#lightbox"), ".lb-item", $("#context_menu"), _onMenuClick);
-   //let _ctxGalMenu = createContextMenu($(".lg-inner"), ".lg-item", $("#context_menu"), _onMenuClick);
-   //_ctxMenu.onMenu(function (ev, $target, $positionTarget) {
-   //   let data = _getTrack($target[0]);
-   //   _ctxMenu.enableMenuItem("#ctx_download_photos", data && data.epl);
-   //   $("#ctx_download_track").text(data && data.rte ? "Download route" : "Download track");
-   //   return true;
-   //});
-
-
-   $('.bm_menu')
-      .on('click mouseleave', ev => {
-         console.log('ctx:click or leave', this, ev);
-         $(ev.currentTarget).closest('.bm_menu').removeClass("bm_menu_active");
-      })
-      .find('.bm_menu_item')
-      .on('click', ev => {
-         $(ev.currentTarget).closest('.bm_menu').removeClass("bm_menu_active");
-      });
-
-
-   function _contextMenu(ev) {
-      const $evTarget = $(ev.target);
-      //console.log('handle context menu', ev);
-      let ix = -1;
-      let $target = $evTarget.closest('.lb-item');
-      if ($target.length === 0) {
-         $target = $evTarget.closest('.lg-item');
-         if ($target.length === 0) return; //Not for us
-         ix = $target.find('img').data('index');
-      } else
-         ix = $target.index();
-
-      //console.log('-- target=', $target, ', ix=', ix);
-      if (ix < 0 || ix >= _data.files.length) return;
-      let curPhoto = _data.files[ix];
-      console.log('start ctx-menu', ix, curPhoto);
-
-      function enableMenuItem(key, enable) {
-         const CLASS = "hidden"; //"bm_menu_disabled" //"hidden";
-         let $item = $(key);
-         if (enable) $item.removeClass(CLASS); else $item.addClass(CLASS);
-      }
-
-      enableMenuItem("#ctx_goto_track", _state.external_tracks_url && curPhoto.trkid);
-      enableMenuItem("#ctx_goto_map", curPhoto.l !== undefined);
-      enableMenuItem("#ctx_goto_faces", _state.is_local && curPhoto.fcnt > 0);
-
-
-      ev.preventDefault();
-      console.log("Open context menu. photo-ix:", ix, curPhoto);
-      $('#context_menu').data('ix', ix).addClass('bm_menu_active').position({
-         my: "left-4px top-4px",
-         of: ev,
-         collision: "fit"
-      });
-      console.log("STYLE:", getComputedStyle(document.getElementById('context_menu'))["z-index"]);
-   }
-   $('.bm_menu_item').on('click', ev => {
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      console.log("CTX: click on menu");
-      let $item = $(ev.target).closest('.bm_menu_item');
-      if ($item.hasClass('bm_menu_disabled')) return;
-
-      let ix = $item.closest('.bm_menu').data('ix');
-      let clickId = $(ev.currentTarget).closest('.bm_menu_item')[0].id;
-      let clickedPhoto = _data.files[ix]; 
-      console.log('handle click on', clickId, ix, clickedPhoto);
-
-      if (clickId === 'ctx_goto_album') {
+   function _onMenuClick(ev, context) {
+      console.log("ONMENU CLICK", context);
+      const clickedPhoto = context.photo;
+      const clickedId = context.clickedId;
+      const ix = context.targetIndex;
+      if (clickedId === 'ctx_goto_album') {
          _lg.needBack = false;
          _state.cmd += "&pin=&q=&sort=&slide=&album=" + encodeURIComponent(clickedPhoto.a);
          _updateLightBox();
-      } else if (clickId === 'ctx_goto_track') {
+      } else if (clickedId === 'ctx_goto_track') {
          console.log("trkid=", clickedPhoto.trkid, ", ix=", ix);
          let f = clickedPhoto.f;
          let idx = f.lastIndexOf('\\');
          if (idx > 0) f = f.substring(idx + 1);
          window.open(_state.external_tracks_url.format(_unique++, encodeURIComponent(clickedPhoto.trkid + "|" + f)),
             "trackstab");
-      } else if (clickId === 'ctx_goto_faces') {
+      } else if (clickedId === 'ctx_goto_faces') {
          window.open(app.createUrl('', '&mode=faces&q=' + encodeURIComponent(clickedPhoto.f.replace(/[\\\-\.]/g, ' '))),
             "faces_tab");
-      } else if (clickId === 'ctx_goto_map') {
+      } else if (clickedId === 'ctx_goto_map') {
          if (ev.ctrlKey) {
             window.open(app.createUrl('', '&mode=map&pin=' + encodeURIComponent(clickedPhoto.f)),
                "maps_tab");
@@ -1070,20 +948,38 @@ function createLightboxControl(app) {
                pin: clickedPhoto.l
             });
          }
-      } else if (clickId === 'ctx_info') {
+      } else if (clickedId === 'ctx_info') {
          _openedInfoViaClick = true;
          _showInfo(ix, true);
       }
+   }
+
+   _createGallery();
+
+   const _ctxMenu = createContextMenu($("#lightbox,#lg-inner-1"), ".lb-item,.lg-item", $("#context_menu"), _onMenuClick);
+   _ctxMenu.onMenu(function (ev, context) {
+      const $target = context.$target; 
+      let ix = context.targetIndex;
+      if ($target.hasClass('lg-item'))
+         context.targetIndex = ix = $target.find('img').data('index');
+
+      if (ix < 0 || ix >= _data.files.length) return false;
+      let curPhoto = _data.files[ix];
+      console.log('CTXMENU', ix, curPhoto);
+      context.photo = curPhoto;
+
+      this.showMenuItem ("#ctx_goto_track", _state.external_tracks_url && curPhoto.trkid);
+      this.showMenuItem("#ctx_goto_map", curPhoto.l !== undefined);
+      this.showMenuItem("#ctx_goto_faces", _state.is_local && curPhoto.fcnt);
+      console.log("ONMENU", context);
+      return true;
    });
+
 
    $(window)
       .on('resize', _resizeHandler)
       .on('click', _infoHandler)
       .on('mouseenter', _infoHandler)
-      .on('touchstart', _touchStart)
-      .on('touchend', _touchEnd)
-      .on('touchmove touchcancel gesturestart', _touchCancel)
-      .on('contextmenu', _contextMenu)
       .on('keydown', function (ev) {
          if (ev.target.name === 'input' || ev.target.name === 'select') return;
          if (!ev.ctrlKey) return;

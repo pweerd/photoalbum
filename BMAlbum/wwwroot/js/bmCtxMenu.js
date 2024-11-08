@@ -16,30 +16,33 @@
 function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
    let _onMenu = onMenuItem;
    let _onMenuItemClick = onClick;
-   let _$target = undefined;
+   let _this;
 
    function _hideMenu() {
-      _$target = undefined;
+      _this.context = undefined;
       $menu.removeClass("bm_menu_active");
-      if (_touchTimer) clearTimeout(_touchTimer);
-      _touchInvokedCtxMenu = true;
+      _onTouchCancel();
    }
 
    let _touchTimer;
    let _touchInvokedCtxMenu;
+   let _touchTarget;
    function _onTouchStart(ev) {
-      _touchInvokedCtxMenu = false;
+      console.log('TOUCH start');
+      _onTouchCancel();
       if (ev.targetTouches.length > 1) return; //more fingers? Not for us
 
-      //Cannot stop propagation: _onOtherTouchStart relies on that!
-      if (_touchTimer) clearTimeout(_touchTimer);
+      //Cannot stop propagation: we would interfere with other handlers then!
+      _touchTarget = ev.target;
       _touchTimer = setTimeout(function () {
          _touchInvokedCtxMenu = true;
          _onContextMenu(ev);
       }, 400);
    }
    function _onOtherTouchStart(ev) {
-      console.log('TOUCH other');
+      console.log('TOUCH other, same=', ev.target === _touchTarget);
+      if (ev.target === _touchTarget) return; //This is our own touch
+
       let $p = $(ev.target);
       console.log('target:', $p[0].id, $p.html());
       while ($p.length > 0) {
@@ -56,27 +59,35 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       if (_touchInvokedCtxMenu) {
          ev.preventDefault();
          ev.stopImmediatePropagation();
-
-         _touchInvokedCtxMenu = false;
-         //_onMenuLeave(ev);
       }
-      if (_touchTimer) clearTimeout(_touchTimer);
+      _onTouchCancel();
    }
    function _onTouchCancel() {
       if (_touchTimer) clearTimeout(_touchTimer);
+      _touchInvokedCtxMenu = false;
+      _touchTarget = undefined;
    }
 
    function _showMenu(ev, $target, $positionTarget, posExpr) {
-      _$target = $target;
+      if (!$target) return undefined;
+      let ix = $target.attr('data_ix');
+      if (!ix) ix = $target.index();
+
+      _this.context = {
+         $target: $target,
+         targetIndex : ix,
+         $positionTarget: $positionTarget,
+      }
+
       if (_onMenu) {
-         if (false === _onMenu(ev, $target, $positionTarget)) {
+         if (false === _onMenu.call(_this, ev, _this.context)) {
             console.log('Ctxmenu cancelled by callback', ev);
             return;
          }
       }
       $menu.addClass('bm_menu_active').position({
          my: posExpr || "left+5px top", //left-30px top-30px",
-         of: $positionTarget,
+         of: _this.context.$positionTarget,
          collision: "fit"
       });
    }
@@ -105,13 +116,11 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       }
 
       try {
-         let id = $item[0].id;
-         _onMenuItemClick(ev, {
-            menuSource: _$target,
-            menuSourceIndex: _getTargetIndex(),
-            clickedId: $item[0].id,
-            clickedIndex: $menu.find('.bm_menu_item').index($item[0])
-         });
+         let ctx = _this.context;
+         ctx.$clickedItem = $item;
+         ctx.clickedId = $item[0].id;
+         ctx.clickedIndex = $item.index();
+         _onMenuItemClick.call (this, ev, ctx);
       } finally {
          _onMenuLeave(ev);
       }
@@ -121,15 +130,6 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       _hideMenu();
    }
 
-
-   function _getTargetIndex() {
-      if (!_$target) return undefined;
-      let ix = _$target.attr('data_ix');
-      if (ix === undefined && mainSelector) {
-         ix = _$target.parent().find(mainSelector).index(_$target);
-      }
-      return ix;
-   }
 
    $element.on("contextmenu", _onContextMenu);
    if (/iphone|ipad/.test(navigator.userAgent.toLowerCase())) {
@@ -172,15 +172,14 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       else $item.addClass('bm_menu_item_hidden')
    }
 
-
-   return {
+   return _this = {
       destroy: _destroy,
       onMenu: function (fn) { _onMenu = fn; return this; },
       onMenuClick: function (fn) { _onMenuClick = fn; return this; },
-      getTarget: function () { return _$target; },
-      getTargetIndex: _getTargetIndex,
       showMenuItem: _showMenuItem,
       enableMenuItem: _enableMenuItem,
-      showMenu: _showMenu
+      showMenu: _showMenu,
+      close: _hideMenu,
+      context: undefined,
    };
 };

@@ -57,6 +57,9 @@
    background: #fff;
    cursor: default;
 }
+.bm_menu .bm_menu_item.bm_menu_item_hidden {
+   display: none;
+}
 
 .bm_menu .bm_menu_item.bm_menu_item_disabled:hover {
    color: lightgray;
