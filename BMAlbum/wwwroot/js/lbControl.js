@@ -103,6 +103,17 @@ function createLightboxControl(app) {
    }
 
    function _createFaceMarkup(sb, photo, lbState) {
+      function toDateString(dateStr) {
+         if (!dateStr) return "";
+         function pad(n) { return n < 10 ? '0' + n : n }
+         let d = new Date(dateStr);
+         return d.getFullYear() + '-'
+            + pad(d.getMonth() + 1) + '-'
+            + pad(d.getDate()) + ' T '
+            + pad(d.getHours()) + ':'
+            + pad(d.getMinutes()) + ':'
+            + pad(d.getSeconds());
+      }
       let ratio = lbState.limitRatio (photo.w0 / photo.h0);
       let h = lbState.imgHeight;
       let w = Math.round(h * ratio);
@@ -120,8 +131,7 @@ function createLightboxControl(app) {
       sb.push(photo.imgUrl);
       sb.push('"><div class="face_name">'); 
       if (photo.names) {
-         let nameObj = photo.names[0];
-         if (nameObj) {
+         for (let nameObj of photo.names) {
             let name = nameObj.name || 'unknown';
             sb.push(name + '<br />[' + photo.storage_id);
             sb.push(', ' + round2(nameObj.match_score));
@@ -130,8 +140,9 @@ function createLightboxControl(app) {
                sb.push(', ' + round2(nameObj.detected_face_detect_score));
                sb.push(', ' + round2(nameObj.score_all));
             }
-            sb.push(']');
+            sb.push(']<br />');
          }
+         sb.push(toDateString(photo.updated));
       }
       sb.push('</div>');
 
@@ -918,6 +929,9 @@ function createLightboxControl(app) {
 
 
    function _onMenuClick(ev, context) {
+      function encodeFileNameForSearch(f) {
+         return encodeURIComponent(f.replace(/[&\(\)\\\-_,;\.]/g, ' '));
+      }
       console.log("ONMENU CLICK", context);
       const clickedPhoto = context.photo;
       const clickedId = context.clickedId;
@@ -934,7 +948,20 @@ function createLightboxControl(app) {
          window.open(_state.external_tracks_url.format(_unique++, encodeURIComponent(clickedPhoto.trkid + "|" + f)),
             "trackstab");
       } else if (clickedId === 'ctx_goto_faces') {
-         window.open(app.createUrl('', '&mode=faces&q=' + encodeURIComponent(clickedPhoto.f.replace(/[\\\-\.]/g, ' '))),
+         window.open(app.createUrl('', '&mode=faces&q=' + encodeFileNameForSearch(clickedPhoto.f)),
+            "faces_tab");
+      } else if (clickedId === 'ctx_goto_faces_dir') {
+         let file = clickedPhoto.f;
+         let dir = '';
+         let sepIx = file.lastIndexOf('\\');
+         if (sepIx > 0) {
+            dir = file.substring(0, sepIx);
+            file = file.substring(sepIx + 1);
+            sepIx = file.search(/\d{8}/);
+            if (sepIx >= 0) file = file.substring(0, sepIx + 8);
+         }
+         file = dir + ' ' + file;
+         window.open(app.createUrl('', '&mode=faces&q=' + encodeFileNameForSearch(file)),
             "faces_tab");
       } else if (clickedId === 'ctx_goto_map') {
          if (ev.ctrlKey) {
