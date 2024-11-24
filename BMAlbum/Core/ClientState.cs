@@ -65,7 +65,10 @@ namespace BMAlbum {
          if (User==null) User = settings.Users.DefUser;
 
          req.RouteValues.TryGetValue ("mode", out var appModeId);
-         AppMode = Invariant.ToEnum((string)appModeId, AppMode.Photos);
+         if (appModeId != null)
+            AppMode = Invariant.ToEnum<AppMode> ((string)appModeId); 
+         else 
+            AppMode = ((string)req.RouteValues["controller"]).StartsWith ("Face") ? AppMode.Faces : AppMode.Photos; 
 
          SortName = null;
          parseRequestParms (ctx.HttpContext.Request);
