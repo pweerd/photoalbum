@@ -151,6 +151,7 @@ namespace BMAlbum.Controllers {
                nameObj["name"] = names.NameById (idx);
                break;
          }
+         rec["updated"] = DateTime.UtcNow;
          SiteLog.Log ("-- New record=" + rec.ToJsonString ());
          c.Send (HttpMethod.Put, idUrl, HttpPayload.Create (rec)).ThrowIfError ();
          return new JsonActionResult ();
@@ -161,15 +162,16 @@ namespace BMAlbum.Controllers {
          var c = settings.ESClient;
          var req = c.CreateSearchRequest(settings.FaceIndex);
          req.Query = new ESTermQuery ("src", "A");
-         var recs = new ESRecordEnum (req);
-         int cnt=0;
-         foreach (var d in recs) {
-            var idUrl = settings.FaceIndex + "/_doc/" + Encoders.UrlDataEncode (d.Id);
-            var json = d._Source;
-            json.Remove ("names");
-            json["src"] = "U";
-            c.Send (HttpMethod.Put, idUrl, HttpPayload.Create (json)).ThrowIfError ();
-            cnt++;
+         int cnt = 0;
+         using (var recs = new ESRecordEnum (req)) {
+            foreach (var d in recs) {
+               var idUrl = settings.FaceIndex + "/_doc/" + Encoders.UrlDataEncode (d.Id);
+               var json = d._Source;
+               json.Remove ("names");
+               json["src"] = "U";
+               c.Send (HttpMethod.Put, idUrl, HttpPayload.Create (json)).ThrowIfError ();
+               cnt++;
+            }
          }
          var resp = new JsonObjectValue ("cleared", cnt);
          return new JsonActionResult (resp);

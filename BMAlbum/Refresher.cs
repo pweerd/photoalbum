@@ -161,7 +161,6 @@ namespace BMAlbum {
          var req = c.CreateSearchRequest (settings.MainIndex);
          req.SetSource (null, "*");
          req.Sort.Add (new ESSortField ("sort_key", ESSortDirection.desc));
-         var records = new ESRecordEnum (req);
          int max = refreshParms.MaxCount;
          if (max <= 0) max = int.MaxValue;
          int existing = 0;
@@ -169,26 +168,28 @@ namespace BMAlbum {
          int totalIds = 0;
          int[] requestedDims = refreshParms.Dimensions;
          CacheType type = refreshParms.Type;
-         foreach (var doc in records) {
-            if (mustStop) break;
-
-            string id = doc.Id;
-            if ((total % 100) == 0) refreshStats = new RefreshStats (refreshParms, true, total, totalIds, existing);
-            ++totalIds;
-            int _existing = existing;
-            for (int i=0; i< requestedDims.Length; i++) {
-               int dim = requestedDims[i];
+         using (var records = new ESRecordEnum (req)) {
+            foreach (var doc in records) {
                if (mustStop) break;
-               logger.Log ("Shrinking to dim={0}: {1}", dim, id);
-               ++total;
-               if (photoCtr.ShrinkToCache (type, id, dim)) ++existing;
-               else logger.Log (_LogType.ltTimer, "Shrinking to h={0}: {1}", dim, id);
-            }
 
-            if (mustStop) break;
-            if (existing==_existing) {
-               if (--max < 0) break;
-               if (refreshParms.WaitBetweenItems > 0) Thread.Sleep (refreshParms.WaitBetweenItems);
+               string id = doc.Id;
+               if ((total % 100) == 0) refreshStats = new RefreshStats (refreshParms, true, total, totalIds, existing);
+               ++totalIds;
+               int _existing = existing;
+               for (int i = 0; i < requestedDims.Length; i++) {
+                  int dim = requestedDims[i];
+                  if (mustStop) break;
+                  logger.Log ("Shrinking to dim={0}: {1}", dim, id);
+                  ++total;
+                  if (photoCtr.ShrinkToCache (type, id, dim)) ++existing;
+                  else logger.Log (_LogType.ltTimer, "Shrinking to h={0}: {1}", dim, id);
+               }
+
+               if (mustStop) break;
+               if (existing == _existing) {
+                  if (--max < 0) break;
+                  if (refreshParms.WaitBetweenItems > 0) Thread.Sleep (refreshParms.WaitBetweenItems);
+               }
             }
          }
          logger.Log ("Refesher terminated. Records={0}, done={1}, existing={2}", totalIds, total, existing);
