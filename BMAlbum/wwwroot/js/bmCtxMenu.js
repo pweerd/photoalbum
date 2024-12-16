@@ -71,7 +71,7 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
    function _showMenu(ev, $target, $positionTarget, posExpr) {
       if (!$target) return undefined;
       let ix = $target.attr('data_ix');
-      if (!ix) ix = $target.index();
+      if (!ix) ix = $target.index(mainSelector);
 
       _this.context = {
          $target: $target,
