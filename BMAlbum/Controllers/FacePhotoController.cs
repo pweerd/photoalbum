@@ -38,7 +38,7 @@ namespace BMAlbum.Controllers {
          req.Size = 1000;
          var bq = new ESBoolQuery ();
          req.Query = bq;
-         bq.AddFilter (new ESExistsQuery ("count"));
+         bq.AddFilter (new ESTermQuery ("any_face", "true"));
 
          QueryGenerator queryGenerator = null;
          if (clientState.Query != null) {
