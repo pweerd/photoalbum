@@ -76,6 +76,7 @@ namespace BMAlbum {
 
          SearchSettings = (AppMode== AppMode.Faces) ? settings.FaceSearchSettings : settings.MainSearchSettings;
          SetSortMode (SortName);
+         if (!InternalIp) Unhide = false;
       }
 
       public void SetSortMode (string sortModeName) {
