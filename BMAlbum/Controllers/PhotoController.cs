@@ -40,8 +40,8 @@ namespace BMAlbum.Controllers {
 
 
    public class PhotoController : BaseController {
-      internal static readonly ESQuery hideAll = new ESTermQuery ("hide", "always");
-      internal static readonly ESQuery hideExternal= new ESTermQuery ("hide", "external");
+      internal static readonly ESQuery hideAll = new ESTermsQuery ("hide", "always", "external");
+      internal static readonly ESQuery hideSuperhidden = new ESTermQuery ("hide", "always");
       private PhotoCache cache;
       private Settings settings;
 
@@ -60,49 +60,50 @@ namespace BMAlbum.Controllers {
          return facet == "album" ? "album.facet" : facet;
       }
 
-      private static ESQuery wrapQueryInFilters(ESQuery q, ESQuery excludeFilter, ESQuery userFilter, ESBoolQuery restFilter) {
-         q = ESBoolQuery.CreateFilteredQuery (q, restFilter?.ReduceToOneQueryIfPossible ());
-         q = ESBoolQuery.CreateFilteredQuery (q, userFilter);
-         return ESBoolQuery.CreateNotFilteredQuery (q, excludeFilter);
+      public static ESQuery wrapQueryInFilters (ClientState state, ESQuery q, ESBoolQuery restFilter) {
+         if (q == null)
+            q = restFilter;
+         else if (restFilter != null) {
+            restFilter.AddMust (q);
+            q = restFilter;
+         }
+
+         ESQuery notFilter = null;
+         if (state.InternalIp)
+            notFilter = state.Unhide ? null : hideSuperhidden;
+         else
+            notFilter = hideAll;
+
+         q = ESBoolQuery.CreateNotFilteredQuery (q, notFilter);
+         return ESBoolQuery.CreateFilteredQuery (q, state.User.Filter);
       }
 
       const string LOCATION = "location";
       readonly static Regex locExpr = new Regex (@"^[\d ,+\-]+$", RegexOptions.Compiled);
-      private string pinToLocation (string pin) {
-         if (pin != null && !locExpr.IsMatch (pin)) {
-            var c = settings.ESClient;
-            var req = c.CreateSearchRequest (settings.MainIndex);
-            req.Size = 1;
-            req.Query = new ESIdsQuery ("_doc", pin);
-            req.SetSource (LOCATION, null);
 
-            var resp = req.Search ();
-            resp.ThrowIfError ();
-            if (resp.Documents.Count == 0) pin = null;
-            else pin = resp.Documents[0].ReadStr (LOCATION, null);
-         }
-         return pin;
-      }
+      //PW kan weg
+      //private string pinToLocation (string pin) {
+      //   if (pin != null && !locExpr.IsMatch (pin)) {
+      //      var c = settings.ESClient;
+      //      var req = c.CreateSearchRequest (settings.MainIndex);
+      //      req.Size = 1;
+      //      req.Query = new ESIdsQuery ("_doc", pin);
+      //      req.SetSource (LOCATION, null);
+
+      //      var resp = req.Search ();
+      //      resp.ThrowIfError ();
+      //      if (resp.Documents.Count == 0) pin = null;
+      //      else pin = resp.Documents[0].ReadStr (LOCATION, null);
+      //   }
+      //   return pin;
+      //}
 
       private IActionResult indexByPin(ClientState clientState) {
          clientState.PerAlbum = TriStateBool.Unspecified;
-         ESQuery notFilter, userFilter;
          var searchSettings = settings.MainSearchSettings;
          var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
          var timings = new List<ESTimerStats> ();
-         if (RequestCtx.IsInternalIp)
-            notFilter = clientState.Unhide ? null : hideExternal;
-         else {
-            clientState.Unhide = false;
-            notFilter = hideAll;
-         }
-         userFilter = clientState.User.Filter;
          int SIZE = clientState.ActualPageSize;
-         string what = "no filter";
-         if (notFilter == hideExternal) what = "hideExternal";
-         else if (notFilter == hideAll) what = "hideAll";
-         SiteLog.Log ("Index: IPClass={0}, internal={1}, unhide={2}, filter={3}", RequestCtx.RemoteIPClass, RequestCtx.IsInternalIp, clientState.Unhide, what);
-
 
          switch (BMAlbum.User.CheckAccess (clientState.User, RequestCtx.RemoteIPClass, isAuthenticated ())) {
             case _Access.Ok: break;
@@ -160,7 +161,7 @@ namespace BMAlbum.Controllers {
 
          req.Size = lbSettings.PageSize;
          var bq = createPinQuery (clientState.Pin, settings.MapSettings.PinSearchDistance);
-         req.Query = wrapQueryInFilters (bq, notFilter, userFilter, restFilter);
+         req.Query = wrapQueryInFilters (clientState, bq, restFilter);
          var resp = req.Search ();
          resp.ThrowIfError ();
 
@@ -197,7 +198,6 @@ namespace BMAlbum.Controllers {
          return new JsonActionResult (json);
       }
       public IActionResult Index () {
-         ESQuery notFilter, userFilter;
          var clientState = new ClientState (RequestCtx, settings);
          SiteLog.Log ("Index: q={0}, pin={1}", clientState.Query, clientState.Pin);
          if (clientState.Pin != null)
@@ -208,20 +208,7 @@ namespace BMAlbum.Controllers {
          var auto = sortMode.Name == "auto";
          if (auto) sortMode = searchSettings.SortModes.Find ("oldontop");
          var timings = new List<ESTimerStats> ();
-         if (RequestCtx.IsInternalIp)
-            notFilter = clientState.Unhide ? null : hideExternal;
-         else {
-            clientState.Unhide = false;
-            notFilter = hideAll;
-         }
-         userFilter = clientState.User.Filter;
          int SIZE = clientState.ActualPageSize;
-         string what = "no filter";
-         if (notFilter == hideExternal) what = "hideExternal";
-         else if (notFilter == hideAll) what = "hideAll";
-         SiteLog.Log ("Index: IPClass={0}, internal={1}, unhide={2}, filter={3}", RequestCtx.RemoteIPClass, RequestCtx.IsInternalIp, clientState.Unhide, what);
-         SiteLog.Log ("Sort: {0}", sortMode);
-
 
          switch (BMAlbum.User.CheckAccess (clientState.User, RequestCtx.RemoteIPClass, isAuthenticated ())) {
             case _Access.Ok: break;
@@ -339,7 +326,7 @@ namespace BMAlbum.Controllers {
                int prevCount = 0;
                ESCountResponse countResp;
                while (true) {
-                  req.Query = wrapQueryInFilters (q, notFilter, userFilter, restFilter);
+                  req.Query = wrapQueryInFilters (clientState, q, restFilter);
                   countResp = req.Count ();
                   countResp.ThrowIfError ();
                   if (debug) timings.Add (new ESTimerStats ("count", countResp));
@@ -381,7 +368,7 @@ namespace BMAlbum.Controllers {
             if (auto) req.Sort.Clear ();
          }
 
-         if (req.Query == null) req.Query = wrapQueryInFilters (null, notFilter, userFilter, restFilter);
+         if (req.Query == null) req.Query = wrapQueryInFilters (clientState, null, restFilter);
          resp = req.Search ();
          resp.ThrowIfError ();
       
@@ -409,7 +396,7 @@ namespace BMAlbum.Controllers {
 
          //Do the per-album query
          var albumQuery = new ESTermQuery ("album.facet", firstAlbum);
-         req.Query = wrapQueryInFilters (albumQuery, notFilter, userFilter, null);
+         req.Query = wrapQueryInFilters (clientState, albumQuery, null);
          resp = req.Search ();
          resp.ThrowIfError ();
 

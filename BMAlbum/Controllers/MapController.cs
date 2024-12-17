@@ -55,13 +55,6 @@ namespace BMAlbum.Controllers {
          var settings = (Settings)Settings;
          var clientState = new ClientState (RequestCtx, settings);
          var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
-         ESQuery notFilter;
-         if (RequestCtx.IsInternalIp)
-            notFilter = clientState.Unhide ? null : PhotoController.hideExternal;
-         else {
-            clientState.Unhide = false;
-            notFilter = PhotoController.hideAll;
-         }
 
          SEARCH:
          var c = settings.ESClient;
@@ -78,12 +71,9 @@ namespace BMAlbum.Controllers {
             req.Aggregations.Add (albumAgg);
             albumAgg.Size = 10;
          }
-         var bq = new ESBoolQuery ();
-         bq.AddFilter (clientState.User.Filter);
-         bq.AddNot (notFilter);
-         bq.AddFilter(bounds != null ? new ESGeoBoundingBoxQuery (FIELD, bounds) 
-                                     : new ESExistsQuery (FIELD));
-         req.Query = bq;
+
+         ESQuery q = bounds != null ? new ESGeoBoundingBoxQuery (FIELD, bounds) : new ESExistsQuery (FIELD);
+         req.Query = PhotoController.wrapQueryInFilters (clientState, q, null);
 
          var resp = req.Search ();
          resp.ThrowIfError ();
@@ -191,13 +181,6 @@ namespace BMAlbum.Controllers {
          var settings = (Settings)Settings;
          var clientState = new ClientState (RequestCtx, settings);
          var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
-         ESQuery notFilter;
-         if (RequestCtx.IsInternalIp)
-            notFilter = clientState.Unhide ? null : PhotoController.hideExternal;
-         else {
-            clientState.Unhide = false;
-            notFilter = PhotoController.hideAll;
-         }
 
          var c = settings.ESClient;
          var req = c.CreateSearchRequest (settings.MainIndex);
@@ -205,12 +188,9 @@ namespace BMAlbum.Controllers {
 
          var agg = new ESGeoH3Aggregation ("clusters", FIELD, geoZoom);
          req.Aggregations.Add (agg);
-         var bq = new ESBoolQuery ();
-         bq.AddFilter (clientState.User.Filter);
-         bq.AddNot (notFilter);
-         bq.AddFilter (bounds != null ? new ESGeoBoundingBoxQuery (FIELD, bounds)
-                                     : new ESExistsQuery (FIELD));
-         req.Query = bq;
+
+         ESQuery q = bounds != null ? new ESGeoBoundingBoxQuery (FIELD, bounds) : new ESExistsQuery (FIELD);
+         req.Query = PhotoController.wrapQueryInFilters (clientState, q, null);
 
          var resp = req.Search ();
          resp.ThrowIfError ();
@@ -238,22 +218,12 @@ namespace BMAlbum.Controllers {
       public IActionResult Dump (string pos) {
          var settings = (Settings)Settings;
          var clientState = new ClientState (RequestCtx, settings);
+         if (!clientState.InternalIp) return new ActionResult404 (); //only for internal use
          var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
-         ESQuery notFilter;
-         if (RequestCtx.IsInternalIp)
-            notFilter = clientState.Unhide ? null : PhotoController.hideExternal;
-         else {
-            clientState.Unhide = false;
-            notFilter = PhotoController.hideAll;
-         }
 
          var c = settings.ESClient;
          var req = c.CreateSearchRequest (settings.MainIndex);
          req.Size = 0;
-
-         var bq = new ESBoolQuery ();
-         //PWbq.AddFilter (clientState.User.Filter);
-         bq.AddNot (notFilter);
 
          var geoQ = new ESGeoDistanceQuery (FIELD, pos, "20km");
          var fsq = new ESFunctionScoreQuery (geoQ);
@@ -264,9 +234,7 @@ namespace BMAlbum.Controllers {
          func.Origin = pos; ;
          func.Decay = 0.1;
          fsq.Functions.Add (func);
-         bq.AddMust (fsq);
-
-         req.Query = bq;
+         req.Query = fsq;
 
          req.Size = 10;
          var resp = req.Search ();
