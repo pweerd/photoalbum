@@ -197,6 +197,15 @@ namespace BMAlbum.Controllers {
 
          return new JsonActionResult (json);
       }
+
+      private static string slideToQuery(string slide) {
+         string ret = slide.Replace('\\', ' ');
+
+         //If the slide is a full blown ID, the first letter is typically a drive letter
+         //We strip it, because its not indexed
+         int idx = ret.IndexOf (' ');
+         return (idx == 1) ? ret.Substring (2) : ret;
+      }
       public IActionResult Index () {
          var clientState = new ClientState (RequestCtx, settings);
          SiteLog.Log ("Index: q={0}, pin={1}", clientState.Query, clientState.Pin);
@@ -229,11 +238,13 @@ namespace BMAlbum.Controllers {
          agg.Sort.Add ("sort_key", false);
          agg.Size = SIZE;
 
+         //If we have a slide but no query, we use the slide as a query and don't apply the mincount for album 
          if (query==null && clientState.Slide != null) {
             clientState.PerAlbum = TriStateBool.True;
-            query = clientState.Slide;
+            query = slideToQuery(clientState.Slide);
          } else 
             agg.MinDocCount = lbSettings.MinCountForAlbum > 0 ? lbSettings.MinCountForAlbum : 4;
+
          var subJson = new JsonObjectValue ("field", "sort_key");
          subJson = new JsonObjectValue ("max", subJson);
          agg.SubAggs.Add (new ESJsonAggregation ("sort_key", subJson));
