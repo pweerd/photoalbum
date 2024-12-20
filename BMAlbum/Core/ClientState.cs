@@ -108,8 +108,7 @@ namespace BMAlbum {
                break;
             case "q":
                Query = val.TrimToNull ();
-               if (Query != null) Pin = null;
-               Slide = null;
+               Pin = null;
                break;
             case "pin":
                var v = val.TrimToNull ();
@@ -127,6 +126,7 @@ namespace BMAlbum {
                break;
             case "slide":
                Slide = val.TrimToNull ();
+               Pin = null;
                break;
             case "sort":
                SortName = val.TrimToNull ();
@@ -182,7 +182,6 @@ namespace BMAlbum {
          if (Sort != Settings.MainSearchSettings.SortModes.Default)
             sb.Append ("&sort=").Append (Sort?.Name);
 
-         //optAppend (sb, "slide", Slide);
          return sb.Length <= 1 ? null : sb.ToString (1, sb.Length-1);
       }
 
