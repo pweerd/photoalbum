@@ -122,14 +122,14 @@ function hookHistory() {
    let _oldForward;
 
    function _pushState(state, title, url) {
-      console.log('HISTORY old:', history.state);
-      console.log('HISTORY push:', state, title, url);
+      console.log('HISTORY old:', history.length, history.state);
       _oldPush.apply(history, arguments);
+      console.log('HISTORY push:', history.length, history.state);
    }
    function _replaceState(state, title, url) {
-      console.log('HISTORY old:', history.state);
-      console.log('HISTORY replace:', state, title, url);
+      console.log('HISTORY old:', history.length, history.state);
       _oldReplace.apply(history, arguments);
+      console.log('HISTORY replace:', history.length, history.state);
    }
    function _back() {
       console.log('HISTORY back');
