@@ -24,6 +24,7 @@ function createApplication(state) {
 
    if ((state.debug_flags & 0x10000) !== 0 && hookConsole)
       hookConsole(state.home_url + '_clientlog');
+   hookHistory();
 
    String.prototype.format = function () {
       var args = arguments;
@@ -73,7 +74,7 @@ function createApplication(state) {
          let v = arr[i];
          let j = v.indexOf('=');
          if (j < 0) {
-            values[v] = v;
+            delete values[v];
             continue;
          }
          values[v.substring(0, j)] = v;
@@ -90,7 +91,8 @@ function createApplication(state) {
       var parts = _createUrlParts(url);
       if (parms instanceof Array) {
          parts = parts.concat(parms);
-      } else {
+      } else if (parms) {
+         parts.push('&');
          parts.push(parms);
       }
       console.log("-->", parts.join(""));
@@ -158,24 +160,24 @@ function createApplication(state) {
 
 
    function _onPopHistory(ev) {
-      let state = ev.originalEvent.state || {};
-      console.log('HISTORY popped:', state);
-      switch (state.mode || '') {
+      let histState = history.state || {};
+      console.log('HISTORY popped:', history.length, histState);
+      switch (histState.mode || '') {
          case "faces":
          case "photos":
-            _state.mode = state.mode;
-            _state.cmd = _normalizeCmd(state.cmd + "&mode=" + state.mode);
+            _state.mode = histState.mode;
+            _state.cmd = _normalizeCmd(histState.cmd + "&mode=" + histState.mode);
             app.lbControl.onPopHistory(ev);
             _enableOrDisableMap(false);
             break;
          case "map":
-            _state.mode = state.mode;
-            _state.cmd = _normalizeCmd(state.cmd + "&mode=" + state.mode);
+            _state.mode = histState.mode;
+            _state.cmd = _normalizeCmd(histState.cmd + "&mode=" + histState.mode);
             app.mapControl.onPopHistory(ev); 
             _enableOrDisableMap(true);
             break;
          default:
-            console.log ('INVALID mode: [', state.mode, ']', state);
+            console.log('INVALID mode: [', histState.mode, ']', histState);
             break;
       }
    }
