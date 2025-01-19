@@ -133,17 +133,19 @@ function createLightboxControl(app) {
       if (photo.names) {
          for (let nameObj of photo.names) {
             let name = nameObj.name || 'unknown';
-            sb.push(name + '<br />[' + photo.storage_id);
-            sb.push(', ' + round2(nameObj.match_score));
-            if (nameObj.score_all) {
-               sb.push(', ' + round2(nameObj.face_detect_score));
-               sb.push(', ' + round2(nameObj.detected_face_detect_score));
-               sb.push(', ' + round2(nameObj.score_all));
+            sb.push(name + '<br />[' + round2(nameObj.match_score) + ']<br />');
+            if (nameObj.explain) {
+               sb.push(nameObj.explain + '<br />');
             }
-            sb.push(']<br />');
          }
-         sb.push(toDateString(photo.updated));
+      } else {
+         if (photo.explain) sb.push(", " + photo.explain + "<br />");
       }
+      sb.push("#=" + photo.id.substring(1+photo.id.lastIndexOf('~')) );
+      sb.push(", h=" + photo.h0);
+      sb.push(", rto=" + round2(photo.face_ratio));
+      sb.push(", " + (photo.face_ok ? 'ok' : 'not ok') + "<br />");
+      sb.push(photo.storage_id + ", " + toDateString(photo.updated));
       sb.push('</div>');
 
       //<div class="txtbadge info-badge bottom-right-4"></div>
@@ -350,7 +352,7 @@ function createLightboxControl(app) {
       let ix = t.lastIndexOf('.');
       if (ix > 0 && ix >= t.length - 5)
          t = t.substring(0, ix);
-      document.title = t + " | Foto's ";;
+      document.title = t + " | Foto";
    }
 
    function _indicateLoading($elt) {
@@ -696,6 +698,7 @@ function createLightboxControl(app) {
          needHistory = false;
          if (_state.cmd === _state.activeCmd) {
             console.log("Skipping _updateLightBox: same cmd");
+            _setTitle(_data, _state);
             return;
          }
       } else if (from === "resize") {  //Only update the container if we are already in the correct state
@@ -733,17 +736,9 @@ function createLightboxControl(app) {
          if (newState.per_album !== undefined) $("#per_album").prop("checked", newState.per_album);
          $("#searchq").val(newState.q || '');
 
-
-         if (needHistory) {
-            _pushHistoryCmd(_state.activeCmd);
-         } else console.log("NO push: is from " + from);
-
-         if (!_faceMode) {
-            let slide = newState.slide;
-            if (!slide) slide = _state.slide;
-            _state.slide = undefined;
-            _positionToSlide(slide);
-         }
+         console.log('NEED HIST:', needHistory, from, _state.activeCmd);
+         if (needHistory) _pushHistoryCmd(_state.activeCmd);
+         if (!_faceMode)  _positionToSlide(newState.slide);
       });
    }
 
@@ -756,6 +751,7 @@ function createLightboxControl(app) {
    }
    function _onGallerySlide(ev) {
       _resetAll();
+      $(document.body).removeClass('lg-from-hash');  //re-enable animation. See hash-plugin
       let elt = _data.files[ev.detail.index];
       console.log('goto slide', ev.detail.index, elt.fn);
       _setTitleForSlide(elt);
@@ -789,34 +785,35 @@ function createLightboxControl(app) {
    //function _dumpHistory(why) {
    //   console.log('History length=', history.length, ", FromPop=", _isFromPopState, ", Why=", why, ', state=', history.state);
    //}
-   function _positionToSlide(slide) {
+
+   function _getSlideIndex(slide) {
       if (slide) {
-         console.log('Handling slide=', slide);
          let files = _data.files;
          for (let i = 0; i < files.length; i++) {
-            if (files[i].f !== slide) continue;
-            console.log('found exact at pos=', i);
-            $(document.body).addClass('lg-from-hash');  //Prevent animation. See hash-plugin
-            _lg.openGallery(i);
-            return;
+            if (files[i].f === slide) return i;
          }
          slide = slide.toLowerCase();
          for (let i = 0; i < files.length; i++) {
             if (!files[i].f.toLowerCase().endsWith(slide)) continue;
-            console.log('found as tail at pos=', i);
-            $(document.body).addClass('lg-from-hash');  //Prevent animation. See hash-plugin
-            _lg.openGallery(i);
-            return;
+            return i;
          }
       }
+      return -1;
+   }
 
-      console.log('No slide, closing gallery');
-      $(document.body).removeClass('lg-from-hash');  //Prevent animation. See hash-plugin
-      _lg.closeGallery();
+   function _positionToSlide(slide) {
+      if (typeof slide !== 'number') slide = _getSlideIndex(slide);
+      if (slide >= 0) {
+         $(document.body).addClass('lg-from-hash');  //Prevent animation. See hash-plugin
+         _lg.openGallery(slide);
+      } else {
+         console.log('No slide, closing gallery');
+         $(document.body).removeClass('lg-from-hash');  //re-enable animation. See hash-plugin
+         _lg.closeGallery();
+      }
    }
 
    function _pushHistoryCmd(cmd) {
-      if (cmd === undefined) cmd = '';
       if (cmd === undefined) {
          console.log('NOT pushing cmd state: ', cmd);
          return;
@@ -825,36 +822,39 @@ function createLightboxControl(app) {
       let url = new URL(_state.entryUrl);
       url.search = _state.home_url_params + cmd;
       url.hash = '';
-      let histState = { mode: _state.mode, cmd: cmd, title: document.title, url: url.href };
+      let histState = { mode: _state.mode, cmd: cmd, url: url.href, from: 'cmd' };
 
       let pushHist = history.state ? history.pushState : history.replaceState;
-      pushHist.call (history, histState, histState.title, histState.url);
+      pushHist.call (history, histState, '', histState.url);
       console.log('PUSHed cmd');
    }
 
    function _pushHistorySlide(slide) {
       if (slide !== undefined) {
          let url = new URL(_state.entryUrl);
-         url.search = _state.home_url_params + app.normalizeCmd(_state.cmd + '&slide=' + encodeURIComponent(slide));
+         url.search = _state.home_url_params + app.normalizeCmd(_state.activeCmd + '&slide=' + encodeURIComponent(slide));
          url.hash = '';
-         let histState = { mode: _state.mode, slide: slide, title:document.title, url: url.href };
+         let histState = { mode: _state.mode, slide: slide, url: url.href, from:'slide' };
 
          let pushHist = history.replaceState;
-         if (history.state && !history.state.slide) pushHist = history.pushState;
-         pushHist.call(history, histState, histState.title, histState.url);
+         if (history.state) {
+            if (history.state.from !== 'slide') pushHist = history.pushState;
+         }
+         pushHist.call(history, histState, '', histState.url);
          console.log('PUSHed slide');
          _lg.needBack = true;
       }
    }
 
    function _onPopHistory(ev) {
-      let state = ev.originalEvent.state || {};
-      if (state.slide) {
-         _positionToSlide(state.slide);
+      let histState = ev.originalEvent.state || {};
+      console.log("OnPopHistLB:", histState);
+      if (histState.slide) {
+         _positionToSlide(histState.slide);
       } else {
          _lg.needBack = false;
          _positionToSlide();
-         _state.cmd = state ? state.cmd : '';
+         _state.cmd = histState ? histState.cmd : '';
          _updateLightBox("history");
       }
       return true;
