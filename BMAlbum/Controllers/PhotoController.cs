@@ -348,7 +348,7 @@ namespace BMAlbum.Controllers {
                         hasFuzzy = true;
                      }
                   }
-                  if (countResp.Count >= fuzzySettings.TriggerAt) break;
+                  if (countResp.Count > fuzzySettings.TriggerAt) break;
 
                   while (true) {
                      if (++i >= fuzzyModes.Length) goto FINISHED_COUNTING;
