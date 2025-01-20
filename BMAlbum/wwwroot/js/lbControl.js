@@ -738,7 +738,7 @@ function createLightboxControl(app) {
 
          console.log('NEED HIST:', needHistory, from, _state.activeCmd);
          if (needHistory) _pushHistoryCmd(_state.activeCmd);
-         if (!_faceMode)  _positionToSlide(newState.slide);
+         if (!_faceMode) _positionToSlide(newState.slide);
       });
    }
 
@@ -819,10 +819,13 @@ function createLightboxControl(app) {
          return;
       }
 
+      let mode = _state.mode;
+      if (mode === 'photo') mode = 'photos';
+
       let url = new URL(_state.entryUrl);
-      url.search = _state.home_url_params + cmd;
+      url.search = app.normalizeCmd(_state.home_url_params + '&' + _state.activeCmd + '&mode=' + mode);
       url.hash = '';
-      let histState = { mode: _state.mode, cmd: cmd, url: url.href, from: 'cmd' };
+      let histState = { mode: mode, cmd: cmd, url: url.href, from: 'cmd' };
 
       let pushHist = history.state ? history.pushState : history.replaceState;
       pushHist.call (history, histState, '', histState.url);
@@ -832,9 +835,9 @@ function createLightboxControl(app) {
    function _pushHistorySlide(slide) {
       if (slide !== undefined) {
          let url = new URL(_state.entryUrl);
-         url.search = _state.home_url_params + app.normalizeCmd(_state.activeCmd + '&slide=' + encodeURIComponent(slide));
+         url.search = app.normalizeCmd(_state.home_url_params + '&' + _state.activeCmd + '&mode=photo&slide=' + encodeURIComponent(slide));
          url.hash = '';
-         let histState = { mode: _state.mode, slide: slide, url: url.href, from:'slide' };
+         let histState = { mode: 'photo', slide: slide, url: url.href, from:'slide' };
 
          let pushHist = history.replaceState;
          if (history.state) {
@@ -890,7 +893,7 @@ function createLightboxControl(app) {
       //In case of a query, the per_album setting is ignored
       let q = $("#searchq").val();
       let perAlbum = q ? '' : $("#per_album")[0].checked;
-      _state.cmd = "&pin=&q=" + encodeURIComponent(q) + "&per_album=" + perAlbum;
+      _state.cmd = "&slide=&pin=&q=" + encodeURIComponent(q) + "&per_album=" + perAlbum;
       _updateLightBox();
    }
 
@@ -898,16 +901,16 @@ function createLightboxControl(app) {
 
    $('#albums').on('change', function () {
       let ix = parseInt(this.value);
-      _state.cmd += "&pin=&album=" + (ix < 0 ? "" : encodeURIComponent(_data.albums[ix].v));
+      _state.cmd += "&slide=&pin=&album=" + (ix < 0 ? "" : encodeURIComponent(_data.albums[ix].v));
       _updateLightBox();
    });
    $('#years').on('change', function () {
       let ix = parseInt(this.value);
-      _state.cmd += "&pin=&year=" + (ix < 0 ? "" : encodeURIComponent(_data.years[ix].v));
+      _state.cmd += "&slide=&pin=&year=" + (ix < 0 ? "" : encodeURIComponent(_data.years[ix].v));
       _updateLightBox();
    });
    $("#per_album").on('change', function () {
-      _state.cmd += "&pin=&per_album=" + this.checked;
+      _state.cmd += "&slide=&pin=&per_album=" + this.checked;
       _updateLightBox();
    });
    $('#icon_search').on('click', _search);

@@ -27,7 +27,8 @@ namespace BMAlbum {
       False
    }
    public enum AppMode {
-      Photos,
+      Photos=1,
+      Photo,
       Faces,
       Map
    }
@@ -64,12 +65,6 @@ namespace BMAlbum {
          } 
          if (User==null) User = settings.Users.DefUser;
 
-         req.RouteValues.TryGetValue ("mode", out var appModeId);
-         if (appModeId != null)
-            AppMode = Invariant.ToEnum<AppMode> ((string)appModeId); 
-         else 
-            AppMode = ((string)req.RouteValues["controller"]).StartsWith ("Face") ? AppMode.Faces : AppMode.Photos; 
-
          SortName = null;
          parseRequestParms (ctx.HttpContext.Request);
          ActualPageSize = (DebugFlags & Bitmanager.Web.DebugFlags.ONE) != 0 ? 1 : PageSize;
@@ -77,6 +72,15 @@ namespace BMAlbum {
          SearchSettings = (AppMode== AppMode.Faces) ? settings.FaceSearchSettings : settings.MainSearchSettings;
          SetSortMode (SortName);
          if (!InternalIp) Unhide = false;
+         if (AppMode==0) {
+            req.RouteValues.TryGetValue ("mode", out var appModeId);
+            if (appModeId != null)
+               AppMode = Invariant.ToEnum<AppMode> ((string)appModeId);
+            else if (((string)req.RouteValues["controller"]).StartsWith ("Face"))
+               AppMode = AppMode.Faces;
+            else
+               AppMode = Slide != null ? AppMode.Photo : AppMode.Photos;
+         }
       }
 
       public void SetSortMode (string sortModeName) {
@@ -117,11 +121,11 @@ namespace BMAlbum {
                else {
                   Pin = new Pin (v);
                   Query = null;
+                  Slide = null;
                   Facets.Clear ();
                }
                break;
             case "per_album":
-               Slide = null;
                PerAlbum = Invariant.ToEnum (val, TriStateBool.Unspecified);
                break;
             case "slide":

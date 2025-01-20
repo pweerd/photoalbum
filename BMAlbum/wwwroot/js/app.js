@@ -79,11 +79,23 @@ function createApplication(state) {
          }
          values[v.substring(0, j)] = v;
       }
+      //Remove superflouis values
+      if (values.slide) {
+         if (values.mode === 'mode=photo') delete values["mode"];
+      } else {
+         if (values.mode === 'mode=photos') delete values["mode"];
+      }
       return Object.values(values).join('&');
    }
+
    function _createUrlParts(url) {
       let u = _state.user ? _state.user + "/" : "";
-      return [_state.home_url, u, url, "?", _state.home_url_params];
+      let ret = [_state.home_url, u, url, "?"];
+      if (_state.home_url_params) {
+         ret.push(_state.home_url_params);
+         ret.push('&');
+      }
+      return ret;
    }
 
    function _createUrl(url, parms) {
@@ -92,7 +104,6 @@ function createApplication(state) {
       if (parms instanceof Array) {
          parts = parts.concat(parms);
       } else if (parms) {
-         parts.push('&');
          parts.push(parms);
       }
       console.log("-->", parts.join(""));
@@ -164,6 +175,7 @@ function createApplication(state) {
       console.log('HISTORY popped:', history.length, histState);
       switch (histState.mode || '') {
          case "faces":
+         case "photo":
          case "photos":
             _state.mode = histState.mode;
             _state.cmd = _normalizeCmd(histState.cmd + "&mode=" + histState.mode);
@@ -190,6 +202,7 @@ function createApplication(state) {
       if (parms && parms.mode) _state.mode = parms.mode;
       switch (_state.mode) {
          case "faces":
+         case "photo":
          case "photos":
             _state.cmd = _normalizeCmd(state.cmd + "&mode=" + _state.mode);
             if (app.lbControl.start(parms, from)) _enableOrDisableMap(false);
@@ -199,7 +212,7 @@ function createApplication(state) {
             if (app.mapControl.start(parms,from)) _enableOrDisableMap(true);
             break;
          default:
-            alert('invalid mode: [' + mode + ']');
+            alert('invalid mode: [' + _state.mode + ']');
             break;
       }
    }
