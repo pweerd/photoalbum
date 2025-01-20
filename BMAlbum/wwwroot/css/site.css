@@ -44,10 +44,10 @@ body {
 }
 
 #searchbar {
-   padding-left: .2em;
+   padding-left: 0em;
    padding-top: .2em;
    padding-right: .2em;
-   padding-left: 0em;
+   padding-bottom: .2em;
    border: none;
    max-width: 100%;
 }
@@ -94,6 +94,7 @@ body {
 
 #searchq {
    /*margin-left: .25em;*/
+   width: 20em;
    margin-right: .25em;
    outline-offset: 0px;
 }
