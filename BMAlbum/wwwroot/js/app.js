@@ -33,27 +33,85 @@ function createApplication(state) {
       });
    };
 
+   Object.setPrototypeOf(state, {
+      createUrl: function (relPath) {
+         let parts = [this.user_home_url];
+         if (relPath) {
+            if (relPath.startsWith('/')) relPath = relPath.substring(1);
+            parts.push(relPath);
+            if (!relPath.endsWith('/')) parts.push('/');
+         }
+         let sep = '?';
+         if (this.home_url_params) {
+            parts.push(sep);
+            sep = '&';
+            parts.push(this.home_url_params);
+         }
+         for (let i = 0; i < _histKeys.length; i++) {
+            const k = _histKeys[i];
+            let v = state[k];
+            if (typeof (v) === 'object') v = v.id;
+            if (!v && v !== false) continue;
+            parts.push(sep);
+            sep = '&';
+            parts.push(k + '=' + encodeURIComponent(v));
+         };
+         return parts.join('');
+      },
 
-   let _state = state;
+      getJSON: function (relUrl, callback) {
+         _getOrPostJsonBackend(this.createUrl(relUrl), undefined, callback);
+      },
+
+      postJSON: function (relUrl, payload, callback) {
+         _getOrPostJsonBackend(this.createUrl(relUrl), payload, callback);
+      },
+
+      saveActiveState: function (newState) {
+         if (newState) _copyStateParms(this, newState);
+         this.activeState = {};
+         _copyStateParms(this.activeState, this);
+      },
+
+      pushHistory: function (from, forceReplace) {
+         let histState = { from: from };
+         _copyStateParms(histState, this);
+         histState.url = this.createUrl();
+
+         let pushHist = history.pushState;
+         if (!history.state || forceReplace)
+            pushHist = history.replaceState;
+
+         pushHist.call(history, histState, '', histState.url);
+      },
+
+      isChanged: function (otherState) {
+         if (!otherState) otherState = this.activeState;
+         if (!otherState) return true;
+         for (let i = 0; i < _histKeys.length; i++) {
+            const k = _histKeys[i];
+            if (this[k] !== otherState[k]) return true;
+         };
+         return false;
+      }
+   });
+   
+
+   const _state = state;
    let _isTouch = false;
-   let _zoomer; 
-   let _multipleAlbums = false;
-   let _unique = 0;
-   let _faceNames = { chgid: -1 };
-   let _lightboxSizes = state.lightbox_settings;
+
+   function _getEntryUrl() {
+      let url = new URL(window.location);
+      url.search = '';
+      return url.href.endsWith('/') ? url.href : url.href+'/';
+   }
 
    //Save the original url for using in the history
-   _state.entryUrl = new URL(window.location);
-   _state.entryUrl.search = ''
-   _state.entryUrl = _state.entryUrl.href;
+   const _entryUrl = _getEntryUrl();
+   _state.entryUrl = _entryUrl;
    _state.cmd ||= '';
 
-   //Register keydown as first thing: we need to be able to cancel processing from lg...
-   $(window)
-      .on('keydown', function (ev) {
-         if (_zoomer) return _zoomer.onKeyDown(ev);
-      })
-      ;
+   _state.user_home_url = state.user ? _state.home_url + _state.user + '/' : _state.home_url;
 
    let _device = function () {
       let ua = navigator.userAgent.toLowerCase();
@@ -66,52 +124,29 @@ function createApplication(state) {
    }();
    console.log("DEVICE", _device);
 
-   function _normalizeCmd(str) {
-      if (!str) return str;
-      let arr = str.split('&');
-      let values = {};
-      for (let i = 0; i < arr.length; i++) {
-         let v = arr[i];
-         let j = v.indexOf('=');
-         if (j < 0) {
-            delete values[v];
-            continue;
-         }
-         values[v.substring(0, j)] = v;
+   function _createUrl(relPath, parms) {
+      console.log("CreateUrl", relPath, parms);
+      let parts = [_state.user_home_url];
+      if (relPath) {
+         if (relPath.startsWith('/')) relPath = relPath.substring(1);
+         parts.push(relPath);
+         if (!relPath.endsWith('/')) parts.push('/');
       }
-      //Remove superflouis values
-      if (values.slide) {
-         if (values.mode === 'mode=photo') delete values["mode"];
-      } else {
-         if (values.mode === 'mode=photos') delete values["mode"];
-      }
-      return Object.values(values).join('&');
-   }
+      parts.push('?');
+      if (this.home_url_params) parts.push(this.home_url_params);
 
-   function _createUrlParts(url) {
-      let u = _state.user ? _state.user + "/" : "";
-      let ret = [_state.home_url, u, url, "?"];
-      if (_state.home_url_params) {
-         ret.push(_state.home_url_params);
-         ret.push('&');
-      }
-      return ret;
-   }
-
-   function _createUrl(url, parms) {
-      console.log("CreateUrl", url, parms);
-      var parts = _createUrlParts(url);
       if (parms instanceof Array) {
          parts = parts.concat(parms);
       } else if (parms) {
          parts.push(parms);
       }
-      console.log("-->", parts.join(""));
-      return parts.join("");
+
+      let ret = parts.join("");
+      console.log("-->", ret);
+      return ret;
    }
 
-   function _getOrPostJSON(url, dataToSend, parms, func) {
-      let realUrl = _createUrl(url, parms);
+   function _getOrPostJsonBackend(url, dataToSend, func) {
       let method="GET", payload;
 
       if (dataToSend) {
@@ -123,7 +158,7 @@ function createApplication(state) {
          dataType: "json",
          contentType: "application/json",
          data: payload,
-         url: realUrl,
+         url: url,
          complete: function (jqXHR) {
             let json;
             let unknownMsg = 'Unknown error: ';
@@ -143,7 +178,7 @@ function createApplication(state) {
                arr.push(unknownMsg + jqXHR.responseText);
             }
             arr.push("\r\n\r\nUrl=");
-            arr.push(realUrl);
+            arr.push(url);
             if ((_state.debug_flags & 4) != 0 && json && json.bm_error.stacktrace) {
                arr.push("\r\nTrace=");
                arr.push(json.bm_error.stacktrace);
@@ -152,8 +187,11 @@ function createApplication(state) {
          }
       });
    }
-   function _getJSON(url, parms, func) {
-      return _getOrPostJSON(url, undefined, parms, func);
+   function _getJSON(relUrl, parms, callback) {
+      return _getOrPostJsonBackend(_createUrl(relUrl, parms), undefined, callback);
+   }
+   function _postJSON(relUrl, payload, parms, func) {
+      return _getOrPostJsonBackend(_createUrl(relUrl, parms), payload, func);
    }
 
 
@@ -169,22 +207,40 @@ function createApplication(state) {
       //console.log('Dumping history. length=', history.length, ", Why=", why, ', state=', history);
    }
 
+   const _histKeys = [
+      'mode',
+      'q',
+      'pin',
+      'per_album',
+      'sort',
+      'album',
+      'year',
+      'slide',
+      'center',
+      'zoom',
+   ];
+   function _copyStateParms(dst, src) {
+      for (let i = 0; i < _histKeys.length; i++) {
+         const k = _histKeys[i];
+         dst[k] = src[k];
+      };
+   }
+
 
    function _onPopHistory(ev) {
       let histState = history.state || {};
-      console.log('HISTORY popped:', history.length, histState);
-      switch (histState.mode || '') {
+      _copyStateParms(_state, histState);
+      console.log('HISTORY popped:', history.length, histState, _state);
+      switch (_state.mode) {
          case "faces":
          case "photo":
          case "photos":
-            _state.mode = histState.mode;
-            _state.cmd = _normalizeCmd(histState.cmd + "&mode=" + histState.mode);
+            _state.center = undefined;
+            _state.zoom = undefined;
             app.lbControl.onPopHistory(ev);
             _enableOrDisableMap(false);
             break;
          case "map":
-            _state.mode = histState.mode;
-            _state.cmd = _normalizeCmd(histState.cmd + "&mode=" + histState.mode);
             app.mapControl.onPopHistory(ev); 
             _enableOrDisableMap(true);
             break;
@@ -195,21 +251,21 @@ function createApplication(state) {
    }
 
 
-   function _start(parms, from) {
-      console.log("Start parms=", parms, ", from=", from, ", history=", history.state); 
+   function _start(from) {
+      //if (from==="history") _copyStateParms(_state, history.state);
+      console.log("Start: from=", from, ", history=", history.state); 
       _overlay.hideNow();
 
-      if (parms && parms.mode) _state.mode = parms.mode;
       switch (_state.mode) {
          case "faces":
          case "photo":
          case "photos":
-            _state.cmd = _normalizeCmd(state.cmd + "&mode=" + _state.mode);
-            if (app.lbControl.start(parms, from)) _enableOrDisableMap(false);
+            _state.center = undefined;
+            _state.zoom = undefined;
+            if (app.lbControl.start(from)) _enableOrDisableMap(false);
             break;
          case "map":
-            _state.cmd = _normalizeCmd(state.cmd + "&mode=" + _state.mode);
-            if (app.mapControl.start(parms,from)) _enableOrDisableMap(true);
+            if (app.mapControl.start(from)) _enableOrDisableMap(true);
             break;
          default:
             alert('invalid mode: [' + _state.mode + ']');
@@ -237,10 +293,9 @@ function createApplication(state) {
 
    return {
       dumpHistory: _dumpHistory,
-      normalizeCmd: _normalizeCmd,
       createUrl: _createUrl,
       getJSON: _getJSON,
-      postJSON: _getOrPostJSON,
+      postJSON: _postJSON,
       state: _state,
       device: _device,
       isTouch: _isTouch,

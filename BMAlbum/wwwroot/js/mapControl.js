@@ -50,9 +50,7 @@ function createMapControl(app) {
       photos: {}
    };
 
-   let _getJSON = app.getJSON;
-   let _postJSON = app.postJSON;
-   let _needHistory;
+   let _lastAlbum, _lastZoom;
 
    function _normalizePosition(pos) {
       //console.log('typeof pos1=', typeof pos, pos instanceof google.maps.LatLng);
@@ -61,7 +59,7 @@ function createMapControl(app) {
       } else if (typeof (pos) === "string") {
          let arr = pos.split(',');
          pos = new google.maps.LatLng(arr[0], arr[1]);
-      } if (!(pos instanceof google.maps.LatLng)) {
+      } else if (!(pos instanceof google.maps.LatLng)) {
          pos = new google.maps.LatLng(pos.lat, pos.lon | pos.lng);
       }
       //console.log('typeof pos2=', typeof pos, pos instanceof google.maps.LatLng);
@@ -88,39 +86,36 @@ function createMapControl(app) {
    }
 
    function _firePhoto() {
-      let thisLoc = _positionToString(this.position);
-      let loc = this.photo_id;
-      if (!loc) loc = thisLoc;
+      const pin = this._pin;
 
       //Mark the current item
-      _createMainPhotoMarker(thisLoc, this);
-      _pushHistory();
+      _createMainPhotoMarker(pin);
 
       //Update UI
       setTimeout(function () {
-         app.start({
-            mode: 'photos',
-            pin: loc
-         });
+         _state.mode = 'photos';
+         _state.pin = pin;
+         _state.q = undefined;
+         _state.album = undefined;
+         _state.sort = undefined;
+         _state.per_album = undefined;
+         app.start('map');
       });
    }
-   function _createPhotoMarker(cl) {
+   function _createPhotoMarker(pin) {
       const img = document.createElement('img');
-      img.src = _state.home_url + 'images/' + _state.map_settings.other_pins[cl.color | 0];
-      let tit = cl.album;
-      if (!tit) tit = cl.photo_id;
+      img.src = _state.home_url + 'images/' + _state.map_settings.other_pins[pin.color | 0];
       const marker = new google.maps.marker.AdvancedMarkerElement({
          map: _map,
-         position: _normalizePosition(cl.loc),
+         position: _normalizePosition(pin.loc),
          content: img,
-         title: tit
+         title: (pin.album ?? pin.id)
       });
-      marker.photo_id = cl.photo_id;
-      marker.album = cl.album;
+      marker._pin = pin;
       marker.addListener('click', _firePhoto);
       return marker;
    }
-   function _createMainPhotoMarker(loc, parms) {
+   function _createMainPhotoMarker(pin) {
       const img = document.createElement('img');
       img.src = _state.home_url + 'images/' + _state.map_settings.selected_pin;
       img.width = 48;
@@ -129,16 +124,12 @@ function createMapControl(app) {
          map: _map,
          title: 'positie geselecteerde foto',
          content: img,
-         position: _normalizePosition(loc),
+         position: _normalizePosition(pin.loc),
          zIndex: 999
       });
-      if (parms) {
-         if (parms.photo_id) {
-            marker.photo_id = parms.photo_id;
-            marker.addListener('click', _firePhoto);
-         }
-         if (parms.album) marker.title = parms.album + " (geselecteerd)";
-      }
+      marker._pin = pin;
+      marker.addListener('click', _firePhoto);
+      if (pin.album) marker.title = pin.album + " (geselecteerd)";
       return _setMainMarker(marker);
    }
 
@@ -205,15 +196,18 @@ function createMapControl(app) {
          let parms = [];
          parms.push("&bounds=" + _boundsToString(_map.getBounds()));
 
-         if (zoom < maxGoogleZoom) {
-            zoom = googleZoomToEsZoom[zoom];
-         } else {
-            zoom = maxEsZoom
-            parms.push("&mode=photos");
-         }
+         zoom = (zoom < maxGoogleZoom) ? googleZoomToEsZoom[zoom] : maxEsZoom;
          parms.push("&zoom=" + zoom);
 
-         _postJSON('map/clusters', _lastColors, parms, function (json) {
+         //Determine the photo count to switch from clustering to individual photo's
+         //This is done by taking the minimum square area in pixels of the div into account
+         let elt = document.getElementById("map");
+         let minDim = Math.min(elt.clientHeight, elt.clientWidth);
+         let maxCount = (minDim * minDim) / 3500;
+         parms.push("&max_count=" + maxCount.toFixed(0));
+
+
+         app.postJSON('map/clusters', _lastColors, parms, function (json) {
 
             //Process clusters (groups)
             let markers = _markers.clusters;
@@ -269,7 +263,7 @@ function createMapControl(app) {
             for (let k in photos) {
                let mainItem = photos[k];
                if (!mainItem) continue;
-               mainItem.photo_id = k;
+               mainItem.id = k;
 
                if (zoom === _markers.zoom) {
                   if (markers[k]) {
@@ -334,46 +328,35 @@ function createMapControl(app) {
 
 
    function _onPopHistory(ev) {
-      _start(ev.originalEvent.state, 'history');
+      _start('history');
       return true;
    }
 
    function _pushHistory() {
-      let url = new URL(_state.entryUrl);
-      url.search = _state.home_url_params + _state.cmd;
-      url.hash = '';
-      let histState = {
-         mode: _state.mode,
-         cmd: _state.cmd,
-         title: document.title,
-         url: url.href,
-         center: _positionToString(_map.getCenter()),
-         zoom: _map.getZoom()
-      };
-      if (_markers.mainPin) {
-         histState.pin = _positionToString(_markers.mainPin.position);
-         histState.album = _markers.mainPin.album;
-         histState.photo_id = _markers.mainPin.photo_id;
-      }
+      _state.zoom = _map.getZoom();
+      _state.center = _positionToString(_map.getCenter());
 
-      let pushHist = history.replaceState;
-      if (history.state && history.state.mode !== 'map') pushHist = history.pushState;
-      pushHist.call(history, histState, histState.title, histState.url); 
+      //Save the lastZoom in order to be able to use the same zoom for a photo from the same album
+      if (_state.pin && _state.pin.album) {
+         _lastAlbum = _state.pin.album;
+         _lastZoom = _state.zoom;
+      } else
+         _lastAlbum = null;
+
+      _state.pushHistory('map', history.state && history.state.mode === 'map');
       console.log('PUSHed map hist');
    }
 
-
-
-   function _start(parms, from) {
-      console.log("startmap", parms, from, _map);
+   function _start(from) {
+      console.log("startmap", from, _map);
       document.title = "Kaart | Foto's";
       _state = app.state;
       if (!_map) {
          console.log("GOOGLE", typeof google);
          if (!Object.hasOwn(window, 'google') || !Object.hasOwn(window.google,'maps')) {
             window._initMap = function () {
-               console.log("lazy loading:", parms, from);
-               app.start(parms, from);
+               console.log("lazy loading:", from);
+               app.start(from);
             };
             const script = document.createElement('script')
             const src = "https://maps.googleapis.com/maps/api/js?libraries=places,marker&callback=_initMap&key=";
@@ -393,26 +376,21 @@ function createMapControl(app) {
 
       let zoom = -1;
       let loc = null;
-      if (parms && parms.pin) {
+      if (_state.pin) {
          zoom = maxGoogleZoom;
-         loc = parms.pin;
-         _createMainPhotoMarker(loc, parms);
-      } else {
-         if (_state.pin) {
-            zoom = maxGoogleZoom;
-            loc = _state.pin.position;
-            _createMainPhotoMarker(loc, _state.pin);
-         }
+         _createMainPhotoMarker(_state.pin);
+         loc = _state.pin.loc;
+         //if (_lastZoom && _lastAlbum === _state.pin.album) zoom = _lastZoom;
+         if (_lastZoom) zoom = _lastZoom;
       }
 
-      if (parms) {
-         if (parms.center) loc = parms.center;
-         zoom = parms.zoom !== undefined ?parms.zoom : maxGoogleZoom;
-      }
+      if (_state.center) loc = _state.center;
+      if (_state.zoom) zoom = _state.zoom;
 
       //Now position the map
       if (loc != null) {
          _map.panTo(_normalizePosition(loc));
+         if (typeof (zoom) === "string") zoom = parseInt(zoom, 10);
          _map.setZoom(zoom);
 
          //Sometimes the map isn't updated completely

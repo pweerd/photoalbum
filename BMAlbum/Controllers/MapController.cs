@@ -41,14 +41,17 @@ namespace BMAlbum.Controllers {
          return View (new MapModel (this, new ClientState (RequestCtx, (Settings)Settings)));
       }
 
+      public IActionResult IdToLocation () {
+         var clientState = new ClientState(RequestCtx, (Settings)Settings);
+         JsonObjectValue json = clientState.Pin != null ? clientState.Pin.ToJson() : new JsonObjectValue();
+         return new JsonActionResult (json);
+      }
+
       private enum _Mode { clusters, photos};
       public IActionResult Clusters () {
-         var mem = new MemoryStream ();
-         using (var strm = Request.Body) {
-            strm.CopyToAsync (mem).GetAwaiter ().GetResult ();
-         }
-         mem.Position = 0;
+         var mem = Request.GetBodyAsStream ();
 
+         var maxPhotoCount = Request.Query.ReadInt ("max_count", 40);
          var zoom = Request.Query.ReadInt ("zoom", -1);
          var bounds = Request.Query.ReadStr ("bounds", null);
          var mode = Request.Query.ReadEnum ("mode", _Mode.clusters);
@@ -59,6 +62,7 @@ namespace BMAlbum.Controllers {
          SEARCH:
          var c = settings.ESClient;
          var req = c.CreateSearchRequest (settings.MainIndex);
+         req.TrackTotalHits = true;
          var albumAgg = new ESTermsAggregation ("albums", "album.facet", 3);
          if (mode==_Mode.clusters) {
             req.Size = 0;
@@ -77,10 +81,13 @@ namespace BMAlbum.Controllers {
 
          var resp = req.Search ();
          resp.ThrowIfError ();
+         SiteLog.Log ();
+         SiteLog.Log ("MAP: mode={0}, totalHits={1}, max={2}", mode, resp.TotalHits, maxPhotoCount);
 
          //If the #photo's is limied and we are clustering, we redo the search,
          //but now for getting photo's
-         if (resp.TotalHits < 40 && mode == _Mode.clusters) {
+         if (resp.TotalHits <= maxPhotoCount && mode == _Mode.clusters) {
+            SiteLog.Log ("MAP: redo search");
             mode = _Mode.photos;
             goto SEARCH; 
          }

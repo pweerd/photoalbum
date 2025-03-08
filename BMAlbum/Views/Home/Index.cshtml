@@ -12,6 +12,7 @@
             <label class="lcell" for="searchq">Zoek:</label>
             <div class="rcell">
                   <input type="search" id="searchq" class="input-cell" autocomplete="off" placeholder="Type hier uw zoekterm...">
+                  <a href="~/help_nl.html" class="help">?</a>
             </div>
          </div>
          <div class="labeled-input">
@@ -27,15 +28,15 @@
             </div>
          </div>
          <div class="labeled-input">
-            <label class="lcell"></label>
-            <div class="rcell">
-               <input type="checkbox" id="per_album" checked /><label for="per_album">Per album</label>
-            </div>
-         </div>
-         <div class="labeled-input">
             <label class="lcell" for="cb_sort">Sort:</label>
             <div class="rcell">
                <select id="cb_sort" class="input-cell"></select>
+            </div>
+         </div>
+         <div class="labeled-input">
+            <label class="lcell"></label>
+            <div class="rcell">
+               <input type="checkbox" id="per_album" checked /><label for="per_album">Per album</label>
             </div>
          </div>
          @if ((Model.State.DebugFlags & DebugFlags.TRUE) != 0) {
@@ -46,7 +47,10 @@
 </header>
 <div id="content" class="full-width">
    @if (Model.State.AppMode == AppMode.Faces) {
-      <div id="face_names" class="scroll_container_y bordered-slimbar"></div>
+      <div id="face_names" class="scroll_container_y bordered-slimbar">
+         <div id="face_header"><input id="face_filter" type="text" /></div>
+         <div id="face_list"></div>
+      </div>
       <div id="lightbox" class="scroll_container_y slimbar"></div>
    } else {
       <div id="lightbox"></div>
@@ -63,7 +67,9 @@
    <ul>
       <li id="ctx_goto_album" class="bm_menu_item">Ga naar album</li>
       <li id="ctx_goto_track" class="bm_menu_item">Ga naar track</li>
-      @if (Model.RequestCtx.IsInternalIp) {
+      <li id="ctx_find_nearby" class="bm_menu_item">Zoek foto's in de buurt</li>
+      @if (Model.RequestCtx.IsInternalIp)
+      {
       <li id="ctx_goto_faces" class="bm_menu_item">Ga naar gezichten</li>
       <li id="ctx_goto_faces_dir" class="bm_menu_item">Ga naar gezichten (dir/album)</li>
       }
@@ -80,6 +86,6 @@
       app = createApplication(@Model.GetStateAsHtmlString());
       app.mapControl = createMapControl(app);
       app.lbControl = createLightboxControl(app);
-      app.start(undefined, history.state ? "history" : undefined); 
+      app.start(history.state ? "history" : "main"); 
    </script>
 }   

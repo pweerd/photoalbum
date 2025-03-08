@@ -70,27 +70,37 @@
       <search track_hits="true" debug="false">
          <fuzzy trigger_at="0" weight="0.45"/>
          <fieldconfigs>
-            <config name="keyword" select="seizoen" />
-            <config name="normal" select="loc|name" />
-            <config name="default" select="." exact_analyzer="lc_text_search" not_flags="AllowStem" flags="default|constant" fuzzy_rewrite="top_terms_blended_freqs_6"/>
+            <config select_searchfield="all|text_nl" flags="default|constant|useOnlyStem" fuzzy_rewrite="top_terms_boost_6"/>
+            <config select_searchfield="camera|season|location" not_flags="useStem|allowFuzzy" flags="default|constant|phraseForNormal"/>
+            <config select_searchfield="season|location" not_flags="useStem|allowFuzzy" flags="default|constant"/>
+            <config not_flags="useStem" flags="default|constant" fuzzy_rewrite="top_terms_boost_6"/>
          </fieldconfigs>
          <searchers>
-            <searcher field="default" searchfield="text_nl" tiebreaker="0"/>
+            <searcher field="default" searchfield="all" tiebreaker="0"/>
             <searcher field="seizoen" searchfield="season"/>
             <searcher field="jaar" searchfield="year"/>
+            <searcher field="datum" searchfield="date"/>
             <searcher field="maand" searchfield="month" type="month_searcher"/>
+            <searcher field="exist|exists" searchfield="" type="exists_searcher"/>
             <searcher field="loc|location|plaats|locatie" searchfield="location"
-                      debug="false"
+                      debug="true"
                       type="location_searcher"
                       text_location="extra_location"
                       score_distance="true"
-                      api_key="YOUR GOOGLE_API_KEY OR EMPTY"/>
+                      api_key="bitmanager"/>
             <searcher field="name|naam|persoon" type="name_searcher" searchfield="names!name" />
             <searcher field="personen|gezichten" searchfield="face_count" />
+            <searcher field="id" searchfield="file" />
+            <searcher field="pin|near" searchfield="location" type="pin_searcher" id_field="file" def_distance="10" />
          </searchers>
          <boost_query>
          </boost_query>
 
+         <auto_sort album="oldontop" 
+                    loc_or_name_query="relevance" 
+                    fuzzy_query="relevance" 
+                    other_query="relevance|newontop" 
+                    default="newontop"/>
          <sortmodes>
             <sort name="auto" text="Auto" field="_score" direction="desc" />
             <sort name="oldontop" text="Oudste eerst" field="sort_key" direction="asc" />
@@ -106,24 +116,27 @@
       <search track_hits="true" debug="false">
          <fuzzy trigger_at="0" weight="0.45"/>
          <fieldconfigs>
-            <config name="default" select="."  not_flags="AllowStem" fuzzy_rewrite="top_terms_blended_freqs_6"/>
+            <config name="default" select="." flags="default|useOnlyStem" fuzzy_rewrite="top_terms_blended_freqs_6"/>
          </fieldconfigs>
          <searchers>
             <searcher field="default" searchfield="txt" tiebreaker="0"/>
             <searcher field="name|naam" type="name_searcher" searchfield="names!name" tiebreaker="0"/>
+            <searcher field="nameid"  searchfield="names!id" />
             <searcher field="personen|gezichten" searchfield="count" />
          </searchers>
          <boost_query>
          </boost_query>
 
          <sortmodes>
+            <sort name="updated" text="Laatst gewijzigd" field="updated" direction="desc" />
             <sort name="relevance" text="Relevantie" field="_score" direction="desc" />
-            <sort name="name_down" text="Naam-ID aflopend" field="names!id" direction="desc" />
-            <sort name="name_up" text="Naam-ID" field="names!id" direction="asc" />
-            <sort name="score_down" text="Score aflopend" field="_score" direction="desc" />
-            <sort name="score_up" text="Score" field="_score" direction="asc" />
-            <sort name="allscore_up" text="AllScore" field="names!score_all" direction="asc" />
-            <sort name="allscore_down" text="AllScore aflopend" field="names!score_all" direction="desc" />
+            <sort name="name_down" text="Naam-ID aflopend" field="names!id" direction="desc" followedby="score_down" />
+            <sort name="name_up" text="Naam-ID" field="names!id" direction="asc" followedby="score_down"/>
+            <sort name="score_down" text="Score aflopend" field="names!match_score" direction="desc" mode="max" />
+            <sort name="score_up" text="Score" field="names!match_score" direction="asc" mode="max" />
+            <sort name="face_size" text="Grootte gezicht" field="h0" direction="asc" />
+            <sort name="ratio_up" text="Ratio oplopend" field="face_ratio" direction="asc" />
+            <sort name="ratio_down" text="Ratio aflopend" field="face_ratio" direction="desc" />
          </sortmodes>
 
          <facets />
@@ -150,7 +163,7 @@
       <routes authenticate="false" debug="true">
          <route name="guid" pattern="guid" def_controller="Home" def_action="Guid" />
          <route name="login" pattern="login" def_controller="Home" def_action="Login" />
-         <route name="faces" pattern="faces" def_controller="Home" def_action="Index" def_mode="faces" />
+         <route name="faces" pattern="faces/{action}" def_controller="Home" def_action="Index" def_mode="faces" />
          <route name="map" pattern="{user}/map" def_controller="Home" def_action="Index" def_mode="map"/>
          <route name="user" pattern="{user}" def_controller="Home" def_action="Index" />
          <route name="default" pattern="{user}/{controller}/{action}/{id?}" def_controller="Home" def_action="Index" />

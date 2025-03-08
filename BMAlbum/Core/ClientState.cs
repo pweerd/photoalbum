@@ -18,6 +18,7 @@ using Bitmanager.Core;
 using Bitmanager.Json;
 using Bitmanager.Query;
 using Bitmanager.Web;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Text;
 
 namespace BMAlbum {
@@ -43,6 +44,10 @@ namespace BMAlbum {
       public string Query;
       public string LastFacet;
       public string Slide;
+      public string Album;
+      public string Year;
+      public string Zoom;
+      public string Center;
       public readonly List<KeyValuePair<string, string>> Facets;
       public TriStateBool PerAlbum;
       public SortMode Sort;
@@ -106,54 +111,52 @@ namespace BMAlbum {
 
 
       protected override bool parseParm (string key, string val) {
+         val = val.TrimToNull ();
          switch (key) {
             case "u":
                User = Settings.Users.GetUser (val);
                break;
             case "q":
-               Query = val.TrimToNull ();
-               Pin = null;
-               break;
-            case "pin":
-               var v = val.TrimToNull ();
-               if (v == null)
-                  Pin = null;
-               else {
-                  Pin = new Pin (v);
-                  Query = null;
-                  Slide = null;
-                  Facets.Clear ();
-               }
+               Query = val;
                break;
             case "per_album":
                PerAlbum = Invariant.ToEnum (val, TriStateBool.Unspecified);
                break;
             case "slide":
-               Slide = val.TrimToNull ();
-               Pin = null;
+               Slide = val;
                break;
             case "sort":
-               SortName = val.TrimToNull ();
+               SortName = val;
                break;
             case "mode":
                AppMode = Invariant.ToEnum (val, AppMode);
                break;
-            case "album":
-            case "year":
-               Slide = null;
-               LastFacet = key;
-               val = val.TrimToNull ();
-               for (int i=0; i<Facets.Count; i++) {
-                  if (Facets[i].Key == key) {
-                     Facets.RemoveAt (i);
-                     break;
-                  }
+            case "pin":
+               if (val != null) {
+                  Pin = Pin.Create (val);
                }
-               if (val == null || val=="Alle") {
-                  if (key == "album") PerAlbum = TriStateBool.False;
+               break;
+            case "center":
+               Center = val; break;
+            case "zoom":
+               Zoom = val; break;
+            case "album":
+               LastFacet = key;
+               removeFacet (key);
+               if (val == null || val == "Alle") {
                } else {
+                  Album = val;
                   Facets.Add (new KeyValuePair<string, string> (key, val));
-                  SortName = null;
+                  //PW if (key == "album") PerAlbum = TriStateBool.False;
+               }
+               break;
+            case "year":
+               LastFacet = key;
+               removeFacet (key);
+               if (val == null || val=="Alle") {
+               } else {
+                  Year = val;
+                  Facets.Add (new KeyValuePair<string, string> (key, val));
                }
                break;
             default:
@@ -165,33 +168,43 @@ namespace BMAlbum {
          return true;
       }
 
-      public string GetCommand() {
-         var sb = new StringBuilder ().Append('&');
-         //pw
-         if (Query != null) 
-            optAppend (sb, "q", Query);
-         else if (Slide != null)
-            optAppend (sb, "slide", Slide);
-
-         if (Pin != null) optAppend (sb, "pin", Pin.ToUrlValue());
-         switch (PerAlbum) {
-            case TriStateBool.False: optAppend (sb, "per_album=false"); break;
-         }
-         if (AppMode != AppMode.Photos) optAppend (sb, "mode=" + AppMode.ToString ().ToLowerInvariant ());
-
+      private void removeFacet (string key) {
          for (int i = 0; i < Facets.Count; i++) {
-            optAppend (sb, Facets[i].Key, Facets[i].Value);
+            if (Facets[i].Key == key) {
+               Facets.RemoveAt (i);
+               break;
+            }
          }
-
-         if (Sort != Settings.MainSearchSettings.SortModes.Default)
-            sb.Append ("&sort=").Append (Sort?.Name);
-
-         return sb.Length <= 1 ? null : sb.ToString (1, sb.Length-1);
       }
 
+      //pw kan weg
+      //public string GetCommand() {
+      //   var sb = new StringBuilder ().Append('&');
+      //   //pw
+      //   if (Query != null) 
+      //      optAppend (sb, "q", Query);
+      //   else if (Slide != null)
+      //      optAppend (sb, "slide", Slide);
+
+      //   if (Pin != null) optAppend (sb, "pin", Pin.ToUrlValue());
+      //   switch (PerAlbum) {
+      //      case TriStateBool.False: optAppend (sb, "per_album=false"); break;
+      //   }
+      //   if (AppMode != AppMode.Photos) optAppend (sb, "mode=" + AppMode.ToString ().ToLowerInvariant ());
+
+      //   for (int i = 0; i < Facets.Count; i++) {
+      //      optAppend (sb, Facets[i].Key, Facets[i].Value);
+      //   }
+
+      //   if (Sort != Settings.MainSearchSettings.SortModes.Default)
+      //      sb.Append ("&sort=").Append (Sort?.Name);
+
+      //   return sb.Length <= 1 ? null : sb.ToString (1, sb.Length-1);
+      //}
+
       public override JsonObjectValue ToJson (JsonObjectValue container) {
-         var cmd = GetCommand();
-         if (cmd != null) container["cmd"] = cmd;
+         //var cmd = GetCommand();
+         //if (cmd != null) container["cmd"] = cmd;
 
          //Return the state of the controls
          if (User != null) container["user"] = User.Id;
@@ -206,6 +219,10 @@ namespace BMAlbum {
          if (Settings.ExternalTracksUrl != null)
             container["external_tracks_url"] = Settings.ExternalTracksUrl;
          if (Slide != null) container["slide"] = Slide;
+         if (Album != null) container["album"] = Album;
+         if (Year != null) container["year"] = Year;
+         if (Zoom != null) container["zoom"] = Zoom;
+         if (Center != null) container["center"] = Center;
          if (Facets != null && Facets.Count > 0) {
             foreach (var kvp in Facets) {
                container[kvp.Key] = kvp.Value;

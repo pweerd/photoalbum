@@ -39,6 +39,7 @@ namespace BMAlbum {
       public readonly Refresher Refresher;
       public readonly SearchSettings MainSearchSettings;
       public readonly SearchSettings FaceSearchSettings;
+      public readonly AutoSort MainAutoSortResolver;
       public readonly ESConnection ESClient;
       public readonly ESIndexInfoCache IndexInfoCache;
       public readonly Shrinker ShrinkerSmall, ShrinkerLarge;
@@ -54,6 +55,7 @@ namespace BMAlbum {
          XmlNode indexNode = Xml.SelectMandatoryNode ("mainindex");
          MainIndex = indexNode.ReadStr ("@name", "album");
          MainSearchSettings = new SearchSettings (indexNode.SelectMandatoryNode ("search"));
+         MainAutoSortResolver = new AutoSort (indexNode.SelectSingleNode ("search/auto_sort"), MainSearchSettings.SortModes);
 
          indexNode = Xml.SelectMandatoryNode ("faceindex");
          FaceIndex = indexNode.ReadStr ("@name", "album-faces");

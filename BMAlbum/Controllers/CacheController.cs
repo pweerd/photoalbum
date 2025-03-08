@@ -70,13 +70,7 @@ namespace BMAlbum.Controllers {
          if (!isInternalOrAuthenticated ()) return new ActionResult404 ();
          var settings = (Settings)base.Settings;
 
-         var mem = new MemoryStream ();
-         using (var strm = Request.Body) {
-            strm.CopyToAsync (mem).GetAwaiter ().GetResult ();
-         }
-         mem.Position = 0;
-
-         JsonObjectValue json = JsonObjectValue.Load (mem);
+         JsonObjectValue json = Request.GetBodyAsJson ();
 
          var parms = new RefreshParams (json);
          settings.Refresher.Trigger (parms);

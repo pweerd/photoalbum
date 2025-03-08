@@ -15,9 +15,11 @@
  */
 
 using Bitmanager.BoolParser;
-using Bitmanager.Core;
 using Bitmanager.Elastic;
 using Bitmanager.Query;
+using Bitmanager.Webservices;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using System.Diagnostics;
 
 namespace BMAlbum {
 
@@ -46,5 +48,4 @@ namespace BMAlbum {
       }
 
    }
-
 }

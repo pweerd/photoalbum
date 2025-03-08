@@ -35,6 +35,7 @@ using Bitmanager.Query;
 using System.Text.RegularExpressions;
 using static System.Net.WebRequestMethods;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace BMAlbum.Controllers {
 
@@ -78,146 +79,19 @@ namespace BMAlbum.Controllers {
          return ESBoolQuery.CreateFilteredQuery (q, state.User.Filter);
       }
 
-      const string LOCATION = "location";
-      readonly static Regex locExpr = new Regex (@"^[\d ,+\-]+$", RegexOptions.Compiled);
 
-      //PW kan weg
-      //private string pinToLocation (string pin) {
-      //   if (pin != null && !locExpr.IsMatch (pin)) {
-      //      var c = settings.ESClient;
-      //      var req = c.CreateSearchRequest (settings.MainIndex);
-      //      req.Size = 1;
-      //      req.Query = new ESIdsQuery ("_doc", pin);
-      //      req.SetSource (LOCATION, null);
-
-      //      var resp = req.Search ();
-      //      resp.ThrowIfError ();
-      //      if (resp.Documents.Count == 0) pin = null;
-      //      else pin = resp.Documents[0].ReadStr (LOCATION, null);
-      //   }
-      //   return pin;
-      //}
-
-      private IActionResult indexByPin(ClientState clientState) {
-         clientState.PerAlbum = TriStateBool.Unspecified;
-         var searchSettings = settings.MainSearchSettings;
-         var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
-         var timings = new List<ESTimerStats> ();
-         int SIZE = clientState.ActualPageSize;
-
-         switch (BMAlbum.User.CheckAccess (clientState.User, RequestCtx.RemoteIPClass, isAuthenticated ())) {
-            case _Access.Ok: break;
-            default: return new JsonActionResult ();
-         }
-
-         var lbSettings = settings.LightboxSettings;
-         var c = settings.ESClient;
-         var req = c.CreateSearchRequest (settings.MainIndex);
-         req.TrackTotalHits = true;
-
-         var knownFacets = new Dictionary<string, ESAggregation> ();
-
-         var agg = new ESTermsAggregation ("album", "album.facet");
-         agg.Sort.Add ("sort_key", false);
-         agg.Size = SIZE;
-         agg.MinDocCount = lbSettings.MinCountForAlbum > 0 ? lbSettings.MinCountForAlbum : 4;
-         var subJson = new JsonObjectValue ("field", "sort_key");
-         subJson = new JsonObjectValue ("max", subJson);
-         agg.SubAggs.Add (new ESJsonAggregation ("sort_key", subJson));
-         knownFacets.Add ("album", agg);
-
-         agg = new ESTermsAggregation ("year", "year");
-         agg.Sort.Add (ESAggregation.AggSortMethod.Desc | ESAggregation.AggSortMethod.Item);
-         agg.Size = SIZE;
-         knownFacets.Add ("year", agg);
-
-         ESBoolQuery restFilter = null;
-         var facets = clientState.Facets;
-         for (int i = facets.Count - 1; i >= 0; i--) {
-            var filter = new ESTermQuery (facetToField (facets[i].Key), facets[i].Value);
-            if (req.PostFilter == null) {
-               req.PostFilter = filter;
-               continue;
-            }
-            if (restFilter == null) restFilter = new ESBoolQuery ();
-            restFilter.AddFilter (filter);
-         }
-
-         ESAggregations outerAggs = new ESAggregations ();
-         var filteredAggs = outerAggs;
-         if (req.PostFilter != null) {
-            var filterAgg = new ESFilterAggregation ("!", req.PostFilter);
-            filteredAggs.Add (filterAgg);
-            filteredAggs = filterAgg.SubAggs;
-         }
-
-         foreach (var kvp in knownFacets) {
-            string f = kvp.Key;
-            if (f == clientState.LastFacet)
-               outerAggs.Add (kvp.Value);
-            else
-               filteredAggs.Add (kvp.Value);
-         }
-
-         req.Size = lbSettings.PageSize;
-         var bq = createPinQuery (clientState.Pin, settings.MapSettings.PinSearchDistance);
-         req.Query = wrapQueryInFilters (clientState, bq, restFilter);
-         var resp = req.Search ();
-         resp.ThrowIfError ();
-
-         var json = new JsonMemoryBuffer ();
-         json.WriteStartObject ();
-
-         json.WriteStartArray ("albums");
-         json.WriteEndArray ();
-         json.WriteStartArray ("years");
-         json.WriteEndArray ();
-
-         //writeAlbums (json, findResult (resp.Aggregations, "album"), out var firstAlbumCount);
-         //writeYears (json, findResult (resp.Aggregations, "year"));
-
-         json.WriteProperty ("new_state", (IJsonSerializable)clientState.ToJson ());
-
-         var docs = resp.Documents;
-         if ((clientState.DebugFlags & DebugFlags.ONE) != 0)
-            docs.RemoveRange (1, docs.Count - 1);
-         writeFiles (json, docs, debug, null);
-
-         if (debug) {
-            json.WriteStartObject ("dbg");
-            json.WriteStartArray ("timings");
-            foreach (var t in timings) json.WriteValue (t);
-            json.WriteEndArray ();
-            json.WritePropertyName ("es_request");
-            json.WriteValue (req);
-            json.WriteEndObject ();
-         }
-
-         json.WriteEndObject ();
-
-         return new JsonActionResult (json);
-      }
-
-      private static string slideToQuery(string slide) {
-         string ret = slide.Replace('\\', ' ');
-
-         //If the slide is a full blown ID, the first letter is typically a drive letter
-         //We strip it, because its not indexed
-         int idx = ret.IndexOf (' ');
-         return (idx == 1) ? ret.Substring (2) : ret;
-      }
       public IActionResult Index () {
          var clientState = new ClientState (RequestCtx, settings);
-         SiteLog.Log ("Index: q={0}, pin={1}", clientState.Query, clientState.Pin);
-         if (clientState.Pin != null)
-            return indexByPin (clientState);
+         SiteLog.Log ("Index: q={0}, pin={1}, perAlbum={2}", clientState.Query, clientState.Pin, clientState.PerAlbum);
          var searchSettings = settings.MainSearchSettings;
-         var sortMode = clientState.Sort ?? searchSettings.SortModes.Default;
-         var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
-         var auto = sortMode.Name == "auto";
-         if (auto) sortMode = searchSettings.SortModes.Find ("oldontop");
+         var reqSortMode = clientState.Sort ?? searchSettings.SortModes.Default;
+         if (string.Equals ("auto", reqSortMode.Name, StringComparison.OrdinalIgnoreCase))
+            reqSortMode = null;
+         var curSortMode = reqSortMode;
+
          var timings = new List<ESTimerStats> ();
          int SIZE = clientState.ActualPageSize;
+         var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
 
          switch (BMAlbum.User.CheckAccess (clientState.User, RequestCtx.RemoteIPClass, isAuthenticated ())) {
             case _Access.Ok: break;
@@ -228,22 +102,26 @@ namespace BMAlbum.Controllers {
          var c = settings.ESClient;
          var req = c.CreateSearchRequest (settings.MainIndex);
          req.TrackTotalHits = true;
-         sortMode.ToSearchRequest (req);
          req.Size = 0;
 
          var knownFacets = new Dictionary<string, ESAggregation> ();
 
          string query = clientState.Query;
+         if (query == null && clientState.Pin != null) 
+            query = clientState.Pin.ToQuery ();
          var agg = new ESTermsAggregation ("album", "album.facet");
          agg.Sort.Add ("sort_key", false);
          agg.Size = SIZE;
+         agg.MinDocCount = lbSettings.MinCountForAlbum;
 
-         //If we have a slide but no query, we use the slide as a query and don't apply the mincount for album 
-         if (query==null && clientState.Slide != null) {
-            clientState.PerAlbum = TriStateBool.True;
-            query = slideToQuery(clientState.Slide);
-         } else 
-            agg.MinDocCount = lbSettings.MinCountForAlbum > 0 ? lbSettings.MinCountForAlbum : 4;
+         //PW weg
+         ////If a direct show is requested, we don't want a min album count, since it could be the only photo.
+         //if (clientState.Slide == null) 
+         //   agg.MinDocCount = lbSettings.MinCountForAlbum;
+         //else
+         //   if (clientState.PerAlbum == TriStateBool.Unspecified) 
+         //      clientState.PerAlbum = TriStateBool.True;
+
 
          var subJson = new JsonObjectValue ("field", "sort_key");
          subJson = new JsonObjectValue ("max", subJson);
@@ -300,8 +178,8 @@ namespace BMAlbum.Controllers {
          var json = new JsonMemoryBuffer ();
          json.WriteStartObject ();
 
+         List<ParserValueNode> valueNodes = null;
          bool hasFuzzy = false;
-         bool scoresNeeded = false;
          if (query != null) {
 
             queryGenerator = new QueryGenerator (searchSettings, settings.IndexInfoCache.GetIndexInfo(settings.MainIndex), query);
@@ -312,7 +190,7 @@ namespace BMAlbum.Controllers {
                //int fuzzyEligiblePhraseNodes = 0;
                int fuzzyEligibleNormalNodes = 0;
 
-               List<ParserValueNode> valueNodes = queryGenerator.ParseResult.Root.CollectValueNodes ();
+               valueNodes = queryGenerator.ParseResult.Root.CollectValueNodes ();
                foreach (var node in valueNodes) {
                   if (node is ParserPhraseValueNode) {
                      ++phraseNodes;
@@ -327,10 +205,6 @@ namespace BMAlbum.Controllers {
 
                var fuzzySettings = searchSettings.FuzzySettings;
                ESQuery exactQ = queryGenerator.GenerateQuery (FuzzyMode.None);
-               foreach (var node in valueNodes) {
-                  if (node.ProcessedBy is LocationSearcher || node.ProcessedBy is NameSearcher)
-                     scoresNeeded = true;
-               }
                ESQuery q = exactQ;
                ESQuery prevQ = q;
                int i = 0;
@@ -344,7 +218,6 @@ namespace BMAlbum.Controllers {
                   if (countResp.Count > prevCount) {
                      prevCount = countResp.Count;
                      if ((fuzzyModes[i] & (FuzzyMode.UnphraseFuzzy | FuzzyMode.FuzzyMatch)) != 0) {
-                        scoresNeeded = true;
                         hasFuzzy = true;
                      }
                   }
@@ -368,23 +241,30 @@ namespace BMAlbum.Controllers {
          }
          if (clientState.PerAlbum == TriStateBool.Unspecified) clientState.PerAlbum = TriStateBool.True;
 
-         bool hasAlbum = clientState.ContainsFacetRequest ("album");
-         bool oneQueryIsEnough = (hasAlbum || clientState.PerAlbum == TriStateBool.False || hasFuzzy);
-         req.Size = oneQueryIsEnough ? SIZE : 0;
+         bool hasAlbumFacet = clientState.ContainsFacetRequest ("album");
+         bool oneQueryIsEnough = (hasAlbumFacet || clientState.PerAlbum == TriStateBool.False || hasFuzzy);
          req.Aggregations = outerAggs;
-         SiteLog.Log ("AFTER count: hasFuzzy={0}, sortmode={1}", hasFuzzy, sortMode);
 
-         if (scoresNeeded) {
-            if (debug) req.Explain = true;
-            if (auto) req.Sort.Clear ();
+         if (reqSortMode == null)
+            curSortMode = settings.MainAutoSortResolver.ResolveSortMode (valueNodes, hasAlbumFacet, hasFuzzy);
+         SiteLog.Log ("AFTER count: hasFuzzy={0}, sortmode={1}", hasFuzzy, curSortMode);
+
+         curSortMode.ToSearchRequest (req);
+         if (debug) optSetExplain (req);
+         if (oneQueryIsEnough) {
+            req.Size = SIZE;
+         } else {
+            req.Size = 1;
+            req.SetSource ("album", null); //Fetch 1 doc with album only
          }
 
          if (req.Query == null) req.Query = wrapQueryInFilters (clientState, null, restFilter);
          resp = req.Search ();
          resp.ThrowIfError ();
-      
+         List<GenericDocument> docs = resp.Documents;
+
          if (debug) timings.Add (new ESTimerStats ("search", resp));
-         SiteLog.Log ("HasAlbum={0}, PerAlbum={1}, oneQueryIsEnough={2}", hasAlbum, clientState.PerAlbum, oneQueryIsEnough);
+         SiteLog.Log ("HasAlbum={0}, PerAlbum={1}, oneQueryIsEnough={2}", hasAlbumFacet, clientState.PerAlbum, oneQueryIsEnough);
          SiteLog.Log ("Query [{0}] has {1} total results.", query, resp.TotalHits);
 
          int firstAlbumCount;
@@ -393,11 +273,17 @@ namespace BMAlbum.Controllers {
          if (oneQueryIsEnough) goto WRITE_RESPONSE;
 
          //We should do a per-album result
-         sortMode.ToSearchRequest (req);
          req.Size = SIZE;
          req.ClearAggregations ();
+         req.SetSource (null, null);  //Reset source: request all fields
+
 
          //If a per-album result with an album, just do the original query with the correct size
+         if (docs.Count>0 && (firstAlbum==null || hasLocationQuery(valueNodes))) { 
+            var album0 = docs[0].ReadStr ("album", null);
+            SiteLog.Log("Replacing album if nonNull: was {0}, into {1}", firstAlbum, album0);
+            if (album0 != null) firstAlbum = album0;
+         }
          if (firstAlbum == null) {
             resp = req.Search ();
             resp.ThrowIfError ();
@@ -406,31 +292,27 @@ namespace BMAlbum.Controllers {
          }
 
          //Do the per-album query
+         json.WriteProperty ("cur_album", firstAlbum);
          var albumQuery = new ESTermQuery ("album.facet", firstAlbum);
          req.Query = wrapQueryInFilters (clientState, albumQuery, null);
+         if (reqSortMode == null)
+            curSortMode = settings.MainAutoSortResolver.ResolveSortMode (valueNodes, true, hasFuzzy);
+         curSortMode.ToSearchRequest (req);
+         if (debug) optSetExplain (req);
+
          resp = req.Search ();
          resp.ThrowIfError ();
 
          if (debug) timings.Add (new ESTimerStats ("search", resp));
 
          WRITE_RESPONSE:
+         SiteLog.Log ("Final sortmethod: {0}", curSortMode);
+         docs = resp.Documents;
+         if ((clientState.DebugFlags & DebugFlags.ONE) != 0)
+            docs.RemoveRange (1, docs.Count - 1);
          json.WriteProperty ("new_state", (IJsonSerializable)clientState.ToJson ());
 
-         var docs = resp.Documents;
-         if ((clientState.DebugFlags & DebugFlags.ONE) != 0)
-            docs.RemoveRange(1, docs.Count-1);
          writeFiles (json, docs, debug, queryGenerator);
-
-         if (docs.Count > 0) {
-            var album0 = docs[0].ReadStr ("album", null);
-            var year0 = docs[0].ReadStr ("year", null);
-            if (hasAlbum || (!oneQueryIsEnough && firstAlbum != null)) {
-               json.WriteProperty ("cur_album", album0);
-            }
-            if (clientState.ContainsFacetRequest ("year")) {
-               json.WriteProperty ("cur_year", year0);
-            }
-         }
 
          if (debug) {
             json.WriteStartObject ("dbg");
@@ -448,25 +330,46 @@ namespace BMAlbum.Controllers {
       }
 
 
-      private ESQuery createPinQuery (Pin pin, string dist) {
-         var q = new ESGeoDistanceQuery (LOCATION, pin.Position, dist);
-         var fsq = new ESFunctionScoreQuery (q);
-         fsq.BoostMode = ESBoostMode.replace;
-
-         var func = new ESScoreFunctionDecay (ESScoreFunctionDecay.DecayFunctionType.linear, LOCATION);
-         func.Scale = dist;
-         func.Origin = pin.Position;
-         func.Decay = 0.1;
-         fsq.Functions.Add (func);
-
-         var bq = new ESBoolQuery ();
-         if (pin.Id != null) bq.AddShould (new ESConstantScoreQuery (new ESIdsQuery ("_doc", pin.Id))); //Make sure the requested photo is first
-         bq.AddMust (fsq);
-         return bq;
-      }
-
       private static bool sameQuery(ESQuery a, ESQuery b) {
          return (a==null) ? a==b : a.Equals(b); 
+      }
+
+      private static bool isSortedOnScore(ESSearchRequest req) {
+         if (req.Sort?.Count == 0) return true;
+         var first = req.Sort[0];
+         return (first.Field == "_score" && first.Mode == ESSortDirection.desc);
+      }
+
+      private static void optSetExplain (ESSearchRequest req) {
+         var list = req.Sort;
+         if (list == null || list.Count == 0) goto SET_EXPLAIN;
+         if (list[0].Field == "_score") goto SET_EXPLAIN;
+         goto EXIT_RTN;
+
+      SET_EXPLAIN:
+         req.Explain = true;
+
+      EXIT_RTN:
+         return;
+      }
+
+      private static bool hasRelevancyField (List<ParserValueNode> nodes) {
+         if (nodes == null) return false;
+         for (int i = 0; i < nodes.Count; i++) {
+            var processed = nodes[i].ProcessedBy;
+            if (processed is LocationSearcher || processed is NameSearcher || processed is PinSearcher)
+               return true;
+         }
+         return false;
+      }
+
+      private static bool hasLocationQuery (List<ParserValueNode> nodes) {
+         if (nodes == null) return false;
+         for (int i = 0; i < nodes.Count; i++) {
+            var processed = nodes[i].ProcessedBy;
+            if (processed is PinSearcher || processed is LocationSearcher) return true;
+         }
+         return false;
       }
 
       private static ESTermsAggregationResult findResult (ESAggregationResults aggs, string name) {
@@ -521,7 +424,6 @@ namespace BMAlbum.Controllers {
             }
             json.WriteStartObject ();
             json.WriteProperty ("f", doc.Id);
-            json.WriteProperty ("f_offs", doc.ReadInt ("relname_offset", 0));
             json.WriteProperty ("a", doc.ReadStr ("album", null));
             json.WriteProperty ("y", doc.ReadStr ("year", null));
             json.WriteProperty ("w", w);

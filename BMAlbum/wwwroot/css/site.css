@@ -82,6 +82,7 @@ body {
    display: inline-block;
    max-width: calc(100% - 3.8em);
    white-space: nowrap;
+   position:relative;
 }
 
 .input-cell {
@@ -97,6 +98,13 @@ body {
    width: 20em;
    margin-right: .25em;
    outline-offset: 0px;
+}
+
+.help {
+   font-weight: bold;
+   position: absolute;
+   right: 0.7em;
+   top: 2px;
 }
 
 #lightbox {

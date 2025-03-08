@@ -31,6 +31,7 @@ namespace BMAlbum.Core {
       All = 7
    }
    public class LightboxSettings {
+      public const int DEF_MINCOUNT_ALBUM = 4;
       public readonly int PageSize;
       public readonly int MinCountForAlbum;
 
@@ -44,11 +45,12 @@ namespace BMAlbum.Core {
          BrowserType squareOn = BrowserType.None;
          if (node==null) {
             PageSize = 100;
-            MinCountForAlbum = 4;
+            MinCountForAlbum = DEF_MINCOUNT_ALBUM;
             Paginate = false;
          } else {
             PageSize = node.ReadInt("@pagesize", 100);
-            MinCountForAlbum = node.ReadInt ("@album_mincount", 4);
+            MinCountForAlbum = node.ReadInt ("@album_mincount", DEF_MINCOUNT_ALBUM);
+            if (MinCountForAlbum < 0) MinCountForAlbum = DEF_MINCOUNT_ALBUM;
             Paginate = node.ReadBool ("@paginate", false);
             CacheVersion = node.ReadStr ("@cache_version", null);
             if (CacheVersion != null) {

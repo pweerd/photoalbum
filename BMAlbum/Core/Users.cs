@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-using Bitmanager.BoolParser;
 using Bitmanager.Cache;
 using Bitmanager.Core;
 using Bitmanager.Elastic;
@@ -22,11 +21,8 @@ using Bitmanager.Json;
 using Bitmanager.Query;
 using Bitmanager.Web;
 using Bitmanager.Xml;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using System.Text.RegularExpressions;
 using System.Xml;
-using System.Xml.Linq;
 
 namespace BMAlbum {
 
@@ -230,7 +226,6 @@ namespace BMAlbum {
          }
          if (node.HasAttribute ("query")) {
             var qg = new FilterGenerator (node.ReadStr ("@query"), node.ReadBool ("@debug", false));
-            //var qg = new QueryGenerator (searchSettings, indexInfo, node.ReadStr ("@query"));
             var ret = qg.GenerateQuery ();
             if (ret==null) throw new BMNodeException (node, "Filter did not result in a query.");
             return ret;

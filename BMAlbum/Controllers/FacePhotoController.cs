@@ -96,7 +96,7 @@ namespace BMAlbum.Controllers {
          json.WriteProperty ("chgid", faceNames.ChangeId);
          json.WriteStartArray ("names");
          writeName (json, -2, "CLEAR");
-         writeName (json, -1, "ERROR");
+         writeName (json, -1, "UNKNOWN");
          var names = faceNames.SortedNames;
          for (int i=0; i< names.Length; i++) 
             writeName (json, names[i].Id, names[i].Name);
@@ -120,35 +120,44 @@ namespace BMAlbum.Controllers {
 
       private const int ID_MIN = -2;
       private const int ID_CLEAR = -2;
-      private const int ID_ERROR = -1;
-      public IActionResult SetFace (string id, string faceId) {
+      private const int ID_UNKNOWN = -1;
+
+      [HttpPost]
+      public IActionResult SetFace () {
+         JsonObjectValue json = Request.GetBodyAsJson ();
+         string id = json.ReadStr ("id");
+         int faceId = json.ReadInt ("faceid");
+         bool correct = json.ReadBool ("correct");
+
          var settings = (Settings)base.Settings;
          var names = settings.FacesAdmin.Names;
-         int idx = Invariant.ToInt32 (faceId);
-         if (idx < ID_MIN || idx > names.Count)
-            throw new BMException ("Invalid faceId [{0}]. Face-count={1}.", idx, names.Count);
+         if (faceId < ID_MIN || faceId > names.Count)
+            throw new BMException ("Invalid faceId [{0}]. Face-count={1}.", faceId, names.Count);
          var c = settings.ESClient;
          var idUrl = settings.FaceIndex + "/_doc/" + Encoders.UrlDataEncode (id);
          var rec = c.SendGetJson (HttpMethod.Get, idUrl);
          rec = rec.ReadObj ("_source");
          SiteLog.Log ("Update id=" + id);
          SiteLog.Log ("-- Old record=" + rec.ToJsonString ());
-         switch (idx) {
+         switch (faceId) {
             case ID_CLEAR: 
                rec.Remove ("names");
-               rec["src"] = "U";
+               rec.Remove ("explain");
+               rec["src"] = "N";
                break;
-            case ID_ERROR: 
+            case ID_UNKNOWN: 
                rec.Remove ("names");
-               rec["src"] = "E";
+               rec.Remove ("explain");
+               rec["src"] = correct ? "CU" : "MU";
                break;
             default: //Update
-               rec["src"] = "M";
+               rec.Remove ("explain");
+               rec["src"] = correct ? "CK": "MK";
                var nameObj = new JsonObjectValue ();
                rec["names"] = new JsonArrayValue ((JsonValue)nameObj);
-               nameObj["id"] = idx;
+               nameObj["id"] = faceId;
                nameObj["match_score"] = 1;
-               nameObj["name"] = names.NameById (idx);
+               nameObj["name"] = names.NameById (faceId);
                break;
          }
          rec["updated"] = DateTime.UtcNow;
@@ -161,7 +170,7 @@ namespace BMAlbum.Controllers {
          var settings = (Settings)base.Settings;
          var c = settings.ESClient;
          var req = c.CreateSearchRequest(settings.FaceIndex);
-         req.Query = new ESTermQuery ("src", "A");
+         req.Query = new ESTermQuery ("src", "a");
          int cnt = 0;
          using (var recs = new ESRecordEnum (req)) {
             foreach (var d in recs) {

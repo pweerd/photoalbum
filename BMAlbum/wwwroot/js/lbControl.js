@@ -40,10 +40,8 @@ function createLightboxControl(app) {
       }
    }
 
-   const _getJSON = app.getJSON;
    const _device = app.device;
-
-   let _state;
+   const _state = app.state;
    let _faceMode;
    let _data;
    let _lg;
@@ -53,7 +51,6 @@ function createLightboxControl(app) {
    let _multipleAlbums = false;
    let _unique = 0;
    let _faceNames = { chgid: -1 };
-   let _lightboxSizes;
    let _t0;
 
    function _prepareTiming() {
@@ -122,6 +119,13 @@ function createLightboxControl(app) {
          return v ? v.toFixed(2) : '';
          //return Math.round((v + Number.EPSILON) * 100) / 100;
       }
+      function stripExplain(e) {
+         if (e.startsWith("score=")) {
+            let ix = e.indexOf(',');
+            if (ix > 0) e = e.substring(ix + 2);
+         }
+         return e;
+      } 
       sb.push('<div class="lb-item cursor_pointer" data-src="');
       sb.push(photo.imgUrl);
       sb.push('" data-photo="');
@@ -135,13 +139,13 @@ function createLightboxControl(app) {
             let name = nameObj.name || 'unknown';
             sb.push(name + '<br />[' + round2(nameObj.match_score) + ']<br />');
             if (nameObj.explain) {
-               sb.push(nameObj.explain + '<br />');
+               sb.push(stripExplain(nameObj.explain) + '<br />');
             }
          }
       } else {
          if (photo.explain) sb.push(", " + photo.explain + "<br />");
       }
-      sb.push("#=" + photo.id.substring(1+photo.id.lastIndexOf('~')) );
+      sb.push(photo.src + ", " + photo.id.substring(1+photo.id.lastIndexOf('~')) + "/" + photo.count);
       sb.push(", h=" + photo.h0);
       sb.push(", rto=" + round2(photo.face_ratio));
       sb.push(", " + (photo.face_ok ? 'ok' : 'not ok') + "<br />");
@@ -155,15 +159,18 @@ function createLightboxControl(app) {
    //Initializes the lightbox style and returns a LightboxState
    function _prepareLightboxAndGetHeight($elt, _ratio) {
       //console.log("PREPARE LB (w, cw, w, pw)", $elt.width(), $elt[0].clientWidth, $elt.width() - 9, $elt.parent()[0].clientWidth);
-      let w = $elt.width() - 9; //width without an eventual scrollbar
+      const w = $elt.width() - 9; //width without an eventual scrollbar
+      if (w <= 0) return; //Probably hidden
+      
+      const lightboxSizes = _state.lightbox_settings;;
       let sizeSettings;
 
       //Search correct settings, based on device type and width
-      for (let i = 0; i < _lightboxSizes.length; i++) {
-         if ((_lightboxSizes[i].device & _device) == 0) continue;
+      for (let i = 0; i < lightboxSizes.length; i++) {
+         if ((lightboxSizes[i].device & _device) == 0) continue;
 
          //Correct device type
-         let sizes = _lightboxSizes[i].sizes;
+         let sizes = lightboxSizes[i].sizes;
          let j = sizes.length - 1;
          //Search correct width entry. The 1st entry should have width=0
          for (; j >= 0; j--) if (w >= sizes[j].width) break; 
@@ -208,7 +215,7 @@ function createLightboxControl(app) {
       if (!_faceMode) _setGalleryTitle();
       let $elt = $("#lightbox");
       const lbState = _prepareLightboxAndGetHeight($elt, _lastLbState.ratio);
-      if (_lastLbState.isChanged(lbState)) {
+      if (lbState && _lastLbState.isChanged(lbState)) {
          console.log('RESIZE changed states: old=', _lastLbState);
          _updateLightBox("resize");
       }
@@ -340,8 +347,6 @@ function createLightboxControl(app) {
       let sb = [];
       if (newState.q) sb.push(newState.q);
       else if (newState.pin) sb.push('Rondom pin');
-      if (newState.year) sb.push(newState.year);
-      if (data.cur_album) sb.push(data.cur_album);
       sb.push(_faceMode ? "Gezichten" : "Foto's");
 
       document.title = sb.join(" | ");
@@ -377,29 +382,42 @@ function createLightboxControl(app) {
       }, 500);
    }
 
+   function _buildFilteredFaceNames(expr) {
+      if (!expr) expr = $("#face_filter").val();
+      if (!expr) expr = ".";
+      console.log("Build names for expr=", expr);
+      const re = new RegExp(expr, "i");
+      const names = _faceNames.sortedNames;
+      let arr = [];
+      arr.push('<ul>')
+      for (let i = 0; i < names.length; i++) {
+         const name = names[i];
+         if (name.id >= 0 && !re.test(name.name)) continue;
+         arr.push('<li data_id="' + name.id + '">' + name.name + '</li>');
+      }
+      arr.push('</ul>')
+      const $div = $('#face_list');
+      $div.html(arr.join(''));
+
+      //Setup dragging handler
+      $div.find("ul>li").on('pointerdown', _faceDragHandler);
+   }
+
    function _loadFaceNames(fn_follow_up) {
-      _getJSON('facephoto/names', '', function (data) {
+      app.getJSON('facephoto/names', undefined, function (data) {
          let obj = { chgid: data.chgid };
          let src = data.names;
          let dst = {};
          for (let i = 0; i < src.length; i++) {
             dst[src[i].id] = src[i];
+
          }
-         obj['names'] = dst;
+         obj.names = dst;
+         obj.sortedNames = src;
          _faceNames = obj;
          if (fn_follow_up) fn_follow_up();
 
-         let $div = $('#face_names');
-         let arr = [];
-         arr.push('<ul>')
-         for (let i = 0; i < src.length; i++) {
-            arr.push('<li data_id="' + src[i].id + '">' + src[i].name + '</li>');
-         }
-         arr.push('</ul>')
-         $div.html(arr.join(''));
-
-         //Setup dragging handler
-         $div.find("ul>li").on('pointerdown', _faceDragHandler);
+         _buildFilteredFaceNames()
       });
    }
 
@@ -585,7 +603,6 @@ function createLightboxControl(app) {
       //Check words from the filename and append them to the title
       if (fn) {
          console.log("fn=", fn);
-         //let offset = photo.f_offs || 0;
          let sb2 = [];
          for (w of fn.split(/[ ,]/)) {
             if (!title.includes(w)) sb2.push(w);
@@ -650,6 +667,7 @@ function createLightboxControl(app) {
             download: false
          }
       });
+      //pw _lg.zoomFromOrigin = false;
 
       let proto = Object.getPrototypeOf(_lg);
       proto['preload'] = _hookedPreload;
@@ -696,21 +714,22 @@ function createLightboxControl(app) {
       let needHistory = true;
       if (from === "history") {
          needHistory = false;
-         if (_state.cmd === _state.activeCmd) {
-            console.log("Skipping _updateLightBox: same cmd");
+         if (!_state.isChanged()) {
+            console.log("Skipping _updateLightBox: same state");
             _setTitle(_data, _state);
             return;
          }
       } else if (from === "resize") {  //Only update the container if we are already in the correct state
          needHistory = false;
-         if (_state.cmd === _state.activeCmd) {
+         if (!_state.isChanged()) {
             _updateLightboxContainer($elt, _data);
             return;
          }
       }
 
       _prepareTiming();
-      _getJSON(_faceMode ? 'facephoto/index' : 'photo/index', _state.cmd, function (data) {
+      _state.getJSON(_faceMode ? 'facephoto/index' : 'photo/index', function (data) {
+         _lg.closeGallery(true);
          _addTiming(data, "Trip");
          _resetAll();
          _data = data;
@@ -719,15 +738,17 @@ function createLightboxControl(app) {
 
          console.log('send:', _state);
          console.log('recv:', newState);
-         _state.activeCmd = _state.cmd = newState.cmd || '';
+         const slide = newState.slide;
+         newState.slide = undefined;
+         _state.saveActiveState(newState);
          _updateLightboxContainer($elt, _data);
          _addTiming(data, "Build html");
 
 
          if (!_faceMode) {
             //Fill albums and years and select the correct one
-            _fillCombo($("#albums"), data.albums, newState.album ? newState.album : data.cur_album);
-            _fillCombo($("#years"), data.years, newState.year ? newState.year : data.cur_year);
+            _fillCombo($("#albums"), data.albums, newState.album ?? data.cur_album);
+            _fillCombo($("#years"), data.years, newState.year);
          }
 
          _setSort(newState);
@@ -735,10 +756,11 @@ function createLightboxControl(app) {
          //Propagate the new state back into the UI (if set)
          if (newState.per_album !== undefined) $("#per_album").prop("checked", newState.per_album);
          $("#searchq").val(newState.q || '');
+         _toggleHelp();
 
-         console.log('NEED HIST:', needHistory, from, _state.activeCmd);
-         if (needHistory) _pushHistoryCmd(_state.activeCmd);
-         if (!_faceMode) _positionToSlide(newState.slide);
+         console.log('NEED HIST:', needHistory, from, _state.isChanged());
+         if (needHistory) _pushHistoryCmd();
+         if (!_faceMode && slide) _positionToSlide(slide);
       });
    }
 
@@ -746,8 +768,9 @@ function createLightboxControl(app) {
       _zoomer.setPhotos(_data.files);
    }
    function _onGalleryClose(e) {
-      console.log('After CLOSE. needBack=', _lg.needBack);
-      if (_lg.needBack) history.back();
+      console.log('After CLOSE. needBack=', _lg.needBack, history.state);
+      if (history.state && history.state.from === "slide") history.back();
+      //pw if (_lg.needBack) history.back();
    }
    function _onGallerySlide(ev) {
       _resetAll();
@@ -804,8 +827,10 @@ function createLightboxControl(app) {
    function _positionToSlide(slide) {
       if (typeof slide !== 'number') slide = _getSlideIndex(slide);
       if (slide >= 0) {
+         let $items = $("#lightbox").find(".lb-item");
          $(document.body).addClass('lg-from-hash');  //Prevent animation. See hash-plugin
-         _lg.openGallery(slide);
+         //_lg.zoomFromOrigin = false;
+         _lg.openGallery(slide, $items[slide]);
       } else {
          console.log('No slide, closing gallery');
          $(document.body).removeClass('lg-from-hash');  //re-enable animation. See hash-plugin
@@ -813,51 +838,32 @@ function createLightboxControl(app) {
       }
    }
 
-   function _pushHistoryCmd(cmd) {
-      if (cmd === undefined) {
-         console.log('NOT pushing cmd state: ', cmd);
-         return;
-      }
-
-      let mode = _state.mode;
-      if (mode === 'photo') mode = 'photos';
-
-      let url = new URL(_state.entryUrl);
-      url.search = app.normalizeCmd(_state.home_url_params + '&' + _state.activeCmd + '&mode=' + mode);
-      url.hash = '';
-      let histState = { mode: mode, cmd: cmd, url: url.href, from: 'cmd' };
-
-      let pushHist = history.state ? history.pushState : history.replaceState;
-      pushHist.call (history, histState, '', histState.url);
+   function _pushHistoryCmd() {
+      if (_state.mode === 'photo') _state.mode = 'photos';
+      _state.pushHistory('lb');
       console.log('PUSHed cmd');
    }
 
    function _pushHistorySlide(slide) {
       if (slide !== undefined) {
-         let url = new URL(_state.entryUrl);
-         url.search = app.normalizeCmd(_state.home_url_params + '&' + _state.activeCmd + '&mode=photo&slide=' + encodeURIComponent(slide));
-         url.hash = '';
-         let histState = { mode: 'photo', slide: slide, url: url.href, from:'slide' };
+         _state.slide = slide;
+         let hs = history.state ?? {}; 
+         _state.pushHistory('slide', hs.from==='slide');
 
-         let pushHist = history.replaceState;
-         if (history.state) {
-            if (history.state.from !== 'slide') pushHist = history.pushState;
-         }
-         pushHist.call(history, histState, '', histState.url);
          console.log('PUSHed slide');
          _lg.needBack = true;
       }
    }
 
    function _onPopHistory(ev) {
+      _syncState();
       let histState = ev.originalEvent.state || {};
       console.log("OnPopHistLB:", histState);
-      if (histState.slide) {
-         _positionToSlide(histState.slide);
+      if (_state.slide) {
+         _positionToSlide(_state.slide);
       } else {
          _lg.needBack = false;
          _positionToSlide();
-         _state.cmd = histState ? histState.cmd : '';
          _updateLightBox("history");
       }
       return true;
@@ -882,9 +888,17 @@ function createLightboxControl(app) {
       $cb.on('change', function () {
          console.log('changed sort:', this.value);
          if (_lg) _lg.needBack = true;
-         _state.cmd += "&pin=&sort=" + encodeURIComponent(this.value);
+         _state.sort = this.value;
          _updateLightBox();
       });
+   }
+
+   function _toggleHelp() {
+      if ($('#searchq').val().trim()==='') {
+         $(".help").removeClass("hidden");
+      } else {
+         $(".help").addClass("hidden");
+      }
    }
 
 
@@ -892,8 +906,12 @@ function createLightboxControl(app) {
       //Don't honor the album and year facet: its really confusing somethimes
       //In case of a query, the per_album setting is ignored
       let q = $("#searchq").val();
-      let perAlbum = q ? '' : $("#per_album")[0].checked;
-      _state.cmd = "&slide=&pin=&q=" + encodeURIComponent(q) + "&per_album=" + perAlbum;
+      _state.q = q;
+      _state.pin = undefined;
+      _state.per_album = q ? undefined : $("#per_album")[0].checked;
+      _state.album = undefined;
+      _state.year = undefined;
+      _state.slide = undefined;
       _updateLightBox();
    }
 
@@ -901,16 +919,20 @@ function createLightboxControl(app) {
 
    $('#albums').on('change', function () {
       let ix = parseInt(this.value);
-      _state.cmd += "&slide=&pin=&album=" + (ix < 0 ? "" : encodeURIComponent(_data.albums[ix].v));
+      _state.slide = undefined;
+      _state.album = ix < 0 ? undefined : _data.albums[ix].v;
       _updateLightBox();
    });
    $('#years').on('change', function () {
       let ix = parseInt(this.value);
-      _state.cmd += "&slide=&pin=&year=" + (ix < 0 ? "" : encodeURIComponent(_data.years[ix].v));
+      _state.slide = undefined;
+      _state.year = ix < 0 ? undefined : _data.years[ix].v;
       _updateLightBox();
    });
    $("#per_album").on('change', function () {
-      _state.cmd += "&slide=&pin=&per_album=" + this.checked;
+      _state.album = undefined;
+      _state.slide = undefined;
+      _state.per_album = this.checked;
       _updateLightBox();
    });
    $('#icon_search').on('click', _search);
@@ -920,9 +942,8 @@ function createLightboxControl(app) {
          e.preventDefault();
       }
    }).on('input', function (e) {
-      if (!e.originalEvent.inputType && $("#searchq").val() === '') {
-         _search();
-      }
+      _toggleHelp();
+      if (!e.originalEvent.inputType && $("#searchq").val() === '') _search(); //Force search when clearing input
    });
 
    $("#lightbox")[0].addEventListener('lgAfterOpen', function (e) {
@@ -941,7 +962,12 @@ function createLightboxControl(app) {
       const ix = context.targetIndex;
       if (clickedId === 'ctx_goto_album') {
          _lg.needBack = false;
-         _state.cmd += "&pin=&q=&sort=&slide=&album=" + encodeURIComponent(clickedPhoto.a);
+         _state.slide = undefined;
+         _state.sort = undefined;
+         _state.q = undefined;
+         _state.pin = undefined;
+         _state.year = undefined;
+         _state.album = clickedPhoto.a;
          _updateLightBox();
       } else if (clickedId === 'ctx_goto_track') {
          console.log("trkid=", clickedPhoto.trkid, ", ix=", ix);
@@ -950,33 +976,36 @@ function createLightboxControl(app) {
          if (idx > 0) f = f.substring(idx + 1);
          window.open(_state.external_tracks_url.format(_unique++, encodeURIComponent(clickedPhoto.trkid + "|" + f)),
             "trackstab");
+      } else if (clickedId === 'ctx_find_nearby') {
+         _state.slide = undefined;
+         _state.sort = "relevance";
+         _state.q = 'pin:"' + clickedPhoto.f + '"';
+         _state.year = undefined;
+         _state.album = undefined;
+         _state.per_album = undefined;
+         _lg.needBack = false;
+         _updateLightBox();
       } else if (clickedId === 'ctx_goto_faces') {
-         window.open(app.createUrl('', '&mode=faces&q=' + encodeFileNameForSearch(clickedPhoto.f)),
+         window.open(app.createUrl('', '&mode=faces&q="' + encodeURIComponent(clickedPhoto.f) + '"'),
             "faces_tab");
       } else if (clickedId === 'ctx_goto_faces_dir') {
          let file = clickedPhoto.f;
-         let dir = '';
-         let sepIx = file.lastIndexOf('\\');
-         if (sepIx > 0) {
-            dir = file.substring(0, sepIx);
-            file = file.substring(sepIx + 1);
-            sepIx = file.search(/\d{8}/);
-            if (sepIx >= 0) file = file.substring(0, sepIx + 8);
+         let ix0 = file.lastIndexOf('\\');
+         if (ix0 > 0) {
+            let tmp = file.substring(ix0 + 1);
+            let ix1 = tmp.search(/\d{8}/);
+            file = ix1 >= 0 ? file.substring(0, ix0 + ix1 + 9) : file.substring(0, ix0);
          }
-         file = dir + ' ' + file;
-         window.open(app.createUrl('', '&mode=faces&q=' + encodeFileNameForSearch(file)),
+         window.open(app.createUrl('', '&mode=faces&q="' + encodeURIComponent(file) + '"'),
             "faces_tab");
       } else if (clickedId === 'ctx_goto_map') {
          if (ev.ctrlKey) {
             window.open(app.createUrl('', '&mode=map&pin=' + encodeURIComponent(clickedPhoto.f)),
                "maps_tab");
          } else {
-            app.start({
-               mode: 'map',
-               photo_id: clickedPhoto.f,
-               album: clickedPhoto.a,
-               pin: clickedPhoto.l
-            });
+            _state.mode = 'map';
+            _state.pin = { id: clickedPhoto.f, album: clickedPhoto.a, loc: clickedPhoto.l };
+            app.start('lb');
          }
       } else if (clickedId === 'ctx_info') {
          _openedInfoViaClick = true;
@@ -998,8 +1027,9 @@ function createLightboxControl(app) {
       console.log('CTXMENU', ix, curPhoto);
       context.photo = curPhoto;
 
-      this.showMenuItem ("#ctx_goto_track", _state.external_tracks_url && curPhoto.trkid);
+      this.showMenuItem("#ctx_goto_track", _state.external_tracks_url && curPhoto.trkid);
       this.showMenuItem("#ctx_goto_map", curPhoto.l !== undefined);
+      this.showMenuItem("#ctx_find_nearby", curPhoto.l !== undefined);
       this.showMenuItem("#ctx_goto_faces", _state.is_local && curPhoto.fcnt);
       console.log("ONMENU", context);
       return true;
@@ -1082,8 +1112,8 @@ function createLightboxControl(app) {
       //_overlay.hideNow();
    });
 
+   let _onChangeTimer = 0;
    if ($("#face_names").length > 0) {
-      let $content = $("#content");
       $("#content").splitter({
          splitterClass: "splitter",
          barNormalClass: "",
@@ -1094,6 +1124,12 @@ function createLightboxControl(app) {
          outline: true,
          sizeLeft: 200,
          resizeTo: window
+      });
+      $("#face_filter").on("input", function () {
+         if (_onChangeTimer) clearTimeout(_onChangeTimer);
+         _onChangeTimer = setTimeout(function () {
+            _buildFilteredFaceNames();
+         }, 100);
       });
    }
 
@@ -1122,6 +1158,14 @@ function createLightboxControl(app) {
 
       //OK, pointerdown on a LI
       $allLI.removeClass("dragged_name");
+      if (ev.ctrlKey) { //Ctrl-click will search for this face
+         _state.slide = undefined;
+         _state.mode = "faces";
+         _state.sort = "score_down";
+         _state.q = "nameid:" + idx;
+         _updateLightBox();
+         return;
+      }
       if (idx == _draggedFaceId) return stopDragging();
 
       _draggedFaceId = idx;
@@ -1155,12 +1199,9 @@ function createLightboxControl(app) {
                stopDragging();
             else {
                let file = _data.files[idx];
-               let parms = ["&id="];
-               parms.push(encodeURIComponent(file.id));
-               parms.push("&faceid=");
-               parms.push(_draggedFaceId);
-               _getJSON("facephoto/setface", parms, function (data) {
-                  console.log("result: ", data);
+               let payload = { id: file.id, faceid: _draggedFaceId, correct: ev.altKey };
+               _state.postJSON("facephoto/setface", payload, function (data) {
+                  console.log("SetFace result: ", data);
                   $elt.find(".face_name").text(faceName);
                });
             }
@@ -1174,16 +1215,12 @@ function createLightboxControl(app) {
       console.log('Drag ', ev.target.textContent);
    };
 
-   function _start(parms, from) {
-      _state = app.state;
+   function _syncState() {
       _faceMode = _state.mode === 'faces';
-      _lightboxSizes = _state.lightbox_settings;
       _initSortCombo();
-
-      if (parms && parms.pin) {
-         _state.cmd += "&pin=" + encodeURIComponent(parms.pin) + "&per_album=false";
-      }
-
+   }
+   function _start(from) {
+      _syncState();
       console.log('Start: hist state=', history.state);
       if (_faceMode) {
          _loadFaceNames(function () {
