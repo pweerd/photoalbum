@@ -57,3 +57,17 @@
    height: 20px;
    width: auto;
 }
+
+#overlay_map.ovl {
+   padding: 0px;
+   border: 1px solid black;
+   background-color: black;
+   border-radius: 10px;
+   z-index: 9999;
+}
+
+#overlay_img {
+   width: 240px;
+   height: 240px;
+   border-radius: 10px;
+}

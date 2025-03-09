@@ -102,6 +102,73 @@ function createMapControl(app) {
          app.start('map');
       });
    }
+   function _firePhotoSlide() {
+      const pin = this._pin;
+
+      //Update UI
+      setTimeout(function () {
+         _state.mode = 'photos';
+         _state.pin = pin;
+         _state.slide = pin.id;
+         _state.q = undefined;
+         _state.album = undefined;
+         _state.sort = undefined;
+         _state.per_album = undefined;
+         app.start('map');
+      });
+   }
+   function _showMarkerPhoto(ev) {
+      const pin = this._pin;
+      if (!pin || !pin.id) return;
+
+      const $ovl = $("#overlay_map");
+      const $img = $ovl.find('img');
+      const h = window.innerHeight;
+      const w = window.innerWidth;
+
+      const imgSize = Math.min(240, (w + h) / 7).toFixed(0) + 'px';
+      $img.css({ width: imgSize, height: imgSize });
+
+      $img[0]._pin = pin;
+      if (pin.id) {
+         let imgUrl = app.createUrl('photo/get') + "&h=240&id=" + encodeURIComponent(pin.id);
+         $img.attr('src', imgUrl);
+      }
+      
+      const rc = ev.target.getBoundingClientRect();
+      const ourH = $ovl.height();
+
+      let styles = {};
+      if (w - rc.right > ourH) {
+         styles.left = (rc.right + 0) + 'px';
+         styles.right = '';
+      } else {
+         styles.left = (rc.left + 16 - ourH) + 'px';
+         styles.right = '';
+      }
+      if (h - rc.bottom > ourH) {
+         styles.top = (rc.bottom + 2) + 'px';
+         styles.bottom = '';
+      } else {
+         styles.top = (rc.top - 2 - ourH) + 'px';
+         styles.bottom = '';
+      }
+      $ovl.css(styles).removeClass('ovl-hidden');
+   }
+   function _hideMarkerPhoto(ev) {
+      $("#overlay_map").addClass('ovl-hidden');
+   }
+
+   function _initMarker(marker, pin) {
+      marker._pin = pin;
+      marker.addListener('click', _firePhoto);
+      if (!app.isTouch) {
+         marker.addEventListener('mouseover', _showMarkerPhoto);
+         marker.addEventListener('mouseout', _hideMarkerPhoto);
+      }
+      return marker;
+   }
+
    function _createPhotoMarker(pin) {
       const img = document.createElement('img');
       img.src = _state.home_url + 'images/' + _state.map_settings.other_pins[pin.color | 0];
@@ -111,10 +178,9 @@ function createMapControl(app) {
          content: img,
          title: (pin.album ?? pin.id)
       });
-      marker._pin = pin;
-      marker.addListener('click', _firePhoto);
-      return marker;
+      return _initMarker(marker, pin);
    }
+
    function _createMainPhotoMarker(pin) {
       const img = document.createElement('img');
       img.src = _state.home_url + 'images/' + _state.map_settings.selected_pin;
@@ -127,18 +193,14 @@ function createMapControl(app) {
          position: _normalizePosition(pin.loc),
          zIndex: 999
       });
-      marker._pin = pin;
-      marker.addListener('click', _firePhoto);
       if (pin.album) marker.title = pin.album + " (geselecteerd)";
-      return _setMainMarker(marker);
-   }
 
-   function _setMainMarker(marker) {
       if (_markers.mainPin !== marker) {
          if (_markers.mainPin) _markers.mainPin.setMap(null);
          _markers.mainPin = marker;
       }
-      return marker;
+
+      return _initMarker(marker, pin);
    }
 
    function _removeUntouchedMarkers() {
@@ -402,6 +464,8 @@ function createMapControl(app) {
       if (from !== 'history') _pushHistory();
       return true;
    }
+
+   $("#overlay_img").on('click', _firePhotoSlide);
 
    return {
       start: _start,
