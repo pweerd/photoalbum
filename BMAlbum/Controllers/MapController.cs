@@ -81,13 +81,11 @@ namespace BMAlbum.Controllers {
 
          var resp = req.Search ();
          resp.ThrowIfError ();
-         SiteLog.Log ();
          SiteLog.Log ("MAP: mode={0}, totalHits={1}, max={2}", mode, resp.TotalHits, maxPhotoCount);
 
          //If the #photo's is limied and we are clustering, we redo the search,
          //but now for getting photo's
          if (resp.TotalHits <= maxPhotoCount && mode == _Mode.clusters) {
-            SiteLog.Log ("MAP: redo search");
             mode = _Mode.photos;
             goto SEARCH; 
          }
