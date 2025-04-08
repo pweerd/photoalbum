@@ -75,7 +75,8 @@ function createMapControl(app) {
          map: _map,
          position: _normalizePosition(cl.loc),
          content: img,
-         title: tit
+         title: tit,
+         zIndex:20
       });
       marker.addListener('click', () => {
          console.log('click groupmarker zoom=', _map.getZoom(), marker);
@@ -86,6 +87,7 @@ function createMapControl(app) {
    }
 
    function _firePhoto() {
+      _hideMarkerPhoto();
       const pin = this._pin;
 
       //Mark the current item
@@ -103,6 +105,7 @@ function createMapControl(app) {
       });
    }
    function _firePhotoSlide() {
+      _hideMarkerPhoto();
       const pin = this._pin;
 
       //Update UI
@@ -176,7 +179,8 @@ function createMapControl(app) {
          map: _map,
          position: _normalizePosition(pin.loc),
          content: img,
-         title: (pin.album ?? pin.id)
+         title: (pin.album ?? pin.id),
+         zIndex: 10
       });
       return _initMarker(marker, pin);
    }
@@ -191,7 +195,7 @@ function createMapControl(app) {
          title: 'positie geselecteerde foto',
          content: img,
          position: _normalizePosition(pin.loc),
-         zIndex: 999
+         zIndex: 20
       });
       if (pin.album) marker.title = pin.album + " (geselecteerd)";
 
@@ -257,17 +261,19 @@ function createMapControl(app) {
 
          let parms = [];
          parms.push("&bounds=" + _boundsToString(_map.getBounds()));
+         if (zoom >= 15) parms.push("&mode=photos");
+         else {
+            //Determine the photo count to switch from clustering to individual photo's
+            //This is done by taking the minimum square area in pixels of the div into account
+            let elt = document.getElementById("map");
+            let minDim = Math.min(elt.clientHeight, elt.clientWidth); //max square area
+            let maxCount = Math.max(50, (minDim * minDim) / 3000).toFixed(0);
+            console.log("Request clusters for more than ", maxCount, " photos");
+            parms.push("&max_count=" + maxCount);
+         }
 
          zoom = (zoom < maxGoogleZoom) ? googleZoomToEsZoom[zoom] : maxEsZoom;
          parms.push("&zoom=" + zoom);
-
-         //Determine the photo count to switch from clustering to individual photo's
-         //This is done by taking the minimum square area in pixels of the div into account
-         let elt = document.getElementById("map");
-         let minDim = Math.min(elt.clientHeight, elt.clientWidth);
-         let maxCount = (minDim * minDim) / 3500;
-         parms.push("&max_count=" + maxCount.toFixed(0));
-
 
          app.postJSON('map/clusters', _lastColors, parms, function (json) {
 
@@ -411,6 +417,7 @@ function createMapControl(app) {
 
    function _start(from) {
       console.log("startmap", from, _map);
+      _hideMarkerPhoto();
       document.title = "Kaart | Foto's";
       _state = app.state;
       if (!_map) {
