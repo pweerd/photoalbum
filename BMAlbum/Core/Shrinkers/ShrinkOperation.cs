@@ -20,7 +20,7 @@ namespace BMAlbum.Core {
    public abstract class ShrinkOperation {
       public abstract bool Process (ShrinkContext ctx, int targetW, int targetH);
 
-      public virtual bool GetFingerprint (Bitmap bm, int targetW, int targetH, ref int fp) {
+      public virtual bool GetFingerprint (int srcW, int srcH, int targetW, int targetH, ref int fp) {
          return true;
       }
    }

@@ -32,8 +32,8 @@ namespace BMAlbum.Core {
       public override bool Process (ShrinkContext ctx, int w, int h) {
          return ImageShrinker.GetFactor (ctx.Bitmap.Width, ctx.Bitmap.Height, w, h) >= MinFactor;
       }
-      public override bool GetFingerprint (Bitmap bm, int w, int h, ref int fp) {
-         if (ImageShrinker.GetFactor (bm.Width, bm.Height, w, h) >= MinFactor) return true;
+      public override bool GetFingerprint (int srcW, int srcH, int w, int h, ref int fp) {
+         if (ImageShrinker.GetFactor (srcW, srcH, w, h) >= MinFactor) return true;
          fp = 0;
          return false;
       }

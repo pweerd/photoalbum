@@ -79,20 +79,20 @@ namespace BMAlbum.Core {
          bm = ctx.Bitmap;
          return ctx.CopyPropertiesIfChanged();
       }
-      public int GetFingerPrint (Bitmap bm, int targetW, int targetH) {
+      public int GetFingerPrint (int srcW, int srcH, int targetW, int targetH) {
          int fp = 0;
          if (Logger != null) {
             for (int i = 0; i < Operations.Length; i++) {
                bool ret;
                string name = Operations[i].GetType ().Name;
                Logger.Log (_LogType.ltTimerStart, name);
-               ret = Operations[i].GetFingerprint (bm, targetW, targetH, ref fp);
+               ret = Operations[i].GetFingerprint (srcW, srcH, targetW, targetH, ref fp);
                Logger.Log (_LogType.ltTimerStop, "{0} -> {1}, fp={2}", name, ret, fp);
                if (!ret) break;
             }
          } else {
             for (int i = 0; i < Operations.Length; i++) {
-               if (!Operations[i].GetFingerprint (bm, targetW, targetH, ref fp)) break;
+               if (!Operations[i].GetFingerprint (srcW, srcH, targetW, targetH, ref fp)) break;
             }
          }
          return fp;

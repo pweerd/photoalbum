@@ -37,8 +37,8 @@ namespace BMAlbum.Core {
          }
          return true;
       }
-      public override bool GetFingerprint (Bitmap bm, int w, int h, ref int fp) {
-         var factor = ImageShrinker.GetFactor (bm.Width, bm.Height, w, h);
+      public override bool GetFingerprint (int srcW, int srcH, int w, int h, ref int fp) {
+         var factor = ImageShrinker.GetFactor (srcW, srcH, w, h);
          var factorLog = ImageShrinker.GetFactorLog (factor, ImageShrinker.BaseLog20, Bias20);
          if (factorLog >= 1) fp = 10 * fp + factorLog;
          return true;

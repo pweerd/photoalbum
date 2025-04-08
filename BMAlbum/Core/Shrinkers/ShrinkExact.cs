@@ -34,7 +34,7 @@ namespace BMAlbum.Core {
       /// <summary>
       /// Always use 99 as a fingerprint
       /// </summary>
-      public override bool GetFingerprint (Bitmap bm, int w, int h, ref int fp) {
+      public override bool GetFingerprint (int srcW, int srcH, int w, int h, ref int fp) {
          fp = fp*100+99;
          return true;
       }

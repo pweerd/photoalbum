@@ -44,6 +44,7 @@ namespace BMAlbum {
       public readonly ESIndexInfoCache IndexInfoCache;
       public readonly Shrinker ShrinkerSmall, ShrinkerLarge;
       public readonly MapSettings MapSettings;
+      public readonly VideoFrames VideoFrames;
       public readonly string ExternalTracksUrl;
 
       public Settings (string fn, SettingsBase oldSettings = null, string expectedVersion = null) : base (fn, oldSettings, expectedVersion) {
@@ -95,7 +96,10 @@ namespace BMAlbum {
          MapSettings = new MapSettings (Xml.SelectMandatoryNode ("map"), Path.Combine(g.SiteRoot, "images"));
          ExternalTracksUrl = Xml.ReadStr ("external_tracks/@url", null);
 
+         VideoFrames = VideoFrames.Create (Xml.SelectSingleNode ("video_frames"));
+
          g.SiteLog.Log("Lightbox client settings:\n{0}", LightboxSettings.SettingsForClient);
+         g.SiteLog.Log ("VideoFrames loaded from {0}", VideoFrames?.Filename);
       }
 
       public bool doesUserExist(User user) {
