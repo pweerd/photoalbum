@@ -36,6 +36,7 @@ using System.Text.RegularExpressions;
 using static System.Net.WebRequestMethods;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.AspNetCore.Http.Extensions;
 
 namespace BMAlbum.Controllers {
 
@@ -308,7 +309,7 @@ namespace BMAlbum.Controllers {
          WRITE_RESPONSE:
          SiteLog.Log ("Final sortmethod: {0}", curSortMode);
          docs = resp.Documents;
-         if ((clientState.DebugFlags & DebugFlags.ONE) != 0)
+         if ((clientState.DebugFlags & DebugFlags.ONE) != 0 && docs.Count>1)
             docs.RemoveRange (1, docs.Count - 1);
          json.WriteProperty ("new_state", (IJsonSerializable)clientState.ToJson ());
 
@@ -381,13 +382,14 @@ namespace BMAlbum.Controllers {
          return (ESTermsAggregationResult)agg;
       }
 
-      static readonly Regex termExtracter = new Regex (@"weight\(([^:]+):(.+?) in \d+\)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+      static readonly Regex termExtracter = new Regex (@"weight\(([^:]+):(.+?) in \d+\)|extra_location\:([^\)]+)\)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
       private static void extractExplainTerms (HashSet<string> globalTerms, HashSet<string> terms, JsonObjectValue v) {
          string desc = v.ReadStr ("description", null);
          if (desc != null) {
             var match = termExtracter.Match (desc);
             if (match.Success) {
                string term = match.Groups[2].Value;
+               if (string.IsNullOrEmpty (term)) term = match.Groups[3].Value;
                terms.Add (term);
                if (globalTerms != null) globalTerms.Add (term);
                return;
@@ -635,7 +637,7 @@ namespace BMAlbum.Controllers {
          string orgFn = ((Settings)base.Settings).Roots.GetRealFileName (id);
          //Logs.DebugLog.Log ("Requesting img {0}", orgFn);
          if (w <= 0 && h <= 0 && mindim <=0) {
-            return new FileActionResult (orgFn);
+            return PhysicalFile (orgFn, WebGlobals._GetMimeTypeForFile (orgFn));
          }
 
          if (w<0) {
