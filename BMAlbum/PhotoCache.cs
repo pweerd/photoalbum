@@ -75,7 +75,10 @@ namespace BMAlbum {
          var store = getStore (type);
          Stream ret = null;
          if (store != null) {
-            var e = store.GetFileEntry (name);
+            FileEntry e;
+            lock (store) {
+               e = store.GetFileEntry (name);
+            }
             if (e != null) {
                var bytes = FileStorageAccessor.GetBytes(store, e);
                ret = new MemoryStream (bytes);
@@ -85,8 +88,11 @@ namespace BMAlbum {
       }
       public void Set (string name, Stream strm, CacheType type) {
          var store = getStore (type);
-         if (store != null) 
-            lock (store) store.AddStream (strm, name, DateTime.Now, CompressMethod.Store);
+         if (store != null)
+            lock (store) {
+               if (store.GetFileEntry (name) != null)
+                  store.AddStream (strm, name, DateTime.Now, CompressMethod.Store);
+            }
       }
 
       public CacheType Clear (CacheType type) {
