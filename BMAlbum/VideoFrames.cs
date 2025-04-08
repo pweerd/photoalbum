@@ -2,7 +2,9 @@
 using Bitmanager.Storage;
 using Bitmanager.Web;
 using Bitmanager.Xml;
+using BMAlbum.Core;
 using System.Xml;
+using System.Xml.Linq;
 
 namespace BMAlbum {
    public class VideoFrames {
@@ -27,7 +29,7 @@ namespace BMAlbum {
       }
 
       public byte[] GetFrame (string id) {
-         return frames.GetBytes (id, false);
+         return FileStorageAccessor.GetBytes (frames, frames.GetFileEntry (id));
       }
    }
 }
