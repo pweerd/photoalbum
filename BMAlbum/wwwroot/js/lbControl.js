@@ -1022,6 +1022,9 @@ function createLightboxControl(app) {
             _state.pin = { id: clickedPhoto.f, album: clickedPhoto.a, loc: clickedPhoto.l };
             app.start('lb');
          }
+      } else if (clickedId === 'ctx_frame') {
+         window.open(app.createUrl('photo/get', '&dim=4096&id=' + encodeURIComponent(clickedPhoto.f)),
+            "frames_tab");
       } else if (clickedId === 'ctx_info') {
          _openedInfoViaClick = true;
          _showInfo(ix, true);
@@ -1046,6 +1049,7 @@ function createLightboxControl(app) {
       this.showMenuItem("#ctx_goto_map", curPhoto.l !== undefined);
       this.showMenuItem("#ctx_find_nearby", curPhoto.l !== undefined);
       this.showMenuItem("#ctx_goto_faces", _state.is_local && curPhoto.fcnt);
+      this.showMenuItem("#ctx_frame", _state.is_local && _state.debug && curPhoto.mime.startsWith('video'));
       console.log("ONMENU", context);
       return true;
    });
