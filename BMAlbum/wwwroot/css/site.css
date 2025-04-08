@@ -195,6 +195,16 @@ body {
    bottom: 4px;
 }
 
+.video-label {
+   left: 4px;
+   bottom: 4px;
+   position: absolute;
+   color: white;
+   background-color: rgb(128,128, 128,.5);
+   caret-color: transparent;
+   padding: 0px 2px 0px 2px;
+}
+
 
 .ovl {
    caret-color: transparent;

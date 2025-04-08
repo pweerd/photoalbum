@@ -81,22 +81,30 @@ function createLightboxControl(app) {
    }
 
    function _createImgMarkup(sb, photo, lbState) {
-      sb.push('<a href="" class="lb-item" data-src="'); 
-      sb.push(photo.imgUrl);
-      sb.push('" thumb="');
-      sb.push(photo.imgUrl + '&h=76"');
-      sb.push(' data-lg-size="');
+      sb.push('<a href="" class="lb-item" data-lg-size="'); 
       sb.push(photo.w);
       sb.push('-');
       sb.push(photo.h);
-      sb.push('"><div class="lb-wrapper"><img class="lb-image lazyload" src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src="');
+      sb.push('"')
+      const isVideo = photo.mime.startsWith("video");
+      if (isVideo) {
+         let json = [{ src: photo.imgUrl, type: photo.mime }];
+         json = { source: json, attributes: { preload: false, controls: true } };
+         sb.push(" data-video='" + JSON.stringify(json) + "'");
+         sb.push(' data-poster="' + photo.imgUrl + '&w=2048&h=2048"');
+      } else {
+         sb.push(' data-src="' + photo.imgUrl + '"');
+      }
+      sb.push('><div class="lb-wrapper"><img class="lb-image lazyload" src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src="');
       sb.push(photo.imgUrl);
 
       let aspect = lbState.limitRatio(photo.w / photo.h);
       let h = lbState.imgHeight;
       let w = Math.round(h * aspect);
-      sb.push('&h=240" width="' + w + '" height="' + h);
-      sb.push('"><div class="txtbadge info-badge bottom-right-4"></div></div></a>');
+      sb.push('&h=240" width="' + w + '" height="' + h + '">');
+      sb.push('<div class="txtbadge info-badge bottom-right-4"></div>');
+      if (isVideo) sb.push('<div class="video-label ">' + photo.t_dur + '</div>');
+      sb.push('</div></a>');
    }
 
    function _createFaceMarkup(sb, photo, lbState) {
@@ -243,6 +251,12 @@ function createLightboxControl(app) {
       if (_state.debug || _state.is_local) {
          addRow("Dir", photo.f.substring(0, ix1));
          addRow("Sortkey", photo.sk);
+         if (photo.mime.startsWith('video')) {
+            addRow("C_ID", photo.c_id);
+            addRow("C_Name", photo.c_name);
+            addRow("Mime", photo.mime);
+
+         }
       }
       if (photo.names) {
          let lines = [];
@@ -660,6 +674,7 @@ function createLightboxControl(app) {
          slideShowInterval: 2500,
          closeOnTap: false,
          plugins: [lgVideo, lgAutoplay, lgFullscreen],   //, lgThumbnail lgZoom,, lgHash
+         //videojs: true,
          mobileSettings: {
             showCloseIcon: true,
             closable: true,

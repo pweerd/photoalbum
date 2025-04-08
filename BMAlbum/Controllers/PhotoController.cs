@@ -115,15 +115,6 @@ namespace BMAlbum.Controllers {
          agg.Size = SIZE;
          agg.MinDocCount = lbSettings.MinCountForAlbum;
 
-         //PW weg
-         ////If a direct show is requested, we don't want a min album count, since it could be the only photo.
-         //if (clientState.Slide == null) 
-         //   agg.MinDocCount = lbSettings.MinCountForAlbum;
-         //else
-         //   if (clientState.PerAlbum == TriStateBool.Unspecified) 
-         //      clientState.PerAlbum = TriStateBool.True;
-
-
          var subJson = new JsonObjectValue ("field", "sort_key");
          subJson = new JsonObjectValue ("max", subJson);
          agg.SubAggs.Add (new ESJsonAggregation ("sort_key", subJson));
@@ -235,7 +226,6 @@ namespace BMAlbum.Controllers {
                   q = dmq;
                }
                FINISHED_COUNTING:
-               //if (clientState.PerAlbum == TriStateBool.Unspecified && countResp.Count < SIZE) clientState.PerAlbum = TriStateBool.False;
                if (clientState.PerAlbum == TriStateBool.Unspecified) clientState.PerAlbum = TriStateBool.False;
 
             }
@@ -335,12 +325,6 @@ namespace BMAlbum.Controllers {
          return (a==null) ? a==b : a.Equals(b); 
       }
 
-      private static bool isSortedOnScore(ESSearchRequest req) {
-         if (req.Sort?.Count == 0) return true;
-         var first = req.Sort[0];
-         return (first.Field == "_score" && first.Mode == ESSortDirection.desc);
-      }
-
       private static void optSetExplain (ESSearchRequest req) {
          var list = req.Sort;
          if (list == null || list.Count == 0) goto SET_EXPLAIN;
@@ -352,16 +336,6 @@ namespace BMAlbum.Controllers {
 
       EXIT_RTN:
          return;
-      }
-
-      private static bool hasRelevancyField (List<ParserValueNode> nodes) {
-         if (nodes == null) return false;
-         for (int i = 0; i < nodes.Count; i++) {
-            var processed = nodes[i].ProcessedBy;
-            if (processed is LocationSearcher || processed is NameSearcher || processed is PinSearcher)
-               return true;
-         }
-         return false;
       }
 
       private static bool hasLocationQuery (List<ParserValueNode> nodes) {
@@ -564,17 +538,7 @@ namespace BMAlbum.Controllers {
          }
          return new Bitmap (fn);
       }
-      private Bitmap loadBitmap (string id, string fn, out byte[] bytes) {
-         bytes = null;
-         string mime = MimeType.GetMimeTypeFromFileName (fn);
-         if (mime != null && mime.StartsWith ("video")) {
-            if (settings.VideoFrames == null) return null;
-            bytes = settings.VideoFrames.GetFrame (id);
-            if (bytes == null) return null;
-            return (Bitmap)Image.FromStream (new MemoryStream (bytes), false, false);
-         }
-         return new Bitmap (fn);
-      }
+
       private IActionResult getSmallImage (string id, int h, string orgFn) {
          var shrinker = settings.ShrinkerSmall;
          h = 240;
@@ -599,7 +563,6 @@ namespace BMAlbum.Controllers {
 
       static int _id;
 
-      //private void dumpHeaders() {
       private bool getDimensions (string id, out int w, out int h) {
          var c = settings.ESClient;
          var cmd = new StringBuilder ();
@@ -618,6 +581,8 @@ namespace BMAlbum.Controllers {
          h = json.ReadInt ("height");
          return true;
       }
+
+
       /// <summary>
       /// Negative values for w or h indicate a log 1.5 factor
       /// </summary>
@@ -720,7 +685,7 @@ namespace BMAlbum.Controllers {
       /// </summary>
       public bool ShrinkToCache(CacheType type, string id, int heightOrFactor) {
          if (type == CacheType.Large) return true; //PW moet weg
-         string orgFn = this.settings.Roots.GetRealFileName (id);
+         string orgFn = settings.Roots.GetRealFileName (id);
          string fn = type == CacheType.Large ? createLargeCacheName (id, heightOrFactor)
                                              : createSmallCacheName (id, heightOrFactor);
 
