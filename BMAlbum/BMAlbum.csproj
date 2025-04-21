@@ -37,6 +37,9 @@
       <HintPath>..\_References\BMImage102.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
     </Reference>
+    <Reference Include="BMImage200">
+      <HintPath>..\..\_References\BMImage200.dll</HintPath>
+    </Reference>
     <Reference Include="BMQuery200">
       <HintPath>..\_References\BMQuery200.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>

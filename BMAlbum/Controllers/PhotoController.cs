@@ -37,6 +37,7 @@ using static System.Net.WebRequestMethods;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.AspNetCore.Http.Extensions;
+using Bitmanager.Image;
 
 namespace BMAlbum.Controllers {
 
@@ -380,6 +381,7 @@ namespace BMAlbum.Controllers {
       private void writeFiles (JsonBuffer json, List<GenericDocument> docs, bool dbg, QueryGenerator queryGenerator) {
          HashSet<string> gTerms = new HashSet<string> ();
          HashSet<string> terms = new HashSet<string> ();
+         string str;
          var transTerms = queryGenerator?.Translated;
          if (transTerms != null) foreach (var tq in transTerms) gTerms.Add (tq.ToString ());
          double maxRatio = 1;
@@ -390,13 +392,14 @@ namespace BMAlbum.Controllers {
          foreach (var doc in docs) {
             int w = doc.ReadInt ("width");
             int h = doc.ReadInt ("height");
-            switch (doc.ReadInt ("orientation", 0)) {
-               case (int)ExifOrientation.Rotate_90:
-               case (int)ExifOrientation.Rotate_270:
+            str = doc.ReadStr ("orientation", null);
+            if (str != null) {
+               var orientation = str.AsOrientation (); 
+               if ((orientation & (_Orientation.Rotate90 | _Orientation.Rotate270)) != 0) {
                   int tmp = w;
                   w = h;
                   h = tmp;
-                  break;
+               }
             }
             json.WriteStartObject ();
             json.WriteProperty ("f", doc.Id);
@@ -427,7 +430,7 @@ namespace BMAlbum.Controllers {
                json.WriteProperty ("date", dt.ToLocalTime ().ToString ("yyyy-MM-dd HH:mm:ss"));
                json.WriteProperty ("year", doc.ReadInt ("year"));
             }
-            var str = doc.ReadStr ("camera", null);
+            str = doc.ReadStr ("camera", null);
             if (str != null) json.WriteProperty ("c", str);
             str = doc.ReadStr ("tz", null);
             if (str != null) json.WriteProperty ("tz", str);
@@ -659,7 +662,7 @@ namespace BMAlbum.Controllers {
          string orgFn = ((Settings)base.Settings).Roots.GetRealFileName (id);
          //Logs.DebugLog.Log ("Requesting img {0}", orgFn);
          if (w <= 0 && h <= 0 && mindim <=0) {
-            return PhysicalFile (orgFn, WebGlobals._GetMimeTypeForFile (orgFn));
+            return PhysicalFile (orgFn, WebGlobals._GetMimeTypeForFile (orgFn), true);
          }
 
          if (w<0) {
@@ -698,6 +701,55 @@ namespace BMAlbum.Controllers {
             }
          }
          return exists;
+      }
+
+
+      public IActionResult Filename () {
+         if (!RequestCtx.IsInternalIp) return new ActionResult404 ();
+         string id = Request.ReadStr ("id", null);
+         string fn = null;
+         if (id != null) fn = ((Settings)Settings).Roots.GetRealFileName (id);
+         return new JsonActionResult (new JsonObjectValue ("fn", fn));
+      }
+
+
+
+      public IActionResult Rotate () {
+         string reason = "Not internal";
+         if (!RequestCtx.IsInternalIp) goto RET_404;
+         string id = Request.ReadStr ("id", null);
+         reason = "ID is null";
+         if (id==null) goto RET_404;
+         string fn = ((Settings)Settings).Roots.GetRealFileName (id);
+         reason = "Not found: " + fn;
+         if (!System.IO.File.Exists (fn)) goto RET_404;
+
+         int angle = Request.ReadInt ("rot", 0);
+         reason = "Invalid angle: " + angle;
+         switch (angle) {
+            default: goto RET_404;
+            case 90:
+            case 180:
+            case 270: break;
+         }
+
+         string result = "ok";
+         try {
+            var psi = new ProcessStartInfo ("exiftool", Invariant.Format ("-P -rotation={0} \"{1}\"", angle, fn));
+            psi.RedirectStandardError = true;
+            psi.RedirectStandardOutput = true;
+            using (var p = new WrappedProcess (psi, ExifTool.Logger, WrappedProcessFlags.LogAlways)) {
+               p.Start ();
+               p.WaitForExit (1000);
+            }
+         } catch (Exception e) {
+            result = e.Message;
+            SiteLog.Log (e, "Rotate failed: {0}", e.Message);
+         }
+         return new JsonActionResult (new JsonObjectValue ("result", result));
+
+      RET_404:
+         return new ActionResult404 ();
       }
 
       private class AlbumWithoutDateComparer : IComparer<ESAggregationResultItem> {
