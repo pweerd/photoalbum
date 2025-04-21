@@ -48,7 +48,7 @@ function createLightboxControl(app) {
    let _lastLbState = new LightboxState(-1, null, 0);  //Last state of the lightbox
    let _isTouch = false;
    let _zoomer; 
-   let _multipleAlbums = false;
+   let _rotateWarningShown = false;
    let _unique = 0;
    let _faceNames = { chgid: -1 };
    let _t0;
@@ -461,7 +461,6 @@ function createLightboxControl(app) {
       }
       sb.push("<div class='lb-sentinel-item'></div>")
       $elt.html(sb.join(''));
-      _multipleAlbums = multipleAlbums;
 
 
       //Unfortunately this event is needed, since otherwise the gallery item would be opened before the infoHandler is called.
@@ -675,6 +674,9 @@ function createLightboxControl(app) {
          closeOnTap: false,
          plugins: [lgVideo, lgAutoplay, lgFullscreen],   //, lgThumbnail lgZoom,, lgHash
          //videojs: true,
+         gotoNextSlideOnVideoEnd: false,
+         autoplayFirstVideo: true, 
+         autoplayVideoOnSlide: true,
          mobileSettings: {
             showCloseIcon: true,
             closable: true,
@@ -694,7 +696,10 @@ function createLightboxControl(app) {
       _zoomer = createZoomer($inner);
       $inner
          .on('click', function (ev) {
-            let $img = $(ev.target).closest('.lg-current').find('.lg-img-wrap').find('.lg-object');
+            let $lgCurr = $(ev.target).closest('.lg-current');
+            let $wrap = $lgCurr.find('.lg-img-wrap');
+            if ($wrap.length === 0) $wrap = $lgCurr.find('.lg-video-cont');
+            let $img = $wrap.find('.lg-object');
             if ($img.length === 0) {
                console.log('INNER_CLICK:NO IMG');
                return;
@@ -968,66 +973,100 @@ function createLightboxControl(app) {
 
 
    function _onMenuClick(ev, context) {
-      function encodeFileNameForSearch(f) {
-         return encodeURIComponent(f.replace(/[&\(\)\\\-_,;\.]/g, ' '));
-      }
       console.log("ONMENU CLICK", context);
       const clickedPhoto = context.photo;
       const clickedId = context.clickedId;
       const ix = context.targetIndex;
-      if (clickedId === 'ctx_goto_album') {
-         _lg.needBack = false;
-         _state.slide = undefined;
-         _state.sort = undefined;
-         _state.q = undefined;
-         _state.pin = undefined;
-         _state.year = undefined;
-         _state.album = clickedPhoto.a;
-         _updateLightBox();
-      } else if (clickedId === 'ctx_goto_track') {
-         console.log("trkid=", clickedPhoto.trkid, ", ix=", ix);
-         let f = clickedPhoto.f;
-         let idx = f.lastIndexOf('\\');
-         if (idx > 0) f = f.substring(idx + 1);
-         window.open(_state.external_tracks_url.format(_unique++, encodeURIComponent(clickedPhoto.trkid + "|" + f)),
-            "trackstab");
-      } else if (clickedId === 'ctx_find_nearby') {
-         _state.slide = undefined;
-         _state.sort = "relevance";
-         _state.q = 'pin:"' + clickedPhoto.f + '"';
-         _state.year = undefined;
-         _state.album = undefined;
-         _state.per_album = undefined;
-         _lg.needBack = false;
-         _updateLightBox();
-      } else if (clickedId === 'ctx_goto_faces') {
-         window.open(app.createUrl('', '&mode=faces&q="' + encodeURIComponent(clickedPhoto.f) + '"'),
-            "faces_tab");
-      } else if (clickedId === 'ctx_goto_faces_dir') {
-         let file = clickedPhoto.f;
-         let ix0 = file.lastIndexOf('\\');
-         if (ix0 > 0) {
-            let tmp = file.substring(ix0 + 1);
-            let ix1 = tmp.search(/\d{8}/);
-            file = ix1 >= 0 ? file.substring(0, ix0 + ix1 + 9) : file.substring(0, ix0);
-         }
-         window.open(app.createUrl('', '&mode=faces&q="' + encodeURIComponent(file) + '"'),
-            "faces_tab");
-      } else if (clickedId === 'ctx_goto_map') {
-         if (ev.ctrlKey) {
-            window.open(app.createUrl('', '&mode=map&pin=' + encodeURIComponent(clickedPhoto.f)),
-               "maps_tab");
-         } else {
-            _state.mode = 'map';
-            _state.pin = { id: clickedPhoto.f, album: clickedPhoto.a, loc: clickedPhoto.l };
-            app.start('lb');
-         }
-      } else if (clickedId === 'ctx_frame') {
-         window.open(app.createUrl('photo/get', '&dim=4096&id=' + encodeURIComponent(clickedPhoto.f)),
-            "frames_tab");
-      } else if (clickedId === 'ctx_info') {
-         _openedInfoViaClick = true;
-         _showInfo(ix, true);
+      let rot = 0;
+      switch (clickedId) {
+         default: return;
+         case 'ctx_goto_album':
+            _lg.needBack = false;
+            _state.slide = undefined;
+            _state.sort = undefined;
+            _state.q = undefined;
+            _state.pin = undefined;
+            _state.year = undefined;
+            _state.album = clickedPhoto.a;
+            _updateLightBox();
+            break;
+         case 'ctx_goto_track':
+            console.log("trkid=", clickedPhoto.trkid, ", ix=", ix);
+            let f = clickedPhoto.f;
+            let idx = f.lastIndexOf('\\');
+            if (idx > 0) f = f.substring(idx + 1);
+            window.open(_state.external_tracks_url.format(_unique++, encodeURIComponent(clickedPhoto.trkid + "|" + f)),
+               "trackstab");
+            break;
+         case 'ctx_find_nearby':
+            _state.slide = undefined;
+            _state.sort = "relevance";
+            _state.q = 'pin:"' + clickedPhoto.f + '"';
+            _state.year = undefined;
+            _state.album = undefined;
+            _state.per_album = undefined;
+            _lg.needBack = false;
+            _updateLightBox();
+            break;
+         case 'ctx_goto_faces':
+            window.open(app.createUrl('', '&mode=faces&q="' + encodeURIComponent(clickedPhoto.f) + '"'),
+               "faces_tab");
+            break;
+         case 'ctx_goto_faces_dir':
+            let file = clickedPhoto.f;
+            let ix0 = file.lastIndexOf('\\');
+            if (ix0 > 0) {
+               let tmp = file.substring(ix0 + 1);
+               let ix1 = tmp.search(/\d{8}/);
+               file = ix1 >= 0 ? file.substring(0, ix0 + ix1 + 9) : file.substring(0, ix0);
+            }
+            window.open(app.createUrl('', '&mode=faces&q="' + encodeURIComponent(file) + '"'),
+               "faces_tab");
+            break;
+         case 'ctx_goto_map':
+            if (ev.ctrlKey) {
+               window.open(app.createUrl('', '&mode=map&pin=' + encodeURIComponent(clickedPhoto.f)),
+                  "maps_tab");
+            } else {
+               _state.mode = 'map';
+               _state.pin = { id: clickedPhoto.f, album: clickedPhoto.a, loc: clickedPhoto.l };
+               app.start('lb');
+            }
+            break;
+         case 'ctx_frame':
+            window.open(app.createUrl('photo/get', '&dim=4096&id=' + encodeURIComponent(clickedPhoto.f)),
+               "frames_tab");
+            break;
+         case 'ctx_info':
+            _openedInfoViaClick = true;
+            _showInfo(ix, true);
+            break;
+         case 'ctx_copy':
+            app.getJSON('photo/filename', '&id=' + encodeURIComponent(clickedPhoto.f), function (data) {
+               navigator.clipboard.writeText(data.fn);
+            });
+            break;
+         case 'ctx_rot_90':
+            rot = 90;
+            break;
+         case 'ctx_rot_180':
+            rot = 180;
+            break;
+         case 'ctx_rot_270':
+            rot = 270;
+            break;
+      }
+
+      if (rot !== 0) {
+         app.getJSON('photo/rotate', '&id=' + encodeURIComponent(clickedPhoto.f) + '&rot=' + rot, function (data) {
+            if (date.result !== 'ok') alert('Rotate failed: ' + data.result);
+            else {
+               if (!_rotateWarningShown) {
+                  _rotateWarningShown = true;
+                  alert ("Video is geroteerd. Maar u moet een nieuwe video-import draaien om ook de miniatuur op het scherm te vervangen.")
+               }
+            }
+         });
       }
    }
 
@@ -1045,11 +1084,17 @@ function createLightboxControl(app) {
       console.log('CTXMENU', ix, curPhoto);
       context.photo = curPhoto;
 
+      let localVideo = _state.is_local && curPhoto.mime.startsWith('video');
       this.showMenuItem("#ctx_goto_track", _state.external_tracks_url && curPhoto.trkid);
       this.showMenuItem("#ctx_goto_map", curPhoto.l !== undefined);
       this.showMenuItem("#ctx_find_nearby", curPhoto.l !== undefined);
       this.showMenuItem("#ctx_goto_faces", _state.is_local && curPhoto.fcnt);
-      this.showMenuItem("#ctx_frame", _state.is_local && _state.debug && curPhoto.mime.startsWith('video'));
+      this.showMenuItem("#ctx_frame", localVideo && _state.debug);
+      this.showMenuItem("#ctx_copy", _state.is_local);
+      this.showMenuItem("#ctx_frame", localVideo);
+      this.showMenuItem("#ctx_rot_90", localVideo);
+      this.showMenuItem("#ctx_rot_180", localVideo);
+      this.showMenuItem("#ctx_rot_270", localVideo);
       console.log("ONMENU", context);
       return true;
    });
