@@ -16,10 +16,9 @@
 
 using Bitmanager.Core;
 using Bitmanager.IO;
-using Bitmanager.Json;
 using Bitmanager.Storage;
+using Bitmanager.Web;
 using BMAlbum.Core;
-using System.Runtime;
 using System.Text.RegularExpressions;
 
 namespace BMAlbum {
@@ -49,7 +48,22 @@ namespace BMAlbum {
             largeStore = openStore (Path.Combine (dir, FN_LARGECACHE));
 
          loadMindims ();
+
+         WebGlobals.Instance.GlobalChangeRepository.RegisterChangeHandler (onVideoFramesUpdated);
       }
+
+      public void Close () {
+         smallStore?.Close ();
+         largeStore?.Close ();
+         saveMindims ();
+      }
+
+      public void Dispose () {
+         WebGlobals.Instance.GlobalChangeRepository.UnregisterChangeHandler (onVideoFramesUpdated);
+         smallStore?.Dispose ();
+         largeStore?.Dispose ();
+      }
+
 
       public void RegisterMinDim(int d) {
          if (d > 0 && d < mindimCounters.Length) {
@@ -91,7 +105,7 @@ namespace BMAlbum {
          if (store != null)
             lock (store) {
                if (store.GetFileEntry (name) != null)
-                  store.AddStream (strm, name, DateTime.Now, CompressMethod.Store);
+                  store.AddStream (strm, name, DateTime.Now, Bitmanager.Storage.CompressMethod.Store);
             }
       }
 
@@ -108,15 +122,32 @@ namespace BMAlbum {
          return ret;
       }
 
-      public void Close () {
-         if (smallStore != null) smallStore.Close ();
-         if (largeStore != null) largeStore.Close ();
-         saveMindims ();
+      private static void onVideoFramesUpdated(string evKey, object context) {
+         if (evKey != Events.EV_VIDEO_FRAMES_UPDATED || context == null) return;
+
+         var g = WebGlobals.Instance;
+         var photoCache = ((Settings)g.Settings).PhotoCache;
+         var frames = (FileStorage)context;
+         
+         int tot = photoCache.MarkStaleIfOlder(CacheType.Both, frames.Entries);
+         g.SiteLog.Log(_LogType.ltInformational, "Updated photo cache for stale videoframes: {0} where marked.", tot);
       }
 
-      public void Dispose () {
-         if (smallStore != null) smallStore.Dispose ();
-         if (largeStore != null) largeStore.Dispose ();
+      public int MarkStaleIfOlder (CacheType type, IEnumerable<FileEntry> src) {
+         int tot = 0;
+         if ((type & CacheType.Small) != 0) tot+=markStaleIfOlder (smallStore, src);
+         if ((type & CacheType.Large) != 0) tot+=markStaleIfOlder (largeStore, src);
+         return tot;
+      }
+
+      private static int markStaleIfOlder (FileStorage store, IEnumerable<FileEntry> src) {
+         int tot = 0;
+         foreach (var e in src) {
+            var ourEntry = store.GetFileEntry (e.Name);
+            if (ourEntry == null) continue;
+            if (ourEntry.Modified < e.Modified) { ++tot; ourEntry.MarkStale (); }
+         }
+         return tot;
       }
 
       private static FileStorage openStore (string fn) {

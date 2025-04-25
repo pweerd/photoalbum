@@ -73,8 +73,8 @@ namespace BMAlbum {
          if (ourOldSettings != null && ourOldSettings.PhotoCache.CacheDir == cacheDir && ourOldSettings.PhotoCache.CacheLarge==cacheLarge) {
             PhotoCache = ourOldSettings.PhotoCache;
          } else {
+            ourOldSettings?.PhotoCache?.Dispose (); //Otherwise we cannot re-open the cache-files
             PhotoCache = new PhotoCache(cacheDir, cacheLarge);
-            ourOldSettings?.PhotoCache?.Dispose ();
          }
          ShrinkerSmall = new Shrinker (photocacheNode.SelectMandatoryNode ("shrink_small"));
          ShrinkerLarge = new Shrinker (photocacheNode.SelectMandatoryNode ("shrink_large"));

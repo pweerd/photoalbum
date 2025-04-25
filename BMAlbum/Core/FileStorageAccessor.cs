@@ -27,13 +27,14 @@ namespace BMAlbum.Core {
    /// </summary>
    public static class FileStorageAccessor {
       public static byte[] GetBytes (FileStorage stor, FileEntry e) {
-         switch ((CompressMethod)e.CompressMethod) {
+         if (e==null || e.Stale) return null;
+         switch (e.CompressMethod & CompressMethod.CompressMask) {
             case CompressMethod.Store:
                break;
             case CompressMethod.Deflate:
                return getDecompressedBytes (stor, e);
             default:
-               ((CompressMethod)e.CompressMethod).ThrowUnexpected ();
+               e.CompressMethod.ThrowUnexpected ();
                break;
          }
          return read (stor, e, e.Size);

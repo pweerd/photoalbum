@@ -53,7 +53,7 @@ namespace BMAlbum.Controllers {
          resp.ThrowIfError ();
 
          if (resp.Documents.Count>0) {
-            settings.FacesAdmin.GetStorage (resp.Documents[0].Index);
+            settings.FacesAdmin.CheckStorage (resp.Documents[0].Index);
          }
 
          var json = new JsonMemoryBuffer ();
@@ -107,7 +107,7 @@ namespace BMAlbum.Controllers {
 
       public IActionResult Get (string storId) {
          var settings = (Settings)base.Settings;
-         var storage = settings.FacesAdmin.GetStorage();
+         var storage = settings.FacesAdmin.Storage;
          if (storage == null) goto NOT_FOUND;
          var entry = storage.GetFileEntry (storId);
          if (entry == null) goto NOT_FOUND;

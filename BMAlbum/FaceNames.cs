@@ -24,16 +24,25 @@ namespace BMAlbum {
 
       public FaceNames (string fn) {
          ChangeId = changeId++;
-         var list = new List<FaceName> ();
-         int i = 0;
-         foreach (string line in File.ReadLines (fn)) {
-            list.Add (new FaceName (i, line.Trim ()));
-            i++;
+         if (!File.Exists (fn)) {
+            SortedNames = Names = new FaceName[0];
+            Count = 0;
+         } else {
+            var list = new List<FaceName> ();
+            int i = 0;
+            foreach (string line in File.ReadLines (fn)) {
+               list.Add (new FaceName (i, line.Trim ()));
+               i++;
+            }
+            Names = list.ToArray ();
+            Count = Names.Length;
+            if (Names.Length <= 1)
+               SortedNames = Names;
+            else {
+               list.Sort ((a, b) => StringComparer.OrdinalIgnoreCase.Compare (a.Name, b.Name));
+               SortedNames = list.ToArray ();
+            }
          }
-         Names = list.ToArray ();
-         list.Sort ((a, b) => StringComparer.OrdinalIgnoreCase.Compare (a.Name, b.Name));
-         SortedNames = list.ToArray ();
-         Count = Names.Length;
       }
 
       public string NameById (int id) => Names[id].Name; 

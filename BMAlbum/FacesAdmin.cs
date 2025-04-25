@@ -15,7 +15,9 @@
  */
 
 using Bitmanager.Core;
+using Bitmanager.IO;
 using Bitmanager.Storage;
+using Bitmanager.Web;
 using Bitmanager.Xml;
 using System.Xml;
 
@@ -36,34 +38,33 @@ namespace BMAlbum {
       const string FN_FACENAMES = "faceNames.txt";
       private readonly Logger logger;
       private readonly string root;
-      private readonly FileSystemWatcher namesWatcher;
       private volatile FaceNames names;
       private volatile NamedStorage storage;
 
-      public FaceNames Names {
-         get {
-            if (names != null) return names;
-            lock (root) {
-               if (names != null) return names;
-               return names = new FaceNames (Path.Combine (root, FN_FACENAMES));
-            }
-         }
-      }
+      public FaceNames Names => names;
+      public FileStorage Storage => storage;
+
+      public FacesAdmin (XmlNode node, Logger siteLog) : this (node.ReadPath ("@dir"), siteLog) { }
 
       public FacesAdmin (string dir, Logger siteLog) {
          logger = siteLog;
          root = Path.GetFullPath (dir);
-         string fn = Path.Combine (root, FN_FACENAMES);
-         if (File.Exists (fn)) names = new FaceNames (fn);
-         namesWatcher = new FileSystemWatcher (root, FN_FACENAMES);
-         namesWatcher.NotifyFilter = NotifyFilters.LastWrite;
-         namesWatcher.Changed += onNamesChanged;
-         namesWatcher.Renamed += onNamesRenamed;
-         namesWatcher.EnableRaisingEvents = true;
+         createFaceNames ();
+         WebGlobals.Instance.GlobalChangeRepository.RegisterFileWatcher (root,
+            false,
+            new NameFilter (FN_FACENAMES + "$", true),
+            ChangeType.RenamedOrChanged,
+            Events.EV_FACENAMES_CHANGED,
+            onNamesChanged
+         );
       }
-      public FacesAdmin (XmlNode node, Logger siteLog) : this (node.ReadPath ("@dir"), siteLog) { }
 
-      public FileStorage GetStorage (string indexName) {
+      public void Dispose () {
+         storage?.Dispose ();
+      }
+
+
+      public FileStorage CheckStorage (string indexName) {
          var tmp = storage;
          if (tmp != null && tmp.Name == indexName) return tmp;
 
@@ -79,26 +80,20 @@ namespace BMAlbum {
          }
       }
 
-      public FileStorage GetStorage () {
-         return storage;
-      }
 
-      private void onNamesChanged (object sender, FileSystemEventArgs e) {
-         try {
-            names = new FaceNames (e.FullPath);
-         } catch (Exception ex) {
-            Logs.ErrorLog.Log (ex, "Face names [{0}] changed, but error during reload: {1}", e.FullPath, ex.Message);
+      private FaceNames createFaceNames () {
+         lock (root) {
+            if (names != null) return names;
+            return names = new FaceNames (Path.Combine (root, FN_FACENAMES));
          }
-         logger.Log ("Face names [{0}] reloaded.", e.FullPath);
       }
 
-      private void onNamesRenamed (object sender, RenamedEventArgs e) {
-         onNamesChanged (sender, e);
-      }
 
-      public void Dispose () {
-         storage?.Dispose ();
-         namesWatcher?.Dispose ();
+      private void onNamesChanged (string key, object context) {
+         if (key == Events.EV_FACENAMES_CHANGED) {
+            createFaceNames ();
+            logger.Log (_LogType.ltInformational, "Face names reloaded from [{0}].", Path.Combine (root, FN_FACENAMES));
+         }
       }
    }
 }
