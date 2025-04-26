@@ -34,7 +34,7 @@
       <!-- syncs the blacklist with bitmanager and put the downloaded list into the tempdir -->
       <ipblacklist sync_url="default" generations="2" root="temp\ipblacklist.txt" check_period="1h" mandatory="true"/>
       <user_agent excl="^curl|^python|^Go-http-client|AsyncHttpClient" allow_empty="false"/>
-      <referrer dynamic="true" root_expr="^/$|^/[^/]+$">
+      <referrer dynamic="false" root_expr="^/$|^/[^/]+$">
          <incl url="YOUR HOST, including schema" />
       </referrer>
    </access_control>
@@ -48,7 +48,8 @@
       <root name="ROOTNAME" dir="ROOTDIR" />
    </roots>
 
-   <faces_admin dir="SAME ADMINDIR AS IMPORT" />
+   <faces_admin  dir="SAME ADMINDIR AS IMPORT" />
+   <video_frames dir="SAME ADMINDIR AS IMPORT" />
 
    <photocache >
       <refresh active="false" sleeptime="300" />
@@ -70,6 +71,7 @@
       <search track_hits="true" debug="false">
          <fuzzy trigger_at="0" weight="0.45"/>
          <fieldconfigs>
+            <config select_searchfield="location" flags="default"/>
             <config select_searchfield="all|text_nl" flags="default|constant|useOnlyStem" fuzzy_rewrite="top_terms_boost_6"/>
             <config select_searchfield="camera|season|location" not_flags="useStem|allowFuzzy" flags="default|constant|phraseForNormal"/>
             <config select_searchfield="season|location" not_flags="useStem|allowFuzzy" flags="default|constant"/>
@@ -219,6 +221,11 @@
    </mvc>
 
    <users>
+      <!-- This will automatic expose all available users (see import.xml)
+           skip_authenticate="." means: do not authenticate for all IP's
+      -->
+      <template expose="." skip_authenticate="." />
+
       <!-- Example of a collection. Accessible as <main_url>/9d71530b1f314b08816dcef2625e85eb
            expose="." means: expose to all IP's
            skip_authenticate="." means: do not authenticate for all IP's
