@@ -274,7 +274,12 @@ function createApplication(state) {
    }
 
    $(window).on('popstate', _onPopHistory)
-   let _overlay = createOverlay('#overlay');
+   const _overlay = createOverlay('#overlay');
+   _overlay.setDefaultBehaviorProp('maxWStrategy', '100%');
+   _overlay.setDefaultBehaviorProp('maxHStrategy', '100%');
+   _overlay.setDefaultBehaviorProp('debug', dbg_overlay);
+
+
    function _enableOrDisableMap(enable) {
       let $map = $("#map");
       let $main = $("#main");

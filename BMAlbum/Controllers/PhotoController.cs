@@ -176,8 +176,7 @@ namespace BMAlbum.Controllers {
          if (query != null) {
 
             queryGenerator = new QueryGenerator (searchSettings, settings.IndexInfoCache.GetIndexInfo(settings.MainIndex), query);
-            if (queryGenerator.ParseResult.Root is ParserEmptyNode) queryGenerator = null;
-            else {
+            if (!(queryGenerator.ParseResult.Root is ParserEmptyNode)) { 
                int phraseNodes = 0;
                //int normalNodes = 0;
                //int fuzzyEligiblePhraseNodes = 0;
@@ -379,11 +378,16 @@ namespace BMAlbum.Controllers {
       }
 
       private void writeFiles (JsonBuffer json, List<GenericDocument> docs, bool dbg, QueryGenerator queryGenerator) {
-         HashSet<string> gTerms = new HashSet<string> ();
-         HashSet<string> terms = new HashSet<string> ();
+         var terms = new HashSet<string> ();
+         var gTerms = new HashSet<string> ();
          string str;
-         var transTerms = queryGenerator?.Translated;
-         if (transTerms != null) foreach (var tq in transTerms) gTerms.Add (tq.ToString ());
+         if (queryGenerator != null) {
+            var transTerms = queryGenerator?.Translated;
+            if (transTerms != null && transTerms.Count > 0) {
+               foreach (var tq in transTerms) gTerms.Add (tq.ToString ());
+            }
+            if (queryGenerator.ParseResult.Errors) json.WriteProperty ("query_error", true);
+         }
          double maxRatio = 1;
          double maxWRatio = 1;
          double minWRatio = 100;
@@ -469,7 +473,6 @@ namespace BMAlbum.Controllers {
          json.WriteProperty ("mean_w_ratio", Math.Round (docs.Count == 0 ? 1 : meanWRatio / docs.Count, 4));
          json.WriteProperty ("min_w_ratio", Math.Round (minWRatio ==100 ? 1 : minWRatio, 4));
          if (gTerms.Count > 0) json.WriteProperty ("all_terms", string.Join ("\n\t", gTerms));
-
       }
 
       private static void writeDuration (JsonWriter wtr, GenericDocument doc) {

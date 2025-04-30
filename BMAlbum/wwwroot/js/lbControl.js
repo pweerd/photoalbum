@@ -75,7 +75,7 @@ function createLightboxControl(app) {
    });
 
    function _resetAll() {
-      _overlay.hideNow();
+      app.overlay.hideNow();
       _ctxMenu.close();
       _zoomer.reset();
    }
@@ -241,8 +241,8 @@ function createLightboxControl(app) {
       sb.push("<table class='meta_table'>");
       addRow("Gevonden", photo.terms);
       addRow("File", photo.f.substring(ix1 + 1));
-      addRow("Album", photo.a);
       addRow("Datum", photo.date);
+      addRow("Album", photo.a);
       addRow("Titel", photo.t_nl);
       addRow("Ocr", photo.t_ocr);
       addRow("Tit_en", photo.t_en);
@@ -255,7 +255,6 @@ function createLightboxControl(app) {
             addRow("C_ID", photo.c_id);
             addRow("C_Name", photo.c_name);
             addRow("Mime", photo.mime);
-
          }
       }
       if (photo.names) {
@@ -326,13 +325,12 @@ function createLightboxControl(app) {
       if ($target === undefined) $target = $($('.lb-item').get(ix)).find('.info-badge');
       console.log('_showInfo', $target);
       
-      _overlay.activate($target, { //.closest('.lb-wrapper')
+      app.overlay.activate($target, { //.closest('.lb-wrapper')
          delay: 1000,
          closeOnClick: true,
          propagateClick: false,
          mode: "scroll",
          initialState: 'fixed',
-         debug: dbg_overlay,
          applyExtraStyles: function ($div) {
             $div.css("font-size", "inherit");
          },
@@ -494,8 +492,6 @@ function createLightboxControl(app) {
       let sb = [];
       let imgUrl = app.createUrl('facephoto/get') + "&storid=";
       let photoUrl = app.createUrl('photo/get') + "&id=";
-      //let imgUrl = _state.home_url + 'facephoto/get?storid=';
-      //let photoUrl = _state.home_url + 'photo/get?id=';
 
       //Determine best height of the images and save the value for later usage
       const lbState = _prepareLightboxAndGetHeight($elt, data.max_w_ratio || 1, true);
@@ -537,10 +533,12 @@ function createLightboxControl(app) {
 
       //Handle tooltip for the searchbox
       let $searchBox = $('#searchq');
-      let sbTitle = data.all_terms;
-      sbTitle = sbTitle ? "Gevonden:\n\t" + sbTitle : '';
-      $searchBox.attr('data-title', sbTitle);
-      if (sbTitle) {
+      let tt = data.all_terms;
+      if (tt) tt = "Gevonden:\n\t" + tt;
+      else if (data.query_error) tt = "Query kon niet goed geinterpreteerd worden.\nRaadpleeg even de help...\n(?-icon in leeg query veld.)";
+      else tt = ''
+      $searchBox.attr('data-title', tt);
+      if (tt) {
          var mouseAt = $(':hover').last();
          if (mouseAt && mouseAt[0] === $searchBox[0]) _triggerSearchTooltip();
       }
@@ -713,7 +711,7 @@ function createLightboxControl(app) {
             console.log('INNER_CLICK:', ev.clientX, ev.clientY, mid, rect.top, rect.bottom, $img);
             if (ev.clientY < rect.top || ev.clientY > rect.bottom) {
                console.log('INNER_CLICK: below/above');
-               _lg.closeGallery(false);
+               _lg.closeGallery();
                return;
             }
 
@@ -749,7 +747,6 @@ function createLightboxControl(app) {
 
       _prepareTiming();
       _state.getJSON(_faceMode ? 'facephoto/index' : 'photo/index', function (data) {
-         _lg.closeGallery(true);
          _addTiming(data, "Trip");
          _resetAll();
          _data = data;
@@ -935,8 +932,6 @@ function createLightboxControl(app) {
       _updateLightBox();
    }
 
-   let _overlay = createOverlay('#overlay');
-
    $('#albums').on('change', function () {
       let ix = parseInt(this.value);
       _state.slide = undefined;
@@ -988,6 +983,7 @@ function createLightboxControl(app) {
             _state.pin = undefined;
             _state.year = undefined;
             _state.album = clickedPhoto.a;
+            _lg.closeGallery();
             _updateLightBox();
             break;
          case 'ctx_goto_track':
@@ -1006,6 +1002,7 @@ function createLightboxControl(app) {
             _state.album = undefined;
             _state.per_album = undefined;
             _lg.needBack = false;
+            _lg.closeGallery();
             _updateLightBox();
             break;
          case 'ctx_goto_faces':
@@ -1126,10 +1123,9 @@ function createLightboxControl(app) {
       $(idSelection).on("mouseenter", function (ev) {
          ev.stopPropagation();
 
-         _overlay.activate($(ev.target), { 
+         app.overlay.activate($(ev.target), { 
             mode: "scroll",
             initialState: 'fixed',
-            debug: dbg_overlay,
             applyExtraStyles: "emulate_pre_proportional",
             copyContent: function ($dst) {
                this.showState('html');
@@ -1165,9 +1161,8 @@ function createLightboxControl(app) {
       let title = $("#searchq").attr('data-title');
       if (!title) return;
       if (ev) ev.stopPropagation();
-      _overlay.activate($("#searchq"), {
+      app.overlay.activate($("#searchq"), {
          mode: 'tooltip',
-         debug: dbg_overlay,
          applyExtraStyles: 'emulate_pre'
       });
    }

@@ -43,10 +43,8 @@ namespace BMAlbum.Controllers {
          QueryGenerator queryGenerator = null;
          if (clientState.Query != null) {
             queryGenerator = new QueryGenerator (settings.FaceSearchSettings, settings.IndexInfoCache.GetIndexInfo (settings.FaceIndex), clientState.Query);
-            if (queryGenerator.ParseResult.Root is ParserEmptyNode) queryGenerator = null;
-            else {
-               bq.AddMust (queryGenerator.GenerateQuery (FuzzyMode.None).WrapNestedQueries(ESScoreMode.max));
-            }
+            if (!(queryGenerator.ParseResult.Root is ParserEmptyNode))
+               bq.AddMust (queryGenerator.GenerateQuery (FuzzyMode.None).WrapNestedQueries (ESScoreMode.max));
          }
 
          var resp = req.Search ();
@@ -58,6 +56,16 @@ namespace BMAlbum.Controllers {
 
          var json = new JsonMemoryBuffer ();
          json.WriteStartObject ();
+         if (queryGenerator != null) {
+            var transTerms = queryGenerator?.Translated;
+            if (transTerms != null && transTerms.Count > 0) {
+               var gTerms = new HashSet<string> ();
+               foreach (var tq in transTerms) gTerms.Add (tq.ToString ());
+               json.WriteProperty ("all_terms", string.Join ("\n\t", gTerms));
+            }
+            if (queryGenerator.ParseResult.Errors) json.WriteProperty ("query_error", true);
+         }
+
          json.WriteProperty ("chgid", faceNames.ChangeId);
          json.WriteProperty ("total", resp.TotalHits);
          json.WriteProperty ("new_state", (IJsonSerializable)clientState.ToJson ());

@@ -33,11 +33,13 @@ function createOverlay(pane) {
       mode:'overlay',
       debug: DBG_DEFAULT,
       maxHStrategy: '100%',
+      maxWStrategy: 'default',
       propagateClick: true,
       closeOnClick: true,
       useTargetsBackground: false,
       initialState: 'html',
       states: ['html', 'text', 'json', 'xml'],
+      copyFont: true,
       copyContent: function ($dst) {
          let tmp = this.$target.html();
          $dst.html(tmp);
@@ -109,6 +111,12 @@ function createOverlay(pane) {
       mode: 'scroll',
       closeOnClick: true
    });
+
+   function _setDefaultBehaviorProp(k, v) {
+      _defBehavior[k] = v;
+      _scrollBehavior[k] = v;
+      _tooltipBehavior[k] = v;
+   }
 
    function _createBehavior(overlay, behavior, $target) {
       let ret = behavior;
@@ -210,7 +218,7 @@ function createOverlay(pane) {
       if (behavior.mode === "scroll" || behavior.mode === "tooltip" || neededW + offset.left > maxW) {
          if (dbg) console.log("OVL: Need largeTooltip");
          $overlay.addClass(OVL_SCROLL);
-         _copyFont($div, $target);
+         if (behavior.copyFont) _copyFont($div, $target);
          _content = behavior.copyContent($div);
          _state = _convertAutoState(_state);
          if (_content && !behavior.showState(_state)) behavior.showState(_state='text');
@@ -228,13 +236,13 @@ function createOverlay(pane) {
          $div.height($target.innerHeight() + 3);
          if (!behavior.useTargetsBackground) {
             if (dbg) console.log("OVL: own background");
-            _copyFont($div, $target);
+            if (behavior.copyFont) _copyFont($div, $target);
             behavior.copyContent($div);
          } else {
             if (dbg) console.log("OVL: target's background");
             const $clone = $target.clone();
 
-            _copyFont($clone, $target);
+            if (behavior.copyFont) _copyFont($clone, $target);
             $clone.css("position", "static");
             $div.copyStyles($target.parent(), "^color|^background|^cursor");
             _copyStyleDeep($div, $target.parent(), 'background-color', _transparentBackGround);
@@ -264,10 +272,32 @@ function createOverlay(pane) {
       const parms = _behavior.createPositionParms($div);
       //console.log("OVL: parms=", parms, ', tgt=', $target[0]);
 
-      $overlay.position(parms);
 
       //Note: Not sure why: sometimes the 1st call positions the overlay a bit to the left...
       //However, since we modify the max-height, it makes sense to always do a 2nd call to position()
+      $overlay.position(parms);
+
+      switch (typeof _behavior.maxWStrategy) {
+         default: break;
+         case "function":
+            _behavior.maxWStrategy($overlay, $target);
+            break;
+         case "string":
+            console.log("maxWStrategy=", _behavior.maxWStrategy);
+            switch (_behavior.maxWStrategy) {
+               case '':
+               case 'none':
+                  $overlay.css('max-width', '')
+                  break;
+               case 'default':
+                  break;
+               default:
+                  $overlay.css('max-width', _behavior.maxWStrategy);
+                  break;
+            }
+            break;
+      }
+
       switch (typeof _behavior.maxHStrategy) {
          default: break;
          case "function":
@@ -537,6 +567,7 @@ function createOverlay(pane) {
       hideNow: _hideNow,
       clearActivationTimer: _clearActivationTimer,
       doesFit: _doesFit,
+      setDefaultBehaviorProp: _setDefaultBehaviorProp,
       neededWidth: function (target) {
          const node = target[0];
          return Math.max(node.scrollWidth, node.offsetWidth);
