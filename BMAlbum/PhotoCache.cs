@@ -123,7 +123,7 @@ namespace BMAlbum {
       }
 
       private static void onVideoFramesUpdated(string evKey, object context) {
-         if (evKey != Events.EV_VIDEO_FRAMES_UPDATED || context == null) return;
+         if (evKey != Events.EV_VIDEO_FRAMES_RELOADED || context == null) return;
 
          var g = WebGlobals.Instance;
          var photoCache = ((Settings)g.Settings).PhotoCache;

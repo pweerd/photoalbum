@@ -22,9 +22,9 @@ namespace BMAlbum {
          if (!g.GlobalChangeRepository.ContainsKey (Events.EV_VIDEO_FRAMES_CHANGED)) {
             g.GlobalChangeRepository.RegisterFileWatcher (dir,
                                         false,
-                                        new NameFilter ("video_frames($|\\.stor$)", true),
+                                        new NameFilter ("video_frames($|.+\\.stor$)", true),
                                         ChangeType.Changed | ChangeType.Renamed,
-                                        Events.EV_VIDEO_FRAMES_UPDATED,
+                                        Events.EV_VIDEO_FRAMES_CHANGED,
                                         true);
             g.GlobalChangeRepository.RegisterChangeHandler (onChange);
          }
@@ -68,7 +68,7 @@ namespace BMAlbum {
                g.DelayedDisposer.Add(oldFrames);
 
                g.SiteLog.Log (_LogType.ltInformational, "Reloaded video frames using {0}", fn);
-               g.GlobalChangeRepository.FireChangeEvent (Events.EV_VIDEO_FRAMES_UPDATED, videoFrames.frames);
+               g.GlobalChangeRepository.FireChangeEvent (Events.EV_VIDEO_FRAMES_RELOADED, videoFrames.frames);
             } catch (Exception e) {
                string msg = "Error while updating video frames: " + e.Message;
                Logs.ErrorLog.Log (e, msg);
