@@ -33,6 +33,27 @@ function createApplication(state) {
       });
    };
 
+
+   const _histKeys = [
+      'mode',
+      'q',
+      'pin',
+      'per_album',
+      'sort',
+      'album',
+      'year',
+      'slide',
+      'center',
+      'zoom',
+   ];
+   function _copyStateParms(dst, src) {
+      for (let i = 0; i < _histKeys.length; i++) {
+         const k = _histKeys[i];
+         dst[k] = src[k];
+      };
+   }
+
+
    Object.setPrototypeOf(state, {
       createUrl: function (relPath) {
          let parts = [this.user_home_url];
@@ -71,6 +92,13 @@ function createApplication(state) {
          if (newState) _copyStateParms(this, newState);
          this.activeState = {};
          _copyStateParms(this.activeState, this);
+      },
+
+      clear: function () {
+         for (let i = 0; i < _histKeys.length; i++) {
+            const k = _histKeys[i];
+            this[k] = undefined;
+         };
       },
 
       pushHistory: function (from, forceReplace) {
@@ -205,25 +233,6 @@ function createApplication(state) {
 
    function _dumpHistory(why) {
       //console.log('Dumping history. length=', history.length, ", Why=", why, ', state=', history);
-   }
-
-   const _histKeys = [
-      'mode',
-      'q',
-      'pin',
-      'per_album',
-      'sort',
-      'album',
-      'year',
-      'slide',
-      'center',
-      'zoom',
-   ];
-   function _copyStateParms(dst, src) {
-      for (let i = 0; i < _histKeys.length; i++) {
-         const k = _histKeys[i];
-         dst[k] = src[k];
-      };
    }
 
 

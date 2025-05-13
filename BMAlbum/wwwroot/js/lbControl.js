@@ -299,7 +299,7 @@ function createLightboxControl(app) {
          }
          _openedInfoViaClick = false;
          console.log("INFO: Closing panel by click");
-         _overlay.hideNow();
+         app.overlay.hideNow();
          return;
       } else if (_isTouch)
          return;
@@ -311,7 +311,7 @@ function createLightboxControl(app) {
          if ($target.length === 0) {
             if (!_openedInfoViaClick) {
                console.log("INFO: Closing panel by mouseout");
-               _overlay.hideNow();
+               app.overlay.hideNow();
             }
          }
          return;
@@ -822,10 +822,6 @@ function createLightboxControl(app) {
       }, 50);
    }
 
-   //function _dumpHistory(why) {
-   //   console.log('History length=', history.length, ", FromPop=", _isFromPopState, ", Why=", why, ', state=', history.state);
-   //}
-
    function _getSlideIndex(slide) {
       if (slide) {
          let files = _data.files;
@@ -923,12 +919,8 @@ function createLightboxControl(app) {
       //Don't honor the album and year facet: its really confusing somethimes
       //In case of a query, the per_album setting is ignored
       let q = $("#searchq").val();
+      _state.clear();
       _state.q = q;
-      _state.pin = undefined;
-      _state.per_album = q ? undefined : $("#per_album")[0].checked;
-      _state.album = undefined;
-      _state.year = undefined;
-      _state.slide = undefined;
       _updateLightBox();
    }
 
@@ -1073,8 +1065,11 @@ function createLightboxControl(app) {
    _ctxMenu.onMenu(function (ev, context) {
       const $target = context.$target; 
       let ix = context.targetIndex;
-      if ($target.hasClass('lg-item'))
-         context.targetIndex = ix = $target.find('img').data('index');
+
+      //The index is not correct when clicked on the gallery: get the index from the gallery
+      if ($target.hasClass('lg-item')) { 
+         context.targetIndex = ix = _lg.index;
+      }
 
       if (ix < 0 || ix >= _data.files.length) return false;
       let curPhoto = _data.files[ix];
@@ -1168,7 +1163,7 @@ function createLightboxControl(app) {
    }
    $("#searchq").on('mouseenter', _triggerSearchTooltip
    ).on('mouseout', function (ev) {
-      //_overlay.hideNow();
+      //app.overlay.hideNow();
    });
 
    let _onChangeTimer = 0;
