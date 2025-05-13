@@ -15,6 +15,7 @@
  */
 
 using Bitmanager.Core;
+using Bitmanager.ImageTools;
 using Bitmanager.Xml;
 using System.Drawing;
 using System.Numerics;
@@ -22,83 +23,12 @@ using System.Xml;
 
 namespace BMAlbum.Core {
 
-   public class Shrinker {
-      public readonly ShrinkOperation[] Operations;
-      public readonly int Quality;
+   public class Shrinker: BitmapShrinker {
       public readonly bool UseCache;
-      public Logger Logger;
 
-      public Shrinker (IList<ShrinkOperation> operations, int quality=80, bool useCache=true) {
-         Operations = operations.ToArray ();
-         Quality = quality;
-         UseCache = useCache;
-      }
-      public Shrinker (XmlNode node) {
-         Quality = node.ReadInt ("@quality", 80);
+      public Shrinker (XmlNode node) : base(node) {
          UseCache = node.ReadBool ("@cache", true);
-         if (node.ReadBool("@log", false)) Logger = Logs.CreateLogger ("timings", node.Name);
-         const string possible = "fix_orientation, factor2, factor15, exact, sharpen, gausse_sharpen, min_factor";
-         var list = new List<ShrinkOperation> ();
-         foreach (XmlNode sub in node.ChildNodes) {
-            if (sub.NodeType != XmlNodeType.Element) continue;
-            ShrinkOperation tmp;
-            switch (sub.Name) {
-               case "fix_orientation": tmp = new ShrinkOrientationFixer (); break;
-               case "factor2": tmp = new ShrinkFactor2 (sub); break;
-               case "factor15": tmp = new ShrinkFactor15 (sub); break;
-               case "exact": tmp = new ShrinkExact (); break;
-               case "sharpen": tmp = new ShrinkSharpen (sub); break;
-               case "gausse_sharpen": tmp = new ShrinkGausseSharpen (sub); break;
-               case "min_factor": tmp = new CheckMinFactor (sub); break;
-               default:
-                  if (sub.Name.StartsWith ('_')) continue;
-                  throw new BMNodeException (sub, "Unrecognized node [{0}]. Possible values are: {1}.", sub.Name, possible);
-            }
-            list.Add (tmp);
-         }
-         Operations = list.ToArray ();
       }
-
-      public bool Shrink (ref Bitmap bm, int targetW, int targetH) {
-         var ctx = new ShrinkContext (bm);
-         if (Logger != null) {
-            for (int i = 0; i < Operations.Length; i++) {
-               bool ret;
-               string name = Operations[i].GetType ().Name;
-               Logger.Log (_LogType.ltTimerStart, name);
-               Bitmap tmp = ctx.Bitmap;
-               ret=Operations[i].Process (ctx, targetW, targetH);
-               Logger.Log (_LogType.ltTimerStop, "{0} -> {1}, changed={2}", name, ret, !object.ReferenceEquals(tmp, ctx.Bitmap));
-               if (!ret) break;
-            }
-         } else {
-            for (int i = 0; i < Operations.Length; i++) {
-               if (!Operations[i].Process (ctx, targetW, targetH)) break;
-            }
-         }
-         bm = ctx.Bitmap;
-         return ctx.CopyPropertiesIfChanged();
-      }
-      public int GetFingerPrint (int srcW, int srcH, int targetW, int targetH) {
-         int fp = 0;
-         if (Logger != null) {
-            for (int i = 0; i < Operations.Length; i++) {
-               bool ret;
-               string name = Operations[i].GetType ().Name;
-               Logger.Log (_LogType.ltTimerStart, name);
-               ret = Operations[i].GetFingerprint (srcW, srcH, targetW, targetH, ref fp);
-               Logger.Log (_LogType.ltTimerStop, "{0} -> {1}, fp={2}", name, ret, fp);
-               if (!ret) break;
-            }
-         } else {
-            for (int i = 0; i < Operations.Length; i++) {
-               if (!Operations[i].GetFingerprint (srcW, srcH, targetW, targetH, ref fp)) break;
-            }
-         }
-         return fp;
-      }
-
-
    }
 
 }

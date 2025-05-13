@@ -30,6 +30,7 @@ namespace BMAlbum {
       public readonly CacheType Type;
       public RefreshParams (JsonObjectValue v) {
          MaxCount = v.ReadInt ("max_count", int.MaxValue);
+         if (MaxCount < 0) MaxCount = int.MaxValue;
          WaitBetweenItems = v.ReadInt ("wait_between_items", 100);
          Type = v.ReadEnum ("cache_type", CacheType.Small);
          Dimensions = asIntArr (v.ReadValue ("dims", true));

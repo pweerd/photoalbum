@@ -18,8 +18,16 @@ using Bitmanager.Core;
 using Bitmanager.IO;
 using Bitmanager.Storage;
 using Bitmanager.Web;
+using Bitmanager.Xml;
 using BMAlbum.Core;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using System.Security.AccessControl;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
+using System.Xml.Linq;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace BMAlbum {
 
@@ -29,41 +37,179 @@ namespace BMAlbum {
    public class PhotoCache : IDisposable {
       private const int MINCNT = 1; //was 10 for debugging
       private const string FN_MINDIMS = "mindims.txt";
-      private const string FN_SMALLCACHE = "smallcache.stor";
-      private const string FN_LARGECACHE = "largecache.stor";
+      private const string FN_SMALLCACHE = "smallcache";
+      private const string FN_LARGECACHE = "largecache";
       public readonly string CacheDir;
-      public readonly bool CacheLarge;
       private readonly int[] mindimCounters;
+      public readonly Shrinker ShrinkerSmall;
+      public readonly Shrinker ShrinkerLarge;
 
-      private readonly FileStorage smallStore;
-      private readonly FileStorage largeStore;
+      private readonly FileStorage SmallStore;
+      private readonly FileStorage LargeStore;
 
-      public PhotoCache (string dir, bool cacheLarge) {
+      private PhotoCache (string dir, Shrinker small, Shrinker large, FileStorage smallStore, FileStorage largeStore) {
          mindimCounters= new int[1200];
-         CacheLarge = cacheLarge;
          CacheDir = dir;
-         smallStore = openStore (Path.Combine (dir, FN_SMALLCACHE));
-
-         if (cacheLarge)
-            largeStore = openStore (Path.Combine (dir, FN_LARGECACHE));
+         ShrinkerSmall = small;
+         ShrinkerLarge = large;
+         SmallStore = smallStore;
+         LargeStore = largeStore;
 
          loadMindims ();
+      }
 
+      static PhotoCache() {
          WebGlobals.Instance.GlobalChangeRepository.RegisterChangeHandler (onVideoFramesUpdated);
       }
 
-      public void Close () {
-         smallStore?.Close ();
-         largeStore?.Close ();
-         saveMindims ();
+
+      /// <summary>
+      /// Factory method to create a PhotoCache
+      /// We try to reuse as max as possible from the old PhotoCache.
+      /// Shrinkers are always rebuild, but caches reused if the fingerprint of the shrinker wasn't changed
+      /// </summary>
+      public static PhotoCache Create (WebGlobals g, XmlNode node, PhotoCache old) {
+         var mp = node.ReadInt ("@max_parallel", 1);
+         g.SiteLog.Log ("Setting maxParallel to {0}", mp);
+         Bitmanager.ImageTools.ImageSharpHelper.SetMaxParallel (mp);
+
+         string dir = node.ReadPath ("@dir", @"temp\cache");
+         IOUtils.ForceDirectories (dir, false);
+
+         var small = new Shrinker (node.SelectMandatoryNode ("shrink_small"));
+         var large = new Shrinker (node.SelectMandatoryNode ("shrink_large"));
+         FileStorage smallStore = null, largeStore = null, disposeSmall = null, disposeLarge = null;
+
+         if (old == null) goto CREATE;
+         if (dir != old.CacheDir) goto CREATE;
+
+         if (small.FingerPrint == old.ShrinkerSmall.FingerPrint) smallStore = old.SmallStore;
+         if (large.FingerPrint == old.ShrinkerLarge.FingerPrint) largeStore = old.LargeStore;
+
+      CREATE:
+         try {
+            if (smallStore == null) smallStore = disposeSmall = createStorage (g, dir, small, FN_SMALLCACHE);
+            if (largeStore == null) largeStore = disposeLarge = createStorage (g, dir, large, FN_LARGECACHE);
+
+            if (old != null) {
+               if (smallStore != old.SmallStore) g.DelayedDisposer.Add (old.SmallStore);
+               if (largeStore != old.LargeStore) g.DelayedDisposer.Add (old.LargeStore);
+            }
+
+            var ret = new PhotoCache (dir, small, large, smallStore, largeStore);
+
+            disposeSmall = null;
+            disposeLarge = null;
+
+            return ret;
+         } finally {
+            disposeSmall?.Dispose ();
+            disposeLarge?.Dispose ();
+         }
       }
+
+      /// <summary>
+      /// Opening or creating a storage if the shrinker indicates we need one. If not, return null
+      /// </summary>
+      private static FileStorage createStorage (WebGlobals g, string dir, Shrinker shrinker, string name) {
+         if (!shrinker.UseCache) return null;
+
+         string fn = Invariant.Format ("{0}_{1:X}.stor", Path.Combine (dir, name), shrinker.FingerPrint);
+
+         if (FileStorage.IsPossibleAndExistingStorageFile (fn)) {
+            try {
+               return new FileStorage (fn, FileOpenMode.ReadWrite);
+            } catch (Exception e) {
+               string msg = Invariant.Format ("Cannot open cache file [{0}]. Will create a new one.", fn);
+               g.SiteLog.Log(_LogType.ltWarning, msg);
+               Logs.ErrorLog.Log (e, msg);
+            }
+         }
+         return new FileStorage (fn, FileOpenMode.Create);
+      }
+
 
       public void Dispose () {
-         WebGlobals.Instance.GlobalChangeRepository.UnregisterChangeHandler (onVideoFramesUpdated);
-         smallStore?.Dispose ();
-         largeStore?.Dispose ();
+         //Don't need to do this: we were simply terminated. 
+         //WebGlobals.Instance.GlobalChangeRepository.UnregisterChangeHandler (onVideoFramesUpdated);
+         SmallStore?.Dispose ();
+         LargeStore?.Dispose ();
       }
 
+
+      public Stream FetchSmallImage (string id, string fn, int h, Func<string,string,Image<Rgb24>> loader) {
+         string cacheName = id + "&h=" + h;
+
+         if (SmallStore != null) {
+            FileEntry e;
+            lock (SmallStore) {
+               e = SmallStore.GetFileEntry (cacheName);
+            }
+            if (e != null) {
+               var bytes = FileStorageAccessor.GetBytes (SmallStore, e);
+               return new MemoryStream (bytes);
+            }
+         }
+
+         var bm = loader (id, fn);
+         try { 
+            ShrinkerSmall.ApplyInPlace (ref bm, -1, h);
+            var mem = new MemoryStream ();
+            bm.SaveAsJpeg (mem, ShrinkerSmall.JpgEncoder);
+            mem.Position = 0;
+
+            if (ShrinkerSmall.UseCache) {
+               lock (SmallStore) {
+                  if (SmallStore.GetFileEntry (cacheName) == null)
+                     SmallStore.AddStream (mem, cacheName, DateTime.Now, Bitmanager.Storage.CompressMethod.Store);
+               }
+               mem.Position = 0;
+            }
+            return mem;
+
+         } finally {
+            bm?.Dispose ();
+         }
+      }
+
+
+      public Stream FetchLargeImage (string id, string fn, int srcW, int srcH, int targetW, int targetH, Func<string, string, Image<Rgb24>> loader) {
+         int f = ShrinkerLarge.GetShrinkedFactorInt (srcW, srcH, targetW, targetH);
+         if (f <= ShrinkerLarge.Granularity) return null; //Indicate: nothing for us...
+
+         string cacheName = id + "&f=" + f;
+
+         if (LargeStore != null) {
+            FileEntry e;
+            lock (LargeStore) {
+               e = LargeStore.GetFileEntry (cacheName);
+            }
+            if (e != null) {
+               var bytes = FileStorageAccessor.GetBytes (LargeStore, e);
+               return new MemoryStream (bytes);
+            }
+         }
+
+         var bm = loader (id, fn);
+         try {
+            ShrinkerLarge.ApplyInPlace (ref bm, targetW, targetH);
+            var mem = new MemoryStream ();
+            bm.SaveAsJpeg (mem, ShrinkerLarge.JpgEncoder);
+            mem.Position = 0;
+
+            if (ShrinkerLarge.UseCache) {
+               lock (LargeStore) {
+                  if (LargeStore.GetFileEntry (cacheName) == null)
+                     LargeStore.AddStream (mem, cacheName, DateTime.Now, Bitmanager.Storage.CompressMethod.Store);
+               }
+               mem.Position = 0;
+            }
+            return mem;
+
+         } finally {
+            bm?.Dispose ();
+         }
+      }
 
       public void RegisterMinDim(int d) {
          if (d > 0 && d < mindimCounters.Length) {
@@ -73,7 +219,7 @@ namespace BMAlbum {
       }
 
       private FileStorage getStore(CacheType t) {
-         return t== CacheType.Small ? smallStore : largeStore;
+         return t== CacheType.Small ? SmallStore : LargeStore;
       }
       public bool Exists (string name, CacheType type) {
          var store = getStore(type);
@@ -104,20 +250,20 @@ namespace BMAlbum {
          var store = getStore (type);
          if (store != null)
             lock (store) {
-               if (store.GetFileEntry (name) != null)
+               if (store.GetFileEntry (name) == null)
                   store.AddStream (strm, name, DateTime.Now, Bitmanager.Storage.CompressMethod.Store);
             }
       }
 
       public CacheType Clear (CacheType type) {
          CacheType ret = 0;
-         if ((type & CacheType.Small) != 0 && smallStore != null) {
+         if ((type & CacheType.Small) != 0 && SmallStore != null) {
             ret |= CacheType.Small;
-            lock (smallStore) smallStore.Clear ();
+            lock (SmallStore) SmallStore.Clear ();
          }
-         if ((type & CacheType.Large) != 0 && largeStore != null) {
+         if ((type & CacheType.Large) != 0 && LargeStore != null) {
             ret |= CacheType.Large;
-            lock (largeStore) largeStore.Clear ();
+            lock (LargeStore) LargeStore.Clear ();
          }
          return ret;
       }
@@ -127,16 +273,17 @@ namespace BMAlbum {
 
          var g = WebGlobals.Instance;
          var photoCache = ((Settings)g.Settings).PhotoCache;
+         if (photoCache == null) return;
          var frames = (FileStorage)context;
          
          int tot = photoCache.MarkStaleIfOlder(CacheType.Both, frames.Entries);
          g.SiteLog.Log(_LogType.ltInformational, "Updated photo cache for stale videoframes: {0} where marked.", tot);
       }
 
-      public int MarkStaleIfOlder (CacheType type, IEnumerable<FileEntry> src) {
+      private int MarkStaleIfOlder (CacheType type, IEnumerable<FileEntry> src) {
          int tot = 0;
-         if ((type & CacheType.Small) != 0) tot+=markStaleIfOlder (smallStore, src);
-         if ((type & CacheType.Large) != 0) tot+=markStaleIfOlder (largeStore, src);
+         if ((type & CacheType.Small) != 0) tot+=markStaleIfOlder (SmallStore, src);
+         if ((type & CacheType.Large) != 0) tot+=markStaleIfOlder (LargeStore, src);
          return tot;
       }
 
@@ -149,18 +296,6 @@ namespace BMAlbum {
          }
          return tot;
       }
-
-      private static FileStorage openStore (string fn) {
-         if (FileStorage.IsPossibleAndExistingStorageFile (fn)) {
-            try {
-               return new FileStorage (fn, FileOpenMode.ReadWrite);
-            } catch (Exception e) {
-               Logs.ErrorLog.Log (e, "Cannot open cache file [{0}]. Will create a new one.", fn);
-            }
-         }
-         return new FileStorage (fn, FileOpenMode.Create);
-      }
-
 
       public CacheStats GetCacheStats (CacheType type) {
          Dictionary<int, CountedNumber> dict = new Dictionary<int, CountedNumber> ();
@@ -221,6 +356,7 @@ namespace BMAlbum {
             if (d >= 0 && d < mindimCounters.Length) mindimCounters[d] = c;
          }
       }
+
       private void saveMindims () {
          string fn = Path.Combine (CacheDir, FN_MINDIMS);
          using (var fs = IOUtils.CreateOutputStream (fn)) {

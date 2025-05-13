@@ -21,6 +21,8 @@ namespace BMAlbum {
    public class Program {
       public static void Main (string[] args) {
          try {
+            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+
             var builder = WebApplication.CreateBuilder (args);
             BMLogProvider.ReplaceLogProvider (builder);
 
@@ -50,17 +52,19 @@ namespace BMAlbum {
             app.UseStaticFiles ();
             app.UseRouting ();
             g.RegisterAuthenticationHandler (app);
-
-            app.UseEndpoints (endpoints => {
-               g.RegisterInternalHandlers (endpoints);
-               g.RegisterRoutesFromSettings (endpoints, settings);
-            });
+            g.RegisterInternalHandlers (app);
+            g.RegisterRoutesFromSettings (app, settings);
             app.Run ();
 
          } catch (Exception e) {
             Console.Error.WriteLine ("Error during initialization: {0}", e.GetBestMessage ());
             Logs.ErrorLog.Log (e, "Error during initialization");
          }
+      }
+
+      private static System.Reflection.Assembly CurrentDomain_AssemblyResolve (object sender, ResolveEventArgs args) {
+         Logs.DebugLog.Log ("Resolve: {0} by {1}", args.Name, args.RequestingAssembly.FullName);
+         return null;
       }
    }
 }

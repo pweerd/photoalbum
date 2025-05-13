@@ -21,23 +21,22 @@ using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 using System.Text;
 using System.IO;
-using System.Drawing;
-using System.Drawing.Imaging;
-using Bitmanager.Imaging;
 using Bitmanager.Core;
 using Bitmanager.IO;
 using Bitmanager.Xml;
 using Bitmanager.Web.ActionResults;
 using Bitmanager.Elastic;
 using Bitmanager.BoolParser;
-using Image = System.Drawing.Image;
 using Bitmanager.Query;
 using System.Text.RegularExpressions;
 using static System.Net.WebRequestMethods;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.AspNetCore.Http.Extensions;
-using Bitmanager.Image;
+using Bitmanager.ImageTools;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using BMAlbum.Core;
 
 namespace BMAlbum.Controllers {
 
@@ -377,6 +376,10 @@ namespace BMAlbum.Controllers {
          }
       }
 
+      private static bool isSupportedHtmlVideo(string mime) {
+         if (mime == null) return false;
+         return mime == "video/mp4" || mime == "video/webm" || mime == "video/ogg";
+      }
       private void writeFiles (JsonBuffer json, List<GenericDocument> docs, bool dbg, QueryGenerator queryGenerator) {
          var terms = new HashSet<string> ();
          var gTerms = new HashSet<string> ();
@@ -405,13 +408,23 @@ namespace BMAlbum.Controllers {
                   h = tmp;
                }
             }
+
+            //Try to correct non-html5 mimetypes
+            string mime = doc.ReadStr ("mime", null);
+            if (mime != null && mime.StartsWith("video")) {
+               if (!isSupportedHtmlVideo(mime)) {
+                  string mime2 = MimeType.GetMimeTypeFromFileName (doc.Id);
+                  if (isSupportedHtmlVideo (mime2)) mime = mime2;
+               }
+            }
+
             json.WriteStartObject ();
             json.WriteProperty ("f", doc.Id);
             json.WriteProperty ("a", doc.ReadStr ("album", null));
             json.WriteProperty ("y", doc.ReadStr ("year", null));
             json.WriteProperty ("w", w);
             json.WriteProperty ("h", h);
-            json.WriteProperty ("mime", doc.ReadStr ("mime", null));
+            json.WriteProperty ("mime", mime);
             json.WriteProperty ("t_nl", doc.ReadStr ("text_nl", null));
             json.WriteProperty ("t_ocr", doc.ReadStr ("ocr", null));
             writeDuration (json, doc);
@@ -528,46 +541,39 @@ namespace BMAlbum.Controllers {
             .Append ("&h=").Append (h)
             .ToString ();
       }
-      private static string createLargeCacheName (string id, int f) {
+      private static string createLargeCacheName (string id, int fp) {
          return new StringBuilder ()
             .Append (id)
-            .Append ("&f=").Append (f)
+            .Append ("&f=").Append (fp)
             .ToString ();
       }
-      private Bitmap loadBitmap (string id, string fn) {
+
+
+      private Image<Rgb24> loadBitmap (string id, string fn) {
          string mime = MimeType.GetMimeTypeFromFileName (fn);
          if (mime != null && mime.StartsWith ("video")) {
             if (settings.VideoFrames == null) return null;
             byte[] bytes = settings.VideoFrames.GetFrame (id);
             if (bytes == null) return null;
-            return (Bitmap)Image.FromStream (new MemoryStream (bytes), false, false);
+            return Image.Load<Rgb24> (new Span<byte> (bytes));
          }
-         return new Bitmap (fn);
+         return Image.Load<Rgb24> (fn);
       }
 
-      private IActionResult getSmallImage (string id, int h, string orgFn) {
-         var shrinker = settings.ShrinkerSmall;
-         h = 240;
-         string fn = createSmallCacheName (id, h);
-         Stream strm = shrinker.UseCache ? cache.Get (fn, CacheType.Small) : null;
-         if (strm == null) {
-            Bitmap bm = loadBitmap(id, orgFn); 
-            try {
-               shrinker.Shrink (ref bm,  - 1, h);
-               strm = saveInCacheAndGet (bm, fn, shrinker.Quality, shrinker.UseCache ? CacheType.Small : CacheType.None);
-            } finally {
-               bm?.Dispose ();
-            }
-         }
+      static IActionResult createJpegActionResult (Stream strm, string orgFn) {
+         string fn = Path.GetFileNameWithoutExtension (orgFn) + ".jpg";
          var ret = new StreamActionResult (strm,
                                            MimeType.Jpeg,
-                                           Path.GetFileName (orgFn),
-                                           DateTime.UtcNow,
+                                           fn,
+                                           System.IO.File.GetLastWriteTimeUtc(orgFn),
                                            FileDisposition.Attachment);
          return ret.SetCompress (false).SetCache (CacheOptions.Private, TimeSpan.FromDays (7));
       }
 
-      static int _id;
+      private IActionResult getSmallImage (string id, int h, string orgFn) {
+         var strm = cache.FetchSmallImage (id, orgFn, h, loadBitmap);
+         return createJpegActionResult (strm, orgFn);
+      }
 
       private bool getDimensions (string id, out int w, out int h) {
          var c = settings.ESClient;
@@ -595,58 +601,23 @@ namespace BMAlbum.Controllers {
       private IActionResult getLargeImage (string id, int w, int h, string orgFn) {
          //dumpHeaders ();
          if (w <= 0 || h <= 0) throw new BMException ("Unexpected target-size {0}x{1}", w, h);
-         string logId = null;
-         var shrinker = settings.ShrinkerLarge;
-         var logger = shrinker.Logger;
-         if (logger != null) {
-            logId = "Large" + _id;
-            _id++;
-            logger.Log (_LogType.ltTimerStart, "{0} starting {1} {2}x{3}", logId, id, w, h);
-         }
-         ActionResultBase ret = null;
 
-         Bitmap bm = null;
          int srcW, srcH;
          if (!getDimensions(id, out srcW, out srcH)) goto NOT_FOUND;
-         int fp = shrinker.GetFingerPrint (srcW, srcH, w, h);
-         try {
-            string mime = MimeType.GetMimeTypeFromFileName (orgFn);
-            if (mime != null && mime.StartsWith("video/")) {
-               if (settings.VideoFrames == null) goto NOT_FOUND;
-               byte[] bytes = settings.VideoFrames.GetFrame (id);
-               if (bytes == null) goto NOT_FOUND;
-               ret = new BytesActionResult (MimeType.Jpeg, bytes)
-                                           .SetDisposition (Path.GetFileName (orgFn) + ".jpg", FileDisposition.None)
-                                           .SetLastModified (System.IO.File.GetLastWriteTimeUtc (orgFn));
-               goto EXIT_RTN;
-            }
-            if (fp==0) {
-               ret = new FileActionResult (orgFn, FileDisposition.None);
-               goto EXIT_RTN;
-            }
 
-            bm = new Bitmap (orgFn);
-            string cacheName = createLargeCacheName (id, fp);
-            Stream strm = shrinker.UseCache ? cache.Get (cacheName, CacheType.Large) : null;
-            if (strm == null) {
-               shrinker.Shrink (ref bm, w, h);
-               strm = saveInCacheAndGet (bm, cacheName, shrinker.Quality, shrinker.UseCache ? CacheType.Large : CacheType.None);
-            }
-            ret = new StreamActionResult (strm,
-                                          MimeType.Jpeg,
-                                          Path.GetFileName (orgFn),
-                                          System.IO.File.GetLastWriteTimeUtc(orgFn),
-                                          FileDisposition.None);
-         } finally {
-            bm?.Dispose ();
+         var strm = cache.FetchLargeImage (id, orgFn, srcW, srcH, w, h, loadBitmap);
+         if (strm != null) return createJpegActionResult (strm, orgFn);
+
+         //Apparently we did not shrink the result, so return the original image
+         string mime = MimeType.GetMimeTypeFromFileName (orgFn);
+         if (mime != null && mime.StartsWith ("video/")) {
+            if (settings.VideoFrames == null) goto NOT_FOUND;
+            byte[] bytes = settings.VideoFrames.GetFrame (id);
+            if (bytes == null) goto NOT_FOUND;
+            return createJpegActionResult(new MemoryStream (bytes), orgFn);
          }
+         return PhysicalFile (orgFn, WebGlobals._GetMimeTypeForFile (orgFn), true);
 
-      EXIT_RTN:
-         logger?.Log (_LogType.ltTimerStop, "{0} done {1} {2}x{3}", logId, id, w, h);
-         return ret
-            .SetCompress (false)
-            .SetCache (CacheOptions.Private, TimeSpan.FromDays (7))
-            ;
       NOT_FOUND:
          return new ActionResult404 ();
       }
@@ -663,20 +634,21 @@ namespace BMAlbum.Controllers {
          }
 
          string orgFn = ((Settings)base.Settings).Roots.GetRealFileName (id);
+         if (!System.IO.File.Exists (orgFn)) {
+            Logs.ErrorLog.Log ("File not exists: [{0}].", orgFn);
+            return new ActionResult404 ();
+         }
+
          //Logs.DebugLog.Log ("Requesting img {0}", orgFn);
          if (w <= 0 && h <= 0 && mindim <=0) {
             return PhysicalFile (orgFn, WebGlobals._GetMimeTypeForFile (orgFn), true);
          }
 
-         if (w<0) {
-            return getSmallImage (id, h, orgFn);
-         }
-         return getLargeImage (id, w, h, orgFn);
+         return w < 0 ? getSmallImage (id, h, orgFn) : getLargeImage (id, w, h, orgFn);
       }
-
-      private Stream saveInCacheAndGet (Bitmap bm, String name, int q, CacheType cacheType) {
+      private Stream saveInCacheAndGet (Image<Rgb24> bm, string name, Shrinker shrinker , CacheType cacheType) {
          var mem = new MemoryStream ();
-         ImageUtils.SaveAsJPG (bm, mem, q);
+         bm.SaveAsJpeg (mem, shrinker.JpgEncoder);
          mem.Position = 0;
          if (cacheType != CacheType.None) {
             cache.Set (name, mem, cacheType);

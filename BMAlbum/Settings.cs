@@ -42,7 +42,6 @@ namespace BMAlbum {
       public readonly AutoSort MainAutoSortResolver;
       public readonly ESConnection ESClient;
       public readonly ESIndexInfoCache IndexInfoCache;
-      public readonly Shrinker ShrinkerSmall, ShrinkerLarge;
       public readonly MapSettings MapSettings;
       public readonly VideoFrames VideoFrames;
       public readonly string ExternalTracksUrl;
@@ -65,19 +64,8 @@ namespace BMAlbum {
          Roots = new RootReplacer (Xml.SelectMandatoryNode ("roots"));
 
          XmlNode photocacheNode = Xml.SelectMandatoryNode ("photocache");
-         string cacheDir = photocacheNode.ReadPath ("@dir", @"temp\cache");
-         IOUtils.ForceDirectories (cacheDir, false);
-         bool cacheLarge = photocacheNode.ReadBool ("@cache_large", true);
-
          var ourOldSettings = (Settings)oldSettings;
-         if (ourOldSettings != null && ourOldSettings.PhotoCache.CacheDir == cacheDir && ourOldSettings.PhotoCache.CacheLarge==cacheLarge) {
-            PhotoCache = ourOldSettings.PhotoCache;
-         } else {
-            ourOldSettings?.PhotoCache?.Dispose (); //Otherwise we cannot re-open the cache-files
-            PhotoCache = new PhotoCache(cacheDir, cacheLarge);
-         }
-         ShrinkerSmall = new Shrinker (photocacheNode.SelectMandatoryNode ("shrink_small"));
-         ShrinkerLarge = new Shrinker (photocacheNode.SelectMandatoryNode ("shrink_large"));
+         PhotoCache = PhotoCache.Create (g, photocacheNode, ourOldSettings?.PhotoCache);
 
          Refresher = (oldSettings != null) ? ourOldSettings.Refresher : new Refresher (this);
 
@@ -109,7 +97,7 @@ namespace BMAlbum {
          return resp.IsOK() && resp.Count > 0;
       }
 
-      private static void Instance_OnStop (object? sender, EventArgs e) {
+      private static void Instance_OnStop (object sender, EventArgs e) {
          var g = (WebGlobals)sender;
          g.SiteLog.Log ("Disposing image-cache");
          var settings = (Settings)g.Settings;

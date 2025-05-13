@@ -3,7 +3,7 @@
    <PropertyGroup>
       <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
       <RollForward>Major</RollForward>
-      <TargetFramework>net6.0-windows</TargetFramework>
+      <TargetFramework>net8.0</TargetFramework>
       <Nullable>disable</Nullable>
       <ImplicitUsings>enable</ImplicitUsings>
       <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
@@ -11,8 +11,6 @@
       <NoWarn>$(NoWarn);CS8600</NoWarn>
    </PropertyGroup>
    <ItemGroup>
-      <PackageReference Include="AForge" Version="2.2.5" />
-      <PackageReference Include="AForge.Imaging" Version="2.2.5" />
       <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="6.0.17" />
       <PackageReference Include="NUglify" Version="1.21.14" />
       <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
@@ -26,32 +24,32 @@
          <HintPath>..\_References\BMCore102.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMElastic200">
-         <HintPath>..\_References\BMElastic200.dll</HintPath>
+      <Reference Include="BMElastic201">
+         <HintPath>..\_References\BMElastic201.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMHttp200">
-         <HintPath>..\_References\BMHttp200.dll</HintPath>
-         <SpecificVersion>False</SpecificVersion>
-      </Reference>
-      <Reference Include="BMImage102">
-         <HintPath>..\_References\BMImage102.dll</HintPath>
+      <Reference Include="BMHttp201">
+         <HintPath>..\_References\BMHttp201.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
       <Reference Include="BMImage200">
          <HintPath>..\..\_References\BMImage200.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMQuery200">
-         <HintPath>..\_References\BMQuery200.dll</HintPath>
+      <Reference Include="BMQuery201">
+         <HintPath>..\_References\BMQuery201.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMWeb200">
-         <HintPath>..\_References\BMWeb200.dll</HintPath>
+      <Reference Include="BMWeb201">
+         <HintPath>..\_References\BMWeb201.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMWebService201">
-         <HintPath>..\_References\BMWebService201.dll</HintPath>
+      <Reference Include="BMWebService202">
+         <HintPath>..\_References\BMWebService202.dll</HintPath>
+         <SpecificVersion>False</SpecificVersion>
+      </Reference>
+      <Reference Include="SixLabors.ImageSharp">
+         <HintPath>..\..\_References\SixLabors.ImageSharp.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
    </ItemGroup>
