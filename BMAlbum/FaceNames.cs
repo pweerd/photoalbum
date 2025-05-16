@@ -30,7 +30,17 @@ namespace BMAlbum {
          } else {
             var list = new List<FaceName> ();
             int i = 0;
-            foreach (string line in File.ReadLines (fn)) {
+            foreach (string l in File.ReadLines (fn)) {
+               string line = l.Trim();
+               int idx = line.IndexOf ("//");
+               if (idx >= 0) {
+                  if (idx == 0) continue;
+                  line = line.Substring (0, idx);
+               }
+               if (idx >= 0) {
+                  if (idx == 0) continue;
+                  line = line.Substring (0, idx);
+               }
                list.Add (new FaceName (i, line.Trim ()));
                i++;
             }
