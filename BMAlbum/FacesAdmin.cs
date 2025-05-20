@@ -19,6 +19,7 @@ using Bitmanager.IO;
 using Bitmanager.Storage;
 using Bitmanager.Web;
 using Bitmanager.Xml;
+using Bitmanager.AlbumTools;
 using System.Xml;
 
 namespace BMAlbum { 

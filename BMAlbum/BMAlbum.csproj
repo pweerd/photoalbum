@@ -16,6 +16,9 @@
       <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
    </ItemGroup>
    <ItemGroup>
+      <ProjectReference Include="..\BMAlbumTools\BMAlbumTools.csproj" />
+   </ItemGroup>
+   <ItemGroup>
       <Reference Include="BMBoolParser200">
          <HintPath>..\_References\BMBoolParser200.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
