@@ -30,7 +30,7 @@
         - unexpected referrers
         The check=xxx determines what is checked
    -->
-   <access_control check="CheckIP|CheckUserAgent|CheckReferrer|LogBlocked">
+   <access_control check="CheckIP|CheckUserAgent|LogBlocked">
       <!-- syncs the blacklist with bitmanager and put the downloaded list into the tempdir -->
       <ipblacklist sync_url="default" generations="2" root="temp\ipblacklist.txt" check_period="1h" mandatory="true"/>
       <user_agent excl="^curl|^python|^Go-http-client|AsyncHttpClient" allow_empty="false"/>
@@ -53,17 +53,17 @@
 
    <photocache >
       <refresh active="false" sleeptime="300" />
-      <shrink_small cache="true" quality="80" tag="1">
+      <shrink_small cache="true" quality="80" tag="1" log="false">
          <factor2 bias=".9" />
          <factor15 bias=".1" />
          <sharpen center="10" />
          <_exact value="true" />
       </shrink_small>
-      <shrink_large cache="false" quality="80" tag="1" log="true">
-         <min_factor factor="2" />;
+      <shrink_large cache="false" quality="90" tag="1" log="false">
+         <_min_factor factor="2" />;
          <factor2 bias=".2" />
          <_factor15 value="0" />
-         <sharpen center="9" />
+         <sharpen center="9" only_if_changed="true"/>
       </shrink_large>
    </photocache>
 
@@ -89,7 +89,7 @@
                       type="location_searcher"
                       text_location="extra_location"
                       score_distance="true"
-                      api_key="bitmanager"/>
+                      api_key="YOUR_GOOGLE_API_SERVER_KEY"/>
             <searcher field="name|naam|persoon" type="name_searcher" searchfield="names!name" />
             <searcher field="personen|gezichten" searchfield="face_count" />
             <searcher field="id" searchfield="file" />
@@ -164,11 +164,13 @@
    <mvc>
       <routes authenticate="false" debug="true">
          <route name="guid" pattern="guid" def_controller="Home" def_action="Guid" />
-         <route name="login" pattern="login" def_controller="Home" def_action="Login" />
+         <route name="login" pattern="_login" def_controller="Home" def_action="Login" />
          <route name="faces" pattern="faces/{action}" def_controller="Home" def_action="Index" def_mode="faces" />
+         <route name="cache" pattern="cache/{action}" def_controller="Cache" />
          <route name="map" pattern="{user}/map" def_controller="Home" def_action="Index" def_mode="map"/>
          <route name="user" pattern="{user}" def_controller="Home" def_action="Index" />
          <route name="default" pattern="{user}/{controller}/{action}/{id?}" def_controller="Home" def_action="Index" />
+         <route name="nouser" pattern="/{controller}/{action}" def_controller="Home" def_action="Index" />
       </routes>
 
       <bundles loadbehavior="always">
@@ -239,17 +241,16 @@
 
       <!-- 2nd Example of a collection, using a query as filter
       -->
-      <user id="9d71530b1f314b08816dcef2625e85eb" name="some_collection" expose="." skip_authenticate=".">
+      <user id="9d71530b1f314b08816dcef2625e85eb2" name="some_collection" expose="." skip_authenticate=".">
          <filter field="user" value="peter" clause="must" />
          <filter field="query" value="text:(familiedag OR lelystad NOT:geocachen)" />
-         <filter field="text" value="lelystad" />
-         <filter field="text" value="geocachen" clause="must_not" />
       </user>
 
       <!-- Default collection(everything). Accessible as <main_url>. External clients will see a 404
-           If not specified, external clients will see a 404. This is especially handy to 'hide' your album from bots and other bogus clients
+           Use this if you always want to return your complete collection. 
+           It will be hidden from external clients like bots and other bogus clients
       -->
-      <default  expose="^internal|^authenticated" skip_authenticate=".">
+      <default  expose="^internal|^authenticated" skip_authenticate="."  name="no_user" id="no_user" >
         <!-- optional specify some filters here -->
       </default>
 
@@ -264,7 +265,7 @@
    </users>
 
    <map>
-      <google key="YOUR MAPS GOOGLE CLIENT KEY" />
+      <google key="YOUR MAPS GOOGLE CLIENT KEY" /> 
       <start center="52.177513910134806,5.861052751913665" zoom="8" />
       <pins search_distance="4km" >
          <group pin="redgrouppin.svg"/>
