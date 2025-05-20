@@ -54,7 +54,8 @@ namespace BMAlbum {
             g.RegisterAuthenticationHandler (app);
             g.RegisterInternalHandlers (app);
             g.RegisterRoutesFromSettings (app, settings);
-            app.Run ();
+
+            g.Run (app, "Album website");
 
          } catch (Exception e) {
             Console.Error.WriteLine ("Error during initialization: {0}", e.GetBestMessage ());
