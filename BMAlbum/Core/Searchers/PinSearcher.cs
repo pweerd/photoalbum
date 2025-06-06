@@ -74,6 +74,5 @@ namespace BMAlbum {
          if (pin.IdQuery != null) q = new ESBoolQuery ().AddMust (q).AddShould (pin.IdQuery);
          return q.SetBoost (Weight);
       }
-
    }
 }

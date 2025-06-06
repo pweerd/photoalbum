@@ -18,7 +18,6 @@ using Bitmanager.Core;
 using Bitmanager.Json;
 using Bitmanager.Query;
 using Bitmanager.Web;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Text;
 
 namespace BMAlbum {

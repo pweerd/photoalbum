@@ -5,9 +5,6 @@ using Bitmanager.Query;
 using Bitmanager.Web;
 using BMAlbum.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using NuGet.Configuration;
-using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 

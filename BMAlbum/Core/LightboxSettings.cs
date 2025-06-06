@@ -34,13 +34,16 @@ namespace BMAlbum.Core {
       public const int DEF_MINCOUNT_ALBUM = 4;
       public readonly int PageSize;
       public readonly int MinCountForAlbum;
+      public readonly int PreloadBackward, PreloadForward;
 
       public readonly string CacheVersion;
       public readonly bool Paginate;
-      public readonly JsonArrayValue SettingsForClient;
+      public readonly JsonObjectValue SettingsForClient;
 
 
       public LightboxSettings (XmlNode node) {
+         PreloadBackward = node.ReadInt ("preload/@backward", 1);
+         PreloadForward = node.ReadInt ("preload/@forward", 1);
          XmlNodeList sizesNodes = null;
          BrowserType squareOn = BrowserType.None;
          if (node==null) {
@@ -65,31 +68,38 @@ namespace BMAlbum.Core {
          SettingsForClient = createClientSettings (sizesNodes);
       }
 
-      private static JsonArrayValue createClientSettings (XmlNodeList deviceNodes) {
-         if (deviceNodes == null || deviceNodes.Count == 0) return createDefaultClientSettings();
+      private JsonObjectValue createClientSettings (XmlNodeList deviceNodes) {
+         var ret = new JsonObjectValue ("backward", PreloadBackward, "forward", PreloadForward);
+         ret = new JsonObjectValue ("preload", ret);
 
-         var arr = new JsonArrayValue ();
-         int N = deviceNodes.Count-1;
-         for (int i=0; i<=N; i++) {
-            XmlNode devNode = deviceNodes[i];
-            var obj = new JsonObjectValue ();
-            var devType = devNode.ReadEnum<BrowserType> ("@device");
-            if (i == N && devType != BrowserType.All)
-               throw new BMNodeException (devNode, "Last node needs to have device='all'.");
-            var sizeNodes = devNode.SelectMandatoryNodes ("size");
-            var sizes = new JsonArrayValue ();
-            for (int j=0; j<sizeNodes.Count; j++) {
-               XmlNode sub = sizeNodes[j];
-               if (j==0 && 0 != sub.ReadInt("@width"))
-                  throw new BMNodeException (sub, "First node needs to have width='0'.");
-               sizes.Add (createSizeSettings (sub));
+         JsonArrayValue sizeSettings;
+         if (deviceNodes == null || deviceNodes.Count == 0) 
+            sizeSettings = createDefaultSizeSettings ();
+         else {
+            sizeSettings = new JsonArrayValue ();
+            int N = deviceNodes.Count - 1;
+            for (int i = 0; i <= N; i++) {
+               XmlNode devNode = deviceNodes[i];
+               var obj = new JsonObjectValue ();
+               var devType = devNode.ReadEnum<BrowserType> ("@device");
+               if (i == N && devType != BrowserType.All)
+                  throw new BMNodeException (devNode, "Last node needs to have device='all'.");
+               var sizeNodes = devNode.SelectMandatoryNodes ("size");
+               var sizes = new JsonArrayValue ();
+               for (int j = 0; j < sizeNodes.Count; j++) {
+                  XmlNode sub = sizeNodes[j];
+                  if (j == 0 && 0 != sub.ReadInt ("@width"))
+                     throw new BMNodeException (sub, "First node needs to have width='0'.");
+                  sizes.Add (createSizeSettings (sub));
+               }
+               sizeSettings.Add (new JsonObjectValue ("device", (int)devType, "sizes", sizes));
             }
-            arr.Add (new JsonObjectValue ("device", (int)devType, "sizes", sizes));
          }
-         return arr;
+         ret["devices"] = sizeSettings;
+         return ret;
       }
 
-      private static JsonArrayValue createDefaultClientSettings () {
+      private static JsonArrayValue createDefaultSizeSettings () {
          var ret = new JsonArrayValue ();
 
          var arr = new JsonArrayValue ();

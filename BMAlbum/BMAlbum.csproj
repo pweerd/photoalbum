@@ -9,46 +9,48 @@
       <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
       <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
       <NoWarn>$(NoWarn);CS8600</NoWarn>
+      <ApplicationIcon>webserver.ico</ApplicationIcon>
    </PropertyGroup>
    <ItemGroup>
-      <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="6.0.17" />
-      <PackageReference Include="NUglify" Version="1.21.14" />
-      <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
+      <Content Include="webserver.ico" />
+   </ItemGroup>
+   <ItemGroup>
+      <PackageReference Include="NUglify" Version="1.21.15" />
    </ItemGroup>
    <ItemGroup>
       <ProjectReference Include="..\BMAlbumTools\BMAlbumTools.csproj" />
    </ItemGroup>
    <ItemGroup>
-      <Reference Include="BMBoolParser200">
-         <HintPath>..\_References\BMBoolParser200.dll</HintPath>
+      <Reference Include="BMBoolParser210">
+         <HintPath>..\_References\BMBoolParser210.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
       <Reference Include="bmcore102">
          <HintPath>..\_References\BMCore102.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMElastic201">
-         <HintPath>..\_References\BMElastic201.dll</HintPath>
+      <Reference Include="BMElastic210">
+         <HintPath>..\_References\BMElastic210.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMHttp201">
-         <HintPath>..\_References\BMHttp201.dll</HintPath>
+      <Reference Include="BMHttp210">
+         <HintPath>..\_References\BMHttp210.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMImage200">
-         <HintPath>..\..\_References\BMImage200.dll</HintPath>
+      <Reference Include="BMImage210">
+         <HintPath>..\..\_References\BMImage210.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMQuery201">
-         <HintPath>..\_References\BMQuery201.dll</HintPath>
+      <Reference Include="BMQuery210">
+         <HintPath>..\_References\BMQuery210.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMWeb201">
-         <HintPath>..\_References\BMWeb201.dll</HintPath>
+      <Reference Include="BMWeb210">
+         <HintPath>..\_References\BMWeb210.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMWebService202">
-         <HintPath>..\_References\BMWebService202.dll</HintPath>
+      <Reference Include="BMWebService210">
+         <HintPath>..\_References\BMWebService210.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
       <Reference Include="SixLabors.ImageSharp">

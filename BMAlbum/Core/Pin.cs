@@ -3,8 +3,6 @@ using Bitmanager.Core;
 using Bitmanager.Elastic;
 using Bitmanager.Json;
 using Bitmanager.Web;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 namespace BMAlbum {

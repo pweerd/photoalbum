@@ -170,7 +170,9 @@ function createLightboxControl(app) {
       const w = $elt.width() - 9; //width without an eventual scrollbar
       if (w <= 0) return; //Probably hidden
       
-      const lightboxSizes = _state.lightbox_settings;;
+      const lightboxSettings = _state.lightbox_settings;
+      const lightboxSizes = lightboxSettings.devices;
+
       let sizeSettings;
 
       //Search correct settings, based on device type and width
@@ -803,18 +805,18 @@ function createLightboxControl(app) {
     * Hooked preload: fixed repping around array limits and delayed preloading with 0.5 seconds
     */
    function _hookedPreload(index) {
+      const fwPreload = _state.lightbox_settings.preload.forward;
+      const bwPreload = _state.lightbox_settings.preload.backwarc;
       //console.log("PRELOAD", index, this.settings);
       let self = this;
       setTimeout(function () {
          const N = self.galleryItems.length;
-         const preload = 1; //settings will be reset to 0. Bug in LightGallery// self.settings.preload;
-         //console.log('Actual preload (index,num)', index, preload);
-         for (let i = 1; i <= preload; i++) {
+         for (let i = 1; i <= fwPreload; i++) {
             let nextIndex = index + i;
             if (nextIndex >= N) nextIndex -= N;
             self.loadContent(nextIndex, false);
          }
-         for (let i = 1; i <= preload; i++) {
+         for (let i = 1; i <= bwPreload; i++) {
             let nextIndex = index - i;
             if (nextIndex < 0) nextIndex += N;
             self.loadContent(nextIndex, false);

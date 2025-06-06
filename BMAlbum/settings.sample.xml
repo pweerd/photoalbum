@@ -148,6 +148,9 @@
 
 
    <lightbox pagesize="1000" album_mincount="4" cache_version="1" paginate="true" >
+      <!-- In case of a single photo view: how many to preload backward/forward -->
+      <preload backward="1" forward="2" />
+      
       <!-- see app.js for device types -->
       <sizes device="phone">
          <size width="0"   target_count="2" max_ratio="1" />
