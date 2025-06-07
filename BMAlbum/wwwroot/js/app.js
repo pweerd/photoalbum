@@ -265,6 +265,10 @@ function createApplication(state) {
       console.log("Start: from=", from, ", history=", history.state); 
       _overlay.hideNow();
 
+      //Set the correct help link
+      const helpUrl = _state.mode === "faces" ? "help_faces_nl.html" : "help_nl.html";
+      $("#help_link").attr("href", _state.home_url + helpUrl);
+
       switch (_state.mode) {
          case "faces":
          case "photo":

@@ -910,9 +910,9 @@ function createLightboxControl(app) {
 
    function _toggleHelp() {
       if ($('#searchq').val().trim()==='') {
-         $(".help").removeClass("hidden");
+         $("#help_link").removeClass("hidden");
       } else {
-         $(".help").addClass("hidden");
+         $("#help_link").addClass("hidden");
       }
    }
 

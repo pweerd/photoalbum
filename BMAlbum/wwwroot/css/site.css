@@ -100,7 +100,7 @@ body {
    outline-offset: 0px;
 }
 
-.help {
+#help_link {
    font-weight: bold;
    position: absolute;
    right: 0.7em;
