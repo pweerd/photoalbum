@@ -176,34 +176,7 @@ namespace BMAlbum {
          }
       }
 
-      //pw kan weg
-      //public string GetCommand() {
-      //   var sb = new StringBuilder ().Append('&');
-      //   //pw
-      //   if (Query != null) 
-      //      optAppend (sb, "q", Query);
-      //   else if (Slide != null)
-      //      optAppend (sb, "slide", Slide);
-
-      //   if (Pin != null) optAppend (sb, "pin", Pin.ToUrlValue());
-      //   switch (PerAlbum) {
-      //      case TriStateBool.False: optAppend (sb, "per_album=false"); break;
-      //   }
-      //   if (AppMode != AppMode.Photos) optAppend (sb, "mode=" + AppMode.ToString ().ToLowerInvariant ());
-
-      //   for (int i = 0; i < Facets.Count; i++) {
-      //      optAppend (sb, Facets[i].Key, Facets[i].Value);
-      //   }
-
-      //   if (Sort != Settings.MainSearchSettings.SortModes.Default)
-      //      sb.Append ("&sort=").Append (Sort?.Name);
-
-      //   return sb.Length <= 1 ? null : sb.ToString (1, sb.Length-1);
-      //}
-
       public override JsonObjectValue ToJson (JsonObjectValue container) {
-         //var cmd = GetCommand();
-         //if (cmd != null) container["cmd"] = cmd;
 
          //Return the state of the controls
          if (User != null) container["user"] = User.Id;
@@ -212,7 +185,7 @@ namespace BMAlbum {
          if (Pin != null) container["pin"] = Pin.ToJson();
          container["per_album"] = PerAlbum == TriStateBool.False ? false : true;
          container["mode"] = AppMode.ToString ().ToLowerInvariant ();
-         container["sort"] = Sort?.Name;
+         if (SortName != null) container["sort"] = SortName;
          container["lightbox_settings"] = Settings.LightboxSettings.SettingsForClient;
          container["map_settings"] = Settings.MapSettings.ToJson ();
          if (Settings.ExternalTracksUrl != null)
