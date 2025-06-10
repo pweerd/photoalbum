@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+   <PropertyGroup>
+      <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+      <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+      <OutputType>Library</OutputType>
+      <TargetFramework>net8.0-windows</TargetFramework>
+      <Nullable>disable</Nullable>
+      <UseWindowsForms>false</UseWindowsForms>
+      <ImplicitUsings>enable</ImplicitUsings>
+      <AssemblyName>AlbumImporter</AssemblyName>
+      <RootNamespace>AlbumImporter</RootNamespace>
+      <NoWarn>$(NoWarn);CA1416</NoWarn>
+      <RollForward>Major</RollForward>
+   </PropertyGroup>
+   <ItemGroup>
+      <PackageReference Include="FaceAiSharp" Version="0.5.23" />
+      <PackageReference Include="FaceAiSharp.Bundle" Version="0.5.23" />
+      <PackageReference Include="MetadataExtractor" Version="2.9.0-rc2" />
+      <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.17.3" />
+      <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.17.3" />
+      <PackageReference Include="SixLabors.ImageSharp" Version="3.1.6" />
+      <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
+   </ItemGroup>
+   <ItemGroup>
+      <ProjectReference Include="..\BMAlbumTools\BMAlbumTools.csproj" />
+   </ItemGroup>
+   <ItemGroup>
+      <Reference Include="bmcore102">
+         <HintPath>..\_References\BMCore102.dll</HintPath>
+         <SpecificVersion>False</SpecificVersion>
+      </Reference>
+      <Reference Include="BMElastic210">
+         <HintPath>..\_References\BMElastic210.dll</HintPath>
+         <SpecificVersion>False</SpecificVersion>
+      </Reference>
+      <Reference Include="BMGps210">
+         <HintPath>..\_References\BMGps210.dll</HintPath>
+         <SpecificVersion>False</SpecificVersion>
+      </Reference>
+      <Reference Include="BMHttp210">
+         <HintPath>..\_References\BMHttp210.dll</HintPath>
+         <SpecificVersion>False</SpecificVersion>
+      </Reference>
+      <Reference Include="BMImage210">
+         <HintPath>..\_References\BMImage210.dll</HintPath>
+         <SpecificVersion>False</SpecificVersion>
+      </Reference>
+      <Reference Include="bmir210">
+         <HintPath>..\_References\bmir210.dll</HintPath>
+         <SpecificVersion>False</SpecificVersion>
+      </Reference>
+      <Reference Include="BMOcr210">
+         <HintPath>..\_References\BMOcr210.dll</HintPath>
+         <SpecificVersion>False</SpecificVersion>
+      </Reference>
+      <Reference Include="BMWebService210">
+         <HintPath>..\_References\BMWebService210.dll</HintPath>
+         <SpecificVersion>False</SpecificVersion>
+      </Reference>
+      <Reference Include="ImportPipeline210">
+         <HintPath>..\_References\ImportPipeline210.dll</HintPath>
+         <SpecificVersion>False</SpecificVersion>
+      </Reference>
+   </ItemGroup>
+</Project>

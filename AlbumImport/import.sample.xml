@@ -1,0 +1,199 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<root importflags="" log_progress="1m">
+   $$#define SERVER=http://localhost:9200$$
+
+   $$#define ALBUM_IDS=$$SERVER$$/album-ids$$
+   $$#define EXISTING_CAPTIONS=$$SERVER$$/album-captions$$
+   $$#define EXISTING_OCR=$$SERVER$$/album-ocr$$
+   $$#define EXISTING_FACES=$$SERVER$$/album-faces$$
+
+   <load_dirs>
+      <dir name="bin" />
+   </load_dirs>
+
+   <endpoints>
+      <endpoint name="es" type="ESEndpoint" url="$$server$$/" debug="true" active="lazy" cache="100" maxparallel="2">
+         <index name="album" indexname="album" config="index.config.js" generations="2" >
+            <type name="_doc" />
+         </index>
+         <index name="ids" indexname="album-ids" config="index_ids.config.js" generations="1" >
+            <type name="_doc" />
+         </index>
+         <index name="ocr" indexname="album-ocr" config="index_ocr.config.js" generations="3" >
+            <type name="_doc" />
+         </index>
+         <index name="captions" indexname="album-captions" config="index_captions.config.js" generations="3" >
+            <type name="_doc" />
+         </index>
+         <index name="faces" indexname="album-faces" config="index_faces.config.js" generations="2" >
+            <type name="_doc" />
+         </index>
+      </endpoint>
+   </endpoints>
+
+   <processes>
+      <process name='caption' maxrestarts="2" log="python" errlog="python_err" logfrom="python" clearlogs="false">
+         <exe>python.exe</exe>
+         <arguments>"%IMPORT_ROOT%\CaptionService\server.py"</arguments>
+         <shutdown url="http://localhost:5000/shutdown" method="GET" />
+         <ping url="http://localhost:5000/ping" max_wait_time="60s" />
+      </process>
+   </processes>
+
+
+   <pipelines>
+      <pipeline name="photos" endpoint="es.album._doc" script="AlbumImporter.dll#AlbumImporter.ImportScript_Photos"  >
+         <action key="_datasource/_start" script="OnDatasourceStart" />
+         <action key="_datasource/_stop" script="OnDatasourceEnd"  />
+         <action key="_item/_error" script="OnError"/>
+         <action key="record" type="add" script="OnPhoto" />
+      </pipeline>
+      <pipeline name="ids" endpoint="es.ids._doc"  script="AlbumImporter.dll#AlbumImporter.ImportScript_Ids"  >
+         <action key="_datasource/_start" script="OnDatasourceStart" />
+         <action key="_datasource/_stop" script="OnDatasourceEnd" />
+         <action key="record" type="add" script="OnId"/>
+      </pipeline>
+      <pipeline name="videos" endpoint="nop"  script="AlbumImporter.dll#AlbumImporter.ImportScript_Videos"  >
+         <action key="_datasource/_start" script="OnDatasourceStart" />
+         <action key="_datasource/_stop" script="OnDatasourceEnd" />
+         <action key="record" script="OnId"/>
+      </pipeline>
+      <pipeline name="videos_restore" endpoint="nop"  script="AlbumImporter.dll#AlbumImporter.ImportScript_Videos"  >
+         <action key="record" script="OnRestore"/>
+      </pipeline>
+      <pipeline name="ocr" endpoint="es.ocr._doc"  script="AlbumImporter.dll#AlbumImporter.ImportScript_Ocr"  >
+         <action key="_datasource/_start" script="OnDatasourceStart" />
+         <action key="_item/_error" script="OnError"/>
+         <action key="record" type="add" script="OnId"/>
+      </pipeline>
+      <pipeline name="captions" endpoint="es.captions._doc"  script="AlbumImporter.dll#AlbumImporter.ImportScript_Captions"  >
+         <action key="_datasource/_start" script="OnDatasourceStart" />
+         <action key="_item/_error" script="OnError"/>
+         <action key="record" type="add" script="OnId"/>
+      </pipeline>
+      <pipeline name="face_extract" endpoint="es.faces._doc"  script="AlbumImporter.dll#AlbumImporter.ImportScript_FaceExtract"  >
+         <action key="_datasource/_start" script="OnDatasourceStart" />
+         <action key="_datasource/_stop" script="OnDatasourceEnd" />
+         <action key="_item/_error" script="OnError"/>
+         <action key="record" script="OnId"/>
+         <action key="record/face" type="add"/>
+      </pipeline>
+      <pipeline name="face_match" endpoint="es.faces._doc"  script="AlbumImporter.dll#AlbumImporter.ImportScript_FaceMatcher"  >
+         <action key="_datasource/_start" script="OnDatasourceStart" />
+         <action key="_datasource/_stop" script="OnDatasourceEnd" />
+         <action key="_item/_error" script="OnError"/>
+         <action key="record" type="add"/>
+      </pipeline>
+   </pipelines>
+
+   <datasources>
+      <datasource name="ids" 
+                  importflags_set="fullimport" 
+                  active="false" 
+                  type="importPipeline#FileNameDatasource"
+                  desc="Creates an index of all photo's / video's to be indexed.">
+         <!-- Multiple virual roots? Don't forget to update the roots at the bottom of this file
+              NB: he settings.xml of the website needs the same roots definition
+         -->          
+         <provider type="FileStreamDirectory" virtualroot="E" user="alles" root="e:\fotos" sort="filename|asc" recursive="true">
+            <_dir excl="REGEX TO EXCLUDE DIRECTORIES. Change _dir into dir to activate"/>
+         </provider>
+      </datasource>
+
+      <datasource name="videos"
+                  active="false"
+                  mime_filter="^video"
+                  _filter="" 
+                  type="AlbumImporter.dll#AlbumImporter.IDDatasource"
+                  desc="Optional convert the video into a supported format and creates an image of the 1st frame"
+                  url="$$ALBUM_IDS$$">
+         <convert active="true">
+            <no_convert ext=".mp4" codecs="avc1|hvc1"/>
+         </convert>
+         <commands>
+            <convert       timeout="10m" cmd="ffmpeg -y -i '{0}' -c:v libx265 -preset slow -crf 28 -c:a aac -b:a 128k -tag:v hvc1 -movflags +faststart '{1}'" />
+            <copy          timeout="10m" cmd="ffmpeg -y -i '{0}' -c:v copy -c:a copy -movflags +faststart '{1}'" />
+            <extract_frame timeout="10s" cmd="ffmpeg -y -i '{0}' -hide_banner -loglevel warning -vf select=eq(n\,1) -vframes 1 -qscale:v 5 '{1}'" />
+         </commands>
+      </datasource>
+ 
+      <datasource name="videos_restore"
+                  active="false" hidden="true"
+                  mime_filter="^video"
+                  type="AlbumImporter.dll#AlbumImporter.IDDatasource"
+                  desc="Undo the conversions from the 'videos'-datasource."
+                  url="$$ALBUM_IDS$$">
+      </datasource>
+
+      <datasource name="ocr" 
+                  active="false" 
+                  type="AlbumImporter.dll#AlbumImporter.IDDatasource" 
+                  desc="Tries to get eventual text from an image and put it in a separate database"
+                  url="$$ALBUM_IDS$$" 
+                  sleep_after_extract="50">
+         <ocr tessdata="TessData" languages="nld+eng" />
+         <skip>
+            E\mobiel-peter\202107__\IMG_1651.JPG
+            E\mobiel-peter\202311__\VROW9818.JPG
+         </skip>
+      </datasource>
+
+      <datasource name="captions" 
+                  active="false" 
+                  type="AlbumImporter.dll#AlbumImporter.IDDatasource" 
+                  desc="Gets an AI-generated caption (title) from an image and put it in a separate database"
+                  url="$$ALBUM_IDS$$" 
+                  sleep_after_extract="50">
+      </datasource>
+
+      <datasource name="face_extract" 
+                  active="false" 
+                  _filter="drachten" 
+                  type="AlbumImporter.dll#AlbumImporter.IDDatasource" 
+                  desc="Extract faces from an image and puts them in a separate database"
+                  url="$$ALBUM_IDS$$" 
+                  sleep_after_extract="50">
+         <_copy_from url="http://bm2:9200/album-faces" />
+         <face_rotate max_face_count="0" best_factor="1.2" />
+      </datasource>
+
+      <datasource name="face_match" 
+                  active="false" 
+                  type="NopDatasource" 
+                  desc="Matches the extracted faces to a set of known faces."
+                  log_progress="10s">
+         <manual include_non_ok="false" ratio_range_lo="0" ratio_range_hi="2" />
+         <weight face_factor=".9" min_weight=".6" threshold=".1"/>
+      </datasource>
+
+
+      <datasource name="photos" active="false"  importflags_set="fullimport"
+                  type="AlbumImporter.dll#AlbumImporter.IDDatasource"
+                  desc="Indexes the photos/videos and combines the metadata with the data from the previous steps."
+                  url="$$ALBUM_IDS$$"
+                  _filter="D\\Peter\\2017\\IMG\-20171222\-WA0001">
+         <importsettings>
+            <date src="assumeLocal,default" />
+            <whatsapp src="none" />
+         </importsettings>
+         <ocr         url="$$EXISTING_OCR$$" />
+         <captions    url="$$EXISTING_CAPTIONS$$" /> 
+         <faces       url="$$EXISTING_FACES$$" threshold="0.25"/>
+         <taggers>
+	    <!--
+	    Some examples to assign a 'tag'.
+	    Tags are handy in creating collections and searching
+            <tagger user="*" tag="track" field="trkid" expr="^." />
+            <tagger user="peter" tag="medialab" field="album" expr="ml|^.(?:2012. zwerfpad|2015. brommeren)" />
+            -->
+ 	     </taggers>
+      </datasource>
+   </datasources>
+
+   <roots>
+      <root name="E" dir="E:\fotos\peter" />
+   </roots>
+   <faces_admin dir="." />
+   <video_frames dir="." temp_file="extracted_frame.jpg" />
+
+</root>

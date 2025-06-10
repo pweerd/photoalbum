@@ -1,0 +1,8 @@
+//This file contains the names of the faces.
+//Faces are identified by the order in this file. So IT IS IMPOSSIBLE TO INSERT OR DELETE LINES!
+//You can 'delete' lines by writing DELETED in it. You can also re-use lines by simply overwriting them.
+//
+//Lines starting with // or with a # are treated as comment
+//
+Peter van der Weerd
+
