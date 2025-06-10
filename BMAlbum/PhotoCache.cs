@@ -289,10 +289,12 @@ namespace BMAlbum {
 
       private static int markStaleIfOlder (FileStorage store, IEnumerable<FileEntry> src) {
          int tot = 0;
-         foreach (var e in src) {
-            var ourEntry = store.GetFileEntry (e.Name);
-            if (ourEntry == null) continue;
-            if (ourEntry.Modified < e.Modified) { ++tot; ourEntry.MarkStale (); }
+         if (store != null) {
+            foreach (var e in src) {
+               var ourEntry = store.GetFileEntry (e.Name);
+               if (ourEntry == null) continue;
+               if (ourEntry.Modified < e.Modified) { ++tot; ourEntry.MarkStale (); }
+            }
          }
          return tot;
       }
