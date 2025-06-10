@@ -1,6 +1,8 @@
 ---
 title: Getting started | Album
 ---
+[toc]
+
 # Photoalbum website/indexer
 
 In the following text "photo's" means "photo's or video's".
@@ -59,6 +61,22 @@ After a minute or so (depending on your collection and computer speed) the impor
 
 
 
+### Users / more than 1 location
+
+It is possible to index photo's for multiple users. If that is the case, you have to check the import.xml and add lines like
+
+```
+ <provider type="FileStreamDirectory" virtualroot="E" user="alles" root="e:\fotos" sort="filename|asc" recursive="true">
+ </provider>
+```
+
+As you can see you can specify a file location  and a user. If you add file locations, you need to specify a different `virtualroot` and also update the `settings.xml` in the website for these roots.
+Of course you can also add multiple locations for 1 user (if your photo's are spreaded over different locations)
+
+If your photo's are in 1 location and you only have 1 user, you don't need to do anything.
+
+
+
 ### Check the album names and dates
 
 Album names are determined by inspecting the filename and or the directory-name.
@@ -80,6 +98,8 @@ After customizing or adding items to the collection you can repeat selecting the
 
 
 ### Run (one of) the other datasources
+
+First of all, leave the flags as is. Only choose the datasource to run.
 
 ##### videos
 
@@ -140,13 +160,13 @@ It will be tempting to correct mistakes in the automatic face recognition. But k
 You might want to hide photo's. The are 2 hide modes:
 
 - hidden
-  These photo's have a name that start or end with an '\_'. Like "something-private\_.jpg" or "\_something-private.jpg". It is also possible to specify hidden=hidden in the `importsettings.xml`.
+  These photo's have a name that start or end with an '\_'. Like "something-private\_.jpg" or "\_something-private.jpg". It is also possible to specify `hide=external` in the `importsettings.xml` located in the directory tree of you photo collection.
   If you view the album from the local PC or the local network, these photo's are shown, but if you view the album over the internet, the photo's are excluded.
 
 - super hidden 
   These photo's are never shown. Not local, not over the internet.
   If you still want to view these photo's, you need to access the site from the local PC and append "`&unhide`" to the url in the browser. 
-  Super-hidden photo's can be specified only via an `importsettings.xml`, by setting "hidden=superhidden".
+  Super-hidden photo's can be specified only via an `importsettings.xml`, by setting "`hide=always`".
 
 After changing hide-settings, you need to run the photos datasource again.
 
@@ -206,3 +226,48 @@ The import engine has a lot of flags. Most of the time you can leave them as is.
 If you want to start over, you can check the `Fullimport` checkbox. What happens next is that a complete new index is created, without using the existing data. 
 
 If you do that for the captions/ocr/face-extraction, it means that this process starts over and will take a lot of time to complete (days). So use this flag with caution!
+
+
+
+### Specific settings per directory (importsettings.xml)
+
+By putting an importsettings.xml in a directory, you can customize how the directory and the subdirectories are indexed. An example is:
+
+```
+<root propagate="this" hide="external">
+   <album src="FromDirectoryName"  />
+   <date src="None"/>
+   <camera src="fromMetadata,fromValue" value="scanner"/>
+</root>
+```
+
+This example indicates that the photo's are only visible from the local network, not from the internet.  The name of the album is taken from the directory name, a date is not assigned and the camera is from the metadata, but if not found, the value "scanner" is used as camera.
+
+Possible values for propagate are: `this, default, parent`. It specified what settings are propagated to a subdirectory. If you use "parent", this importsettings acts like a one-shot-setting. the settings are restored from the parent for subdirectories. The default is "this".
+
+Another example:
+
+```
+<root inherit="fromDefault">
+   <date src="assumeLocal,FromMetadata,FromFileDate" />
+   <whatsapp src="FromNoThumbnail" />
+</root>
+```
+
+In this example photo's without a thumbnail are considered to be imported from Whatsapp. By default the album name will be overwritten by "whatsapp". The date is fetched from the metadata, and if not found from the file date. 
+
+Note that the **order is important**. "FromFileDate,FromMetadata" would try to take the date from the file first, which is always present and so the FromMetadata is useless then.
+
+If the metadata did contain a date, but it had not timezone in it, the local timezone is assumed. Specifying "assumeUtc" would have assumed Universal Time for missing timezones.
+
+The settings are not inherited from the parent directory, but from the defaults, because of `inherit="fromDefault"`.
+
+As a last example:
+
+```
+<root >
+   <album src="FromValue" value="Holiday Finland"  />
+</root>
+```
+
+This example uses "Holiday Finland" as value for the album for all photo's in the directory.
