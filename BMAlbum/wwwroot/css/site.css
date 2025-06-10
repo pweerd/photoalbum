@@ -102,9 +102,10 @@ body {
 
 #help_link {
    font-weight: bold;
-   position: absolute;
-   right: 0.7em;
+   font-size: large;
    top: 2px;
+   position: relative;
+   right: 2px;
 }
 
 #lightbox {
