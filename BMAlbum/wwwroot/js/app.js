@@ -284,6 +284,11 @@ function createApplication(state) {
             alert('invalid mode: [' + _state.mode + ']');
             break;
       }
+      if (_state.mode == "faces") {
+         $("#row_album").addClass("hidden");
+         $("#row_year").addClass("hidden");
+         $("#row_per_album").addClass("hidden");
+      }
    }
 
    $(window).on('popstate', _onPopHistory)
