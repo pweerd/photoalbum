@@ -548,10 +548,7 @@ namespace BMAlbum.Controllers {
       private Image<Rgb24> loadBitmap (string id, string fn) {
          string mime = MimeType.GetMimeTypeFromFileName (fn);
          if (mime != null && mime.StartsWith ("video")) {
-            if (settings.VideoFrames == null) return null;
-            byte[] bytes = settings.VideoFrames.GetFrame (id);
-            if (bytes == null) return null;
-            return Image.Load<Rgb24> (new Span<byte> (bytes));
+            return Image.Load<Rgb24> (new Span<byte> (settings.VideoFrames.GetFrame (id, true)));
          }
          return Image.Load<Rgb24> (fn);
       }
@@ -607,9 +604,7 @@ namespace BMAlbum.Controllers {
          //Apparently we did not shrink the result, so return the original image
          string mime = MimeType.GetMimeTypeFromFileName (orgFn);
          if (mime != null && mime.StartsWith ("video/")) {
-            if (settings.VideoFrames == null) goto NOT_FOUND;
-            byte[] bytes = settings.VideoFrames.GetFrame (id);
-            if (bytes == null) goto NOT_FOUND;
+            byte[] bytes = settings.VideoFrames.GetFrame (id, true);
             return createJpegActionResult(new MemoryStream (bytes), orgFn);
          }
          return PhysicalFile (orgFn, WebGlobals._GetMimeTypeForFile (orgFn), true);
