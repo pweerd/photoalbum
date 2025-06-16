@@ -55,6 +55,8 @@ namespace AlbumImporter {
       private int convertTimeout, copyTimeout, extractTimeout;
       private bool isNewGeneration;
       private bool autoConvert;
+      private bool closeNormal;
+
 
       public ImportScript_Videos () {
          supportedExtAndCodec = new HashSet<string> ();
@@ -64,6 +66,12 @@ namespace AlbumImporter {
       public override void Dispose () {
          base.Dispose ();
          mdProcessor?.Dispose();
+         if (closeNormal) videoFramesGeneration.CreateOrUpdateLink (deleteStorage);
+      }
+
+      private static void deleteStorage (string fn) {
+         IOUtils.DeleteFile (Path.ChangeExtension (fn, ".idx"), DeleteFlags.NoExcept | DeleteFlags.AllowNonExist);
+         IOUtils.DeleteFile (fn, DeleteFlags.NoExcept | DeleteFlags.AllowNonExist);
       }
 
 
@@ -121,15 +129,11 @@ namespace AlbumImporter {
 
       public object OnDatasourceEnd (PipelineContext ctx, object value) {
          ctx.ImportLog.Log ("Errorstate={0}", ctx.ErrorState);
-         if (ctx.ErrorState== _ErrorState.OK && isNewGeneration) videoFramesGeneration.CreateOrUpdateLink (deleteSorage);
+         closeNormal = ctx.ErrorState == _ErrorState.OK && isNewGeneration;
+         
          IOUtils.DeleteFile (tempFrameFile, DeleteFlags.NoExcept | DeleteFlags.AllowNonExist);
          IOUtils.DeleteFile (tempConvertFile, DeleteFlags.NoExcept | DeleteFlags.AllowNonExist);
          return value;
-      }
-
-      private static void deleteSorage (string fn) {
-         IOUtils.DeleteFile (Path.ChangeExtension(fn, ".idx"), DeleteFlags.NoExcept | DeleteFlags.AllowNonExist);
-         IOUtils.DeleteFile (fn, DeleteFlags.NoExcept | DeleteFlags.AllowNonExist);
       }
 
 
