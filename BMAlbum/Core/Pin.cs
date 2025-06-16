@@ -64,7 +64,7 @@ namespace BMAlbum {
             var req = settings.ESClient.CreateSearchRequest (settings.MainIndex);
             req.Size = 1;
             req.SetSource ("location,album", null);
-            IdQuery = new ESIdsQuery ("_doc", value);
+            IdQuery = new ESIdsQuery (null, value);
             req.Query = new ESBoolQuery ().AddFilter (existQuery).AddMust (IdQuery);
             logger.Log ("-- search id in id");
 

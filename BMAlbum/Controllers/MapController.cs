@@ -23,7 +23,7 @@ namespace BMAlbum.Controllers {
                var c = settings.ESClient;
                var req = c.CreateSearchRequest (settings.MainIndex);
                req.Size = 1;
-               req.Query = new ESIdsQuery ("_doc", pin);
+               req.Query = new ESIdsQuery (null, pin);
                req.SetSource (FIELD, null);
 
                var resp = req.Search ();
