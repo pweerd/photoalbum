@@ -26,7 +26,7 @@ The installation program will install the following components:
   Python is needed for running the AI networks in order to generate captions.
 - FFMpeg and Exiftool
   These tools are needed to convert video's into a supported format, extract frames from a video and modify metadata in a photo/video.
-- A desktop/startmenu folder "bitmanager" with links to the webserver, website, importer.
+- A desktop/startmenu folder "`bitmanager`" with links to the webserver, website and importer.
 
 
 The installer can host your website in IIS (only possible in Windows Pro versions) or via the builtin webserver. Choose IIS if you plan to
@@ -54,7 +54,7 @@ Select only these 2 datasources:
 1. ids
    Create a list of all your photo's, to be used in the other steps
 2. photos
-   Creates an elasticsearch index from your photo's. This index will contain all your photo's, enriched with data from the other datasources, that we skipped for now.
+   Creates an elasticsearch index from your photo's. This index will contain all your photo's, enriched with data from the other datasources, that we will skip for now.
 
 Then click "`import`".
 After a minute or so (depending on your collection and computer speed) the import should be finished. You can take a look in the website to view the result.
@@ -99,7 +99,7 @@ After customizing or adding items to the collection you can repeat selecting the
 
 ### Run (one of) the other datasources
 
-First of all, leave the flags as is. Only choose the datasource to run.
+First of all, leave the flags as is. Only choose the datasource to run. Every datasource below can be run standalone. Meaning: if the datasource hasn't been run or is only partially run, the photos datasource will only pickup the information that is available. As a consequence, you always need to run the photos datasource to activate updated information from the others.
 
 ##### videos
 
@@ -213,9 +213,20 @@ Note that Whatsapp strips all metadata from photo's. Only the date is available,
 
 The Google services are free if you do only a limited requests per month (order of magnitude: 10000 requests per month). For personal use, this is more than enough. Therefore, if you want to make use of Google services, you need to get api-keys and put them in the `settings.xml` of your album website.
 
-Google maps will be used if you want to view the photo on the map (if coordinates are available). You can reach the map via the context menu of a photo with coordinates.
+Google maps will be used if you want to view the photo on the map (if coordinates are available). You can reach the map via the context menu of a photo with coordinates. This option is only shown if you enabled the map! Enabling is done by modifying the settings.xml:
 
-Google places will be used if the location service of the Bitmanager cannot resolve the location. The Bitmanager service is based on open source data from geonames.org
+- Mark the maps node being active
+
+- Creating a Google api-key in the Google console via [](https://console.cloud.google.com/google/maps-apis/overview) and fill that key in the `map/google` element.
+
+If your website is accessible over the internet, you need a browser-key that allows access from your public domain (as referer).
+If the album website is for internal use only, you need a server-key that enables access from your public IP. You can get your public IP via [](https://www.whatsmyip.org/) .
+
+Google places will be used if the location service of the Bitmanager cannot resolve the location. The Bitmanager service is based on open source data from `geonames.org`. You can enable this service by requesting a server-key in the Google console for the Google Places API. The server key needs to give access to the Bitmanager server at IP: `45.142.234.255`. This key should be filled in the `mainindex/search/searchers/searcher` element. See the `settings.xml` for details.
+
+***Warning***: you might want to set quota's and price limits. For small sites you probably never reach the limit where you are getting billed, but you never know!
+
+In case you need a server-key for both maps as places, you can use the same key, but with 2 allowed IP's.
 
 
 
@@ -270,4 +281,4 @@ As a last example:
 </root>
 ```
 
-This example uses "Holiday Finland" as value for the album for all photo's in the directory.
+This example uses "Holiday Finland" as value for the album for all photo's in this directory and below.
