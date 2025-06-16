@@ -267,8 +267,8 @@
       </template>
    </users>
 
-   <map>
-      <google key="YOUR MAPS GOOGLE CLIENT KEY" /> 
+   <map active="false">
+      <google key="YOUR MAPS GOOGLE CLIENT KEY (dont forget to set active=true)" /> 
       <start center="52.177513910134806,5.861052751913665" zoom="8" />
       <pins search_distance="4km" >
          <group pin="redgrouppin.svg"/>

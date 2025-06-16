@@ -16,7 +16,7 @@ namespace BMAlbum {
       public readonly bool Enabled;
       public MapSettings (XmlNode node, string imagesDir) {
          if (node != null) {
-            Enabled = node.ReadBool ("@enabled", true);
+            Enabled = node.ReadBool ("@active", true);
             GoogleKey = node.ReadStr ("google/@key");
             PinSearchDistance = node.ReadStr ("pins/@search_distance");
             GroupPin = node.ReadStr ("pins/group/@pin");
