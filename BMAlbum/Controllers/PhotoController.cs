@@ -163,14 +163,23 @@ namespace BMAlbum.Controllers {
          //If we have a query, lets use the query that results in more than fuzzySettings.TriggerAt hits.
          QueryGenerator queryGenerator = null;
          ESSearchResponse resp = null;
+         var indexInfo = settings.IndexInfoCache.GetIndexInfo (settings.MainIndex);
          var json = new JsonMemoryBuffer ();
          json.WriteStartObject ();
+         if (indexInfo == null) {
+            json.WriteProperty ("new_state", (IJsonSerializable)clientState.ToJson ());
+            json.WriteEmptyArray ("files");
+            json.WriteEmptyArray ("albums");
+            json.WriteEmptyArray ("years");
+            json.WriteEndObject ();
+            return new JsonActionResult (json);
+         }
 
          List<ParserValueNode> valueNodes = null;
          bool hasFuzzy = false;
          if (query != null) {
 
-            queryGenerator = new QueryGenerator (searchSettings, settings.IndexInfoCache.GetIndexInfo(settings.MainIndex), query);
+            queryGenerator = new QueryGenerator (searchSettings, indexInfo, query);
             if (!(queryGenerator.ParseResult.Root is ParserEmptyNode)) { 
                int phraseNodes = 0;
                //int normalNodes = 0;
@@ -314,7 +323,6 @@ namespace BMAlbum.Controllers {
 
          return new JsonActionResult (json);
       }
-
 
       private static bool sameQuery(ESQuery a, ESQuery b) {
          return (a==null) ? a==b : a.Equals(b); 

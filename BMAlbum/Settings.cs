@@ -71,14 +71,15 @@ namespace BMAlbum {
 
          LightboxSettings = new LightboxSettings (Xml.SelectSingleNode ("lightbox"));
 
-         if (oldSettings != null) {
-            IndexInfoCache = ((Settings)oldSettings).IndexInfoCache;
-         }
-         IndexInfoCache ??= new ESIndexInfoCache (ESClient, ComputeID);
+         //Don't reuse the cache from the old settings, since the server might have changed
+         IndexInfoCache = new ESIndexInfoCache (ESClient, ComputeID);
 
          FacesAdmin = new FacesAdmin (Xml.SelectMandatoryNode ("faces_admin"), SiteLog);
 
-         Users = new Users (Xml.SelectSingleNode ("users"), doesUserExist);
+         var indexInfo = IndexInfoCache.GetIndexInfo (MainIndex);
+         Users = new Users (Xml.SelectSingleNode ("users"), 
+                            indexInfo != null ? DoesUserExist: alwaysTrue
+         );
          Users.Dump (g.SiteLog);
 
          MapSettings = new MapSettings (Xml.SelectMandatoryNode ("map"), Path.Combine(g.SiteRoot, "images"));
@@ -90,11 +91,14 @@ namespace BMAlbum {
          g.SiteLog.Log ("VideoFrames loaded from {0}", VideoFrames?.Filename);
       }
 
-      public bool doesUserExist(User user) {
+      public bool DoesUserExist (User user) {
          var req = ESClient.CreateSearchRequest (MainIndex);
          req.Query = user.Filter;
          var resp = req.Count ();
-         return resp.IsOK() && resp.Count > 0;
+         return resp.IsOK () && resp.Count > 0;
+      }
+      public bool alwaysTrue (User user) {
+         return true;
       }
 
       private static void Instance_OnStop (object sender, EventArgs e) {
