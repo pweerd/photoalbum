@@ -173,6 +173,7 @@
                   url="$$ALBUM_IDS$$"
                   _filter="D\\Peter\\2017\\IMG\-20171222\-WA0001">
          <importsettings>
+            <album src="fromDirectoryName,fromFileName" />
             <date src="assumeLocal,default" />
             <whatsapp src="none" />
          </importsettings>
