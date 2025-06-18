@@ -58,7 +58,12 @@ namespace Bitmanager.AlbumTools {
          }
       }
 
-      public string NameById (int id) => Names[id].Name;
+      public string NameById (int id) {
+         if (id < 0) return "Unknown" + id;
+         if (id < Names.Length) return Names[id].Name;
+         Logs.ErrorLog.Log ("Invalid face-id: {0}, count={1}, stack=\n{2}", id, Names.Length, Environment.StackTrace);
+         return null;
+      }
    }
 
    public class FaceName {

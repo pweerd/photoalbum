@@ -329,9 +329,10 @@ namespace AlbumImporter {
          if (allUnknown.Count > 0) {
             allUnknown.Sort (cbSortUnknownFaces);
             int lowestID = getFaceId (allUnknown[0]);
+            if (lowestID >= 0) lowestID = -1;
             foreach (var f in allUnknown) {
                int id = getFaceId (f);
-               if (id < -1) continue;
+               if (id != -1) continue;
 
                upd.Add (f);
                id = --lowestID;
