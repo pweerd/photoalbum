@@ -14,6 +14,13 @@ grootvader;vader;opa
 populier;boom
 moeflon;dier
 schaap;dier
+aap;dier
+eekhoorn;dier
+kikker;dier
+neushoorn;dier
+flamingo;vogel
+ooievaar;vogel
+uil;vogel
 rups;dier
 bever;dier
 vader;man
@@ -113,6 +120,11 @@ babyjongen;jongen
 babygans;gans
 babykoe;kalf
 kalf;koe
+koe;dier
+geit;dier
+varken;dier
+vos;dier
+pauw;vogel
 babypop;pop
 sneeuwpop;sneeuw
 besneeuwen;sneeuw
