@@ -54,6 +54,14 @@ namespace AlbumImporter {
             ctx.ActionFlags |= _ActionFlags.Skip;
             return value;
          }
+         
+         if (elt.Size < 10) {
+            string msg = Invariant.Format ("File is not an image/video or is damaged.\nFile={0}", elt.FullName);
+            ctx.ImportLog.Log (_LogType.ltError, msg);
+            Logs.ErrorLog.Log (_LogType.ltError, msg);
+            ctx.ActionFlags |= _ActionFlags.Skip;
+            return value;
+         }
 
          okExts.Add (ext);
          var ep = (JsonObjectValue)ctx.Action.Endpoint.GetField (null);
