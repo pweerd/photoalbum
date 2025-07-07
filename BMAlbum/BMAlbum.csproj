@@ -38,7 +38,7 @@
          <SpecificVersion>False</SpecificVersion>
       </Reference>
       <Reference Include="BMImage210">
-         <HintPath>..\..\_References\BMImage210.dll</HintPath>
+         <HintPath>..\_References\BMImage210.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
       <Reference Include="BMQuery210">
@@ -54,7 +54,7 @@
          <SpecificVersion>False</SpecificVersion>
       </Reference>
       <Reference Include="SixLabors.ImageSharp">
-         <HintPath>..\..\_References\SixLabors.ImageSharp.dll</HintPath>
+         <HintPath>..\_References\SixLabors.ImageSharp.dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
    </ItemGroup>
