@@ -44,8 +44,7 @@ function createMapControl(app) {
    const maxGoogleZoom = 13;
    const maxEsZoom = googleZoomToEsZoom[maxGoogleZoom];
    let _map;
-   let _markers = {
-      zoom: -1,
+   let _markersOnMap = {
       clusters: {},
       photos: {}
    };
@@ -199,30 +198,28 @@ function createMapControl(app) {
       });
       if (pin.album) marker.title = pin.album + " (geselecteerd)";
 
-      if (_markers.mainPin !== marker) {
-         if (_markers.mainPin) _markers.mainPin.setMap(null);
-         _markers.mainPin = marker;
+      if (_markersOnMap.mainPin !== marker) {
+         if (_markersOnMap.mainPin) _markersOnMap.mainPin.setMap(null);
+         _markersOnMap.mainPin = marker;
       }
 
       return _initMarker(marker, pin);
    }
 
-   function _removeUntouchedMarkers() {
-      function getTouched(coll) {
-         touched = {};
-         for (let k of Object.keys(coll)) {
-            let item = coll[k];
-            if (!item.touched) {
-               item.setMap(null);
-               continue;
-            }
-            item.touched = false;
-            touched[k] = item;
+   function _removeUntouchedMarkers(markerDict) {
+      const touched = {};
+      for (let k of Object.keys(markerDict)) {
+         let marker = markerDict[k];
+         if (!marker.touched) {
+            marker.setMap(null);
+            continue;
          }
-         return touched;
+         marker.touched = false;
+         touched[k] = marker;
       }
-      _markers.clusters = getTouched(_markers.clusters);
-      _markers.photos = getTouched(_markers.photos);
+      //console.log('_removeUntouched: ', Object.keys(markerDict).length, ' -> ', Object.keys(touched).length);
+      //console.log('_removeUntouched: ', markerDict, ' -> ', touched);
+      return touched;
    }
 
    function _positionToString(pos) {
@@ -278,7 +275,7 @@ function createMapControl(app) {
          app.postJSON('map/clusters', _lastColors, parms, function (json) {
 
             //Process clusters (groups)
-            let markers = _markers.clusters;
+            let markers = _markersOnMap.clusters;
             let clusters = json.clusters;
             _lastColors = json.colors; //if (json.colors)
             let totBefore = 0;
@@ -313,38 +310,35 @@ function createMapControl(app) {
                   clusters[h] = undefined;
                }
 
-               if (zoom === _markers.zoom) {
-                  if (markers[k]) {
-                     markers[k].touched = true;
-                     continue;
-                  }
+               if (markers[k]) {
+                  markers[k].touched = true;
+                  continue;
                }
+
                let marker = _createGroupMarker(mainItem);
                marker.touched = true;
                markers[k] = marker;
             }
+            _markersOnMap.clusters = _removeUntouchedMarkers(markers);
             console.log('collapse. before=', totBefore, ', after=', totAfter, json);
 
             //Process individual photos
-            markers = _markers.photos;
+            markers = _markersOnMap.photos;
             let photos = json.photos;
             for (let k in photos) {
                let mainItem = photos[k];
                if (!mainItem) continue;
                mainItem.id = k;
 
-               if (zoom === _markers.zoom) {
-                  if (markers[k]) {
-                     markers[k].touched = true;
-                     continue;
-                  }
+               if (markers[k]) {
+                  markers[k].touched = true;
+                  continue;
                }
                let marker = _createPhotoMarker(mainItem);
                marker.touched = true;
                markers[k] = marker;
             }
-            _markers.zoom = zoom;
-            _removeUntouchedMarkers();
+            _markersOnMap.photos = _removeUntouchedMarkers(markers);
 
             if (history.state && history.state.mode==='map') _pushHistory();
          });
@@ -386,7 +380,7 @@ function createMapControl(app) {
    //         let clusters = json.clusters;
    //         for (let i = 0; i < clusters.length; i++) {
    //            let marker = _createH3Marker(clusters[i].key, clusters[i].count);
-   //            _markers.push(marker);
+   //            _markersOnMap.push(marker);
    //         }
    //         console.log(json);
    //      });
