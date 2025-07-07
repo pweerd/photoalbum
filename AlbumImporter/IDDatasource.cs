@@ -64,12 +64,14 @@ namespace AlbumImporter {
       private RootReplacer rootReplacer;
       private Regex idFilter;
       private Regex mimeFilter;
+      private Regex dbgFilter;
       private ESSearchRequest curReq;
       private GenericDocument curDoc;
       private string fixedFile;
       private string url;
       private int bufferSize;
       private int sleepTime;
+
       public void Import (PipelineContext ctx, IDatasourceSink sink) {
          var p = ctx.Pipeline;
          var repl = rootReplacer;
@@ -87,6 +89,7 @@ namespace AlbumImporter {
                var idInfo = new IdInfo (rec, repl);
                if (idFilter != null && !idFilter.IsMatch (idInfo.Id)) continue;
                if (mimeFilter != null && !mimeFilter.IsMatch (idInfo.MimeType)) continue;
+               if (dbgFilter != null && dbgFilter.IsMatch (idInfo.Id)) Debugger.Break();
 
                curDoc = rec;
                ctx.IncrementEmitted ();
@@ -109,6 +112,7 @@ namespace AlbumImporter {
       }
 
       public void Init (PipelineContext ctx, XmlNode node) {
+         const RegexOptions OPTIONS = RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant;
          rootReplacer = Utils.CreateRootReplacer (node);
          fixedFile = node.ReadStr ("id/@file", null);
          if (fixedFile != null) return;
@@ -117,9 +121,11 @@ namespace AlbumImporter {
          bufferSize = node.ReadInt ("@buffersize", ESRecordEnum.DEF_BUFFER_SIZE);
          sleepTime = node.ReadInt ("@sleep_per_record", 0);
          string f = node.ReadStr ("@filter", null);
-         if (f != null) idFilter = new Regex (f, RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+         if (f != null) idFilter = new Regex (f, OPTIONS);
          f = node.ReadStr ("@mime_filter", null);
-         if (f != null) mimeFilter = new Regex (f, RegexOptions.Compiled | RegexOptions.CultureInvariant);
+         if (f != null) mimeFilter = new Regex (f, OPTIONS);
+         f = node.ReadStr ("@dbg_filter", null);
+         if (f != null) dbgFilter = new Regex (f, OPTIONS);
 
       }
    }
