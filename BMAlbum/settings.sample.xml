@@ -71,11 +71,11 @@
       <search track_hits="true" debug="false">
          <fuzzy trigger_at="0" weight="0.45"/>
          <fieldconfigs>
-            <config select_searchfield="location" flags="default"/>
-            <config select_searchfield="all|text_nl" flags="default|constant|useOnlyStem" fuzzy_rewrite="top_terms_boost_6"/>
-            <config select_searchfield="camera|season|location" not_flags="useStem|allowFuzzy" flags="default|constant|phraseForNormal"/>
-            <config select_searchfield="season|location" not_flags="useStem|allowFuzzy" flags="default|constant"/>
-            <config not_flags="useStem" flags="default|constant" fuzzy_rewrite="top_terms_boost_6"/>
+            <config select_searchfield="location" flags="default|FieldCollapseToText"/>
+            <config base="default" select_searchfield="all|text_nl" or_flags="useOnlyStem"/>
+            <config base="default" select_searchfield="camera|season" not_flags="useStem|allowFuzzy" or_flags="phraseForNormal"/>
+            <config select_field="exist|exists" flags="default"/>
+            <config name="default" select_field="."  not_flags="useStem" flags="default|constant|FieldCollapseToText" fuzzy_rewrite="top_terms_boost_6"/>
          </fieldconfigs>
          <searchers>
             <searcher field="default" searchfield="all" tiebreaker="0"/>
