@@ -3,10 +3,9 @@ title: Getting started | Album
 ---
 [toc]
 
-# Photoalbum website/indexer
+# Photo album website/indexer
 
 In the following text "photo's" means "photo's or video's".
-
 
 
 
@@ -35,7 +34,7 @@ The installer can host your website in IIS (only possible in Windows Pro version
 
 - automatic start the webserver
 
-If you don't want hosting via IIS, you need to start the webserver first (see the link in the bitmanager-folder). 
+If you don't want hosting via IIS, you need to start the webserver first (see the link in the bitmanager-folder).
 
 It is possible to automatic start the webserver by copying this link to windows startup map (*C:\Users\Username\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup*) or to schedule it at system start by using the task-scheduler.
 
@@ -128,7 +127,7 @@ The step is restartable, so you can cancel the import and resume later.
 
 ##### face_extract
 
-This step extracts faces from each photo. The face itself and a fingerprint will be stored in a storage file to be used later. The fingerprint will be used in the next face_match step, the photo will be used in the website's faces view. 
+This step extracts faces from each photo. The face itself and a fingerprint will be stored in a storage file to be used later. The fingerprint will be used in the next face_match step, the photo will be used in the website's faces view.
 
 
 ##### face_match
@@ -144,14 +143,13 @@ Once you have this file, open the faces view of the album site. You can reach th
 
 In the faces view, you can select a name from the left pane, and the stamp it on some faces. Note that you can use simple searches/albums/years/sorting to wade through your collection.
 
-Try to stamp a few (+/- 10) different faces per person. 
+Try to stamp a few (+/- 10) different faces per person.
 
-Now run the face_match and the photo's step. This should finish pretty fast, after which you can see the automatic assigned name to a face. 
+Now run the face_match and the photo's step. This should finish pretty fast, after which you can see the automatic assigned name to a face.
 
 For a manual about the possible searches and actions in the face view, click on the questionmark in the searchbox (only shown if the searchbox is empty).
 
 It will be tempting to correct mistakes in the automatic face recognition. But know that it will be never 100% OK. It will keep making mistakes, especially for faces that are in side-view or blurred. You should look at it as only one of the tools for searching through your collection.
-
 
 
 
@@ -163,70 +161,12 @@ You might want to hide photo's. The are 2 hide modes:
   These photo's have a name that start or end with an '\_'. Like "something-private\_.jpg" or "\_something-private.jpg". It is also possible to specify `hide=external` in the `importsettings.xml` located in the directory tree of you photo collection.
   If you view the album from the local PC or the local network, these photo's are shown, but if you view the album over the internet, the photo's are excluded.
 
-- super hidden 
+- super hidden
   These photo's are never shown. Not local, not over the internet.
-  If you still want to view these photo's, you need to access the site from the local PC and append "`&unhide`" to the url in the browser. 
+  If you still want to view these photo's, you need to access the site from the local PC and append "`&unhide`" to the url in the browser.
   Super-hidden photo's can be specified only via an `importsettings.xml`, by setting "`hide=always`".
 
 After changing hide-settings, you need to run the photos datasource again.
-
-
-
-
-### Creating subsets
-
-The album website supports subsets of photo's. For instance it is possible to have multiple users and make a subset for every user.
-It is also possible to create a subset for an event. Like making a subset that contains all new years eve photo's. Or if you organize reunions in you family, you can create a subset "family" that contains photo's for all these events. 
-
-A subset is created by customizing the `settings.xml` in the website. A subset has a name and one or more queries. Such a query searches for the photo's that will be selected in the website. See the `import.xml` for an example. Changing the `import.xml` has an immediate effect on the website.
-
-Sometimes it is difficult to come up with a simple query to select photo's for a subset. In that case it might be handy to tag photo's with one or more tags (terms). These tags are specified in the `import.xml` and evaluated at the photos step.
-A tag will be assigned by evaluating a field in the record to be indexed with a regular expression. Like:
-
-```
-<tagger user="*" tag="medialab" field="album" expr="2012. zwerfpad|2015. brommeren" />
-```
-
-
-See the `import.xml` for how to do this. Once you run the photos step again, the tags are assigned and you can simply search for "tag:medialab", or specify a subset with this query.
-
-The syntax of regular expression can be found on the internet. But a **very** brief explanation is:
-
-- . is a placeholder for any character, \\. matches the dot. 
-- | is an OR operator. 
-  In the example we match 2 albums: "2012.zwerfpad" and "2015. brommeren" 
-- .\* means zero or more characters
-- .+ means 1 or more characters
-
-
-
-### GPS coordinates
-
-GPS coordinates are extracted from the photo and indexed if available.
-If coordinates are available, you can find your photo's based in those coordinates by searching for instance `loc:zwolle`. This will show all photo's that are taken in or around Zwolle. This works by first translating Zwolle into coordinates (via a service running at the Bitmanager site) and then search around those coordinates.
-
-If no coordinates are available, it is possible to match the time of the photo's to available gpx-tracks. This is outside the scope of this document and still experimental. Contact me if you want to know more.
-
-Note that Whatsapp strips all metadata from photo's. Only the date is available, and in case of an IPhone, this date is in the creation date, which is not copied if you copy the file.
-
-##### Google maps and Google places 
-
-The Google services are free if you do only a limited requests per month (order of magnitude: 10000 requests per month). For personal use, this is more than enough. Therefore, if you want to make use of Google services, you need to get api-keys and put them in the `settings.xml` of your album website.
-
-Google maps will be used if you want to view the photo on the map (if coordinates are available). You can reach the map via the context menu of a photo with coordinates. This option is only shown if you enabled the map! Enabling is done by modifying the settings.xml:
-
-- Mark the maps node being active
-
-- Creating a Google api-key in the Google console via [](https://console.cloud.google.com/google/maps-apis/overview) and fill that key in the `map/google` element.
-
-If your website is accessible over the internet, you need a browser-key that allows access from your public domain (as referer).
-If the album website is for internal use only, you need a server-key that enables access from your public IP. You can get your public IP via [](https://www.whatsmyip.org/) .
-
-Google places will be used if the location service of the Bitmanager cannot resolve the location. The Bitmanager service is based on open source data from `geonames.org`. You can enable this service by requesting a server-key in the Google console for the Google Places API. The server key needs to give access to the Bitmanager server at IP: `45.142.234.255`. This key should be filled in the `mainindex/search/searchers/searcher` element. See the `settings.xml` for details.
-
-***Warning***: you might want to set quota's and price limits. For small sites you probably never reach the limit where you are getting billed, but you never know!
-
-In case you need a server-key for both maps as places, you can use the same key, but with 2 allowed IP's.
 
 
 
@@ -234,7 +174,7 @@ In case you need a server-key for both maps as places, you can use the same key,
 
 The import engine has a lot of flags. Most of the time you can leave them as is. In that case an import step will be incremental. This means: preserve the existing content in the index, but add what has been changed.
 
-If you want to start over, you can check the `Fullimport` checkbox. What happens next is that a complete new index is created, without using the existing data. 
+If you want to start over, you can check the `Fullimport` checkbox. What happens next is that a complete new index is created, without using the existing data.
 
 If you do that for the captions/ocr/face-extraction, it means that this process starts over and will take a lot of time to complete (days). So use this flag with caution!
 
@@ -265,11 +205,11 @@ Another example:
 </root>
 ```
 
-In this example photo's without a thumbnail are considered to be imported from Whatsapp. By default the album name will be overwritten by "whatsapp". The date is fetched from the metadata, and if not found from the file date. 
+In this example photo's without a thumbnail are considered to be imported from Whatsapp. By default the album name will be overwritten by "whatsapp". The date is fetched from the metadata, and if not found from the file date.
 
-Note that the **order is important**. "FromFileDate,FromMetadata" would try to take the date from the file first, which is always present and so the FromMetadata is useless then.
+Note that the **order is important**. "`FromFileDate,FromMetadata`" would try to take the date from the file first, which is always present and so the `FromMetadata` is useless then.
 
-If the metadata did contain a date, but it had not timezone in it, the local timezone is assumed. Specifying "assumeUtc" would have assumed Universal Time for missing timezones.
+If the metadata did contain a date, but it had not timezone in it, the local timezone is assumed. Specifying "`assumeUtc`" would have assumed Universal Time for missing timezones.
 
 The settings are not inherited from the parent directory, but from the defaults, because of `inherit="fromDefault"`.
 
@@ -282,3 +222,150 @@ As a last example:
 ```
 
 This example uses "Holiday Finland" as value for the album for all photo's in this directory and below.
+
+
+
+## GPS coordinates
+
+GPS coordinates are extracted from the photo and indexed if available.
+If coordinates are available, you can find your photo's based in those coordinates by searching for instance `loc:zwolle`. This will show all photo's that are taken in or around Zwolle. This works by first translating Zwolle into coordinates (via a service running at the Bitmanager site) and then search around those coordinates.
+
+If no coordinates are available, it is possible to match the time of the photo's to available gpx-tracks. This is outside the scope of this document and still experimental. Contact me if you want to know more.
+
+Note that Whatsapp strips all metadata from photo's. Only the date is available, and in case of an IPhone, this date is in the creation date, which is not copied if you simply copy the file.
+
+
+### Location service of the Bitmanager
+The Bitmanager website exposes a location service, built on top of the contents from `geonames.org`. For most locations this will do, but Google Places has way more content.
+If the default location service is not enough, you need to specify an API-key for Google Places usage.
+
+
+### Google maps and Google places
+
+The Google services are free if you do only limited requests per month (order of magnitude: 10000 requests per month). For personal use, this is more than enough. Therefore, if you want to make use of Google services, you need to get api-keys and put them in the `settings.xml` of your album website.
+
+Google maps will be used if you want to view the photo on the map (if coordinates are available). You can reach the map via the context menu of a photo with coordinates. This option is only shown if you enabled the map! Enabling is done by modifying the settings.xml:
+
+- Mark the maps node being active
+
+- Creating a Google api-key in the Google console via [](https://console.cloud.google.com/google/maps-apis/overview) and fill that key in the `map/google` element.
+
+If your website is accessible over the internet, you need a browser-key that allows access from your public domain (as referer).
+If the album website is for internal use only, you need a server-key that enables access from your public IP. You can get your public IP via [](https://www.whatsmyip.org/) .
+
+Google places will be used if the location service of the Bitmanager cannot resolve the location. The Bitmanager service is based on open source data from `geonames.org`. You can enable this service by requesting a server-key in the Google console for the Google Places API. The server key needs to give access to the Bitmanager server at IP: `45.142.234.255`. This key should be filled in the `mainindex/search/searchers/searcher` element. See the `settings.xml` for details.
+
+***Warning***: you might want to set quota's and price limits. For small sites you probably never reach the limit where you are getting billed, but you never know!
+
+In case you need a server-key for both maps as places, you can use the same key, but with 2 allowed IP's.
+
+
+
+## Website
+The usage of the album website should be reasonable straight forward.
+For more information, make sure to access the help information (question mark next to the query box)
+
+
+
+### Authentication
+
+In some cases you might want users to authenticate themselves. Currently the only supported authentication provider is Win32 (Windows).
+
+
+
+## Considerations for exposing over the internet
+If you want to expose your album over the internet, You ***must*** use a server like IIS or Nginx. Also, its important to realize that you are more vulnerable.
+
+The album server comes with the possibility to serve only `404 Not found` if the request is done by a blacklisted IP or from a blacklisted user-agent. By default, the IP-blacklist will be synchronized from the Bitmanager server. This blacklist contains basically IP's that are robots and IP's that behave badly.  It is refreshed 4 times a day.
+
+Of course you can supply your own blacklist. See the `settings.xml` of the album site for more information.
+
+Some functionality is switched off if the site is accessed from the internet. For instance assigning face names to faces.
+
+We talked about hiding photo's. Think twice before you expose all your photo's over the internet.
+
+
+### IP classes
+It is possible to assign IP's to a class. Class names that start with `internal` are considered to be from the LAN. It makes sense to mark your public IP address as being internal. Doing so enforces that you can type the public domain name from within the LAN and access the album website as if you are an internal PC. See the `settings.xml` of the album site for more information.
+
+Authenticated users (users that are logged in via url `_login`) are assigned to IP class `authencticated` and mostly handled as internal users.
+
+
+
+## Customizations
+### Field-handling in queries
+Out of the box, the query-handler tries to combine 'unfielded' words to the previous field.
+As an example, the query `name:peter wilma` is interpreted as `name:(peter AND wilma)`.
+You can switch off this behavior by modifying your settings.xml of the website: remove the flags `FieldCollapseToText` from the fieldconfigs. If this flag is not specified, `name:peter wilma` is interpreted as `name:peter AND wilma` (wilma is searched in all fields. Not specifically in name.)
+
+See also the help of the album website (questionmark next to query box)
+
+### Layout of the lightbox
+
+The layout of the lightbox can be changed per device-type (phone/desktop) and per width of the screen. For a device-type/size combination the `target_count` and `max_ratio` can be specified. The target_count is the targeted number of thumbnails that should be visible per row as a minimum. The max_aspect value controls how squared the thumbnail is. `max_ration="1"` means the thumbnail will be shown as a square.
+
+See the `lightbox`-node in the `settings.xml`.
+
+### Thumbnail scaling
+
+Thumbnails and photo views need to be scaled from the original photo. This is done by executing a pipeline.  See the `shrink_small`-node (thumbnails) and the shrink_large-node (photo views) in the `settings.xml`.
+
+Each pipeline consists of a combination of following elements:
+
+**factor2**
+This element shrinks the photo by simply leaving out half of the rows and columns.
+This is fast and has a sharpening effect. The bias determines the limit of scaling. If the bias is 0.9 the thumbnail needs to be at least 2^1.9 times as small. Otherwise this element is skipped.
+
+**factor15**
+This element shrinks the photo by using the Lanczos3 resampler.
+The bias determines the limit of scaling. If the bias is 0.9 the thumbnail needs to be at least 1.5^1.9 times as small. Otherwise this element is skipped.
+
+**exact**
+This element shrinks the photo by using the Lanczos3 resampler.
+
+**sharpen**
+This element sharpens the photo. The center-value determines how much sharpening is done. (Bigger center-value means lower sharpening)
+
+### Caches
+The generated thumbnails and smaller phto views can be cached. These caches can be refreshed and cleared via an API:
+
+| Api          | Url                                 |
+| ------------ | ----------------------------------- |
+| RefreshStats | <site>/cache/refreshstats?type=type |
+| Clear        | <site>/cache/clear?type=type        |
+| StartRefresh | <site>/cache/startrefresh?type=type |
+| StopRefresh  | <site>/cache/stoprefresh?type=type  |
+
+where type is one of `small`|`large`|`both`.
+
+It is very important that the thumbnails (small cache) are cached. The website will ask for a lot of thumbnails in 1 go. If all these thumbnails need to be generated the site will become very slow!
+
+
+
+### Tagging / Creating subsets
+
+The album website supports subsets of photo's. For instance it is possible to have multiple users and make a subset for every user.
+It is also possible to create a subset for an event. Like making a subset that contains all new years eve photo's. Or if you organize reunions in you family, you can create a subset "family" that contains photo's for all these events.
+
+For every subset there is a value for `expose` and `skip_authenticate` . Expose determines if the subset is visible for a certain IP-class. Skip_authenticate determines for what IP-classes users don't need to authenticate.
+
+A subset is created by customizing the `settings.xml` in the website. A subset has a name and one or more queries. Such a query searches for the photo's that will be selected in the website. See the `import.xml` for an example. Changing the `import.xml` has an immediate effect on the website. You can specify
+
+Sometimes it is difficult to come up with a simple query to select photo's for a subset. In that case it might be handy to tag photo's with one or more tags (terms). These tags are specified in the `import.xml` and evaluated at the photos step.
+A tag will be assigned by evaluating a field in the record to be indexed with a regular expression. Like:
+
+```
+<tagger user="*" tag="medialab" field="album" expr="2012. zwerfpad|2015. brommeren" />
+```
+
+
+See the `import.xml` for how to do this. Once you run the photos step again, the tags are assigned and you can simply search for "tag:medialab", or specify a subset with this query.
+
+The syntax of regular expression can be found on the internet (for example [](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions/Cheatsheet)). But a **very** brief explanation is:
+
+- . is a placeholder for any character, \\. matches the dot.
+- | is an OR operator.
+  In the example we match 2 albums: "2012.zwerfpad" and "2015. brommeren"
+- .\* means zero or more characters
+- .+ means 1 or more characters
+
