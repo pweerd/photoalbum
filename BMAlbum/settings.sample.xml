@@ -227,7 +227,10 @@
 
    <users>
       <!-- This will automatic expose all available users (see import.xml)
-           skip_authenticate="." means: do not authenticate for all IP's
+           skip_authenticate is a regex that matches the assigned IP-class (see ipconfigs)
+           So "." means: do not authenticate for all IP's.
+           The value 'expose' is also a regex theat matches the assigned IP-class. 
+           It determines whether the user gets a 404 or a normal response. 
       -->
       <template expose="." skip_authenticate="." />
 
