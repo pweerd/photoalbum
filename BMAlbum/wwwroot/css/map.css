@@ -58,6 +58,26 @@
    width: auto;
 }
 
+#goto_curpos_map {
+   background: none 6px center / 28px no-repeat rgb(255, 255, 255);
+   display: block;
+   border: 0px;
+   margin-right: 10px;
+   padding: 0px;
+   text-transform: none;
+   appearance: none;
+   position: relative;
+   cursor: pointer;
+   user-select: none;
+   width: 40px;
+   height: 40px;
+   border-radius: 50%;
+   box-shadow: rgba(0, 0, 0, 0.3) 0px 1px 4px -1px;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+}
+
 #overlay_map.ovl {
    padding: 0px;
    border: 1px solid black;
