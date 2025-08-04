@@ -34,9 +34,9 @@
             </div>
          </div>
          <div id="row_per_album" class="labeled-input">
-            <label class="lcell"></label>
             <div class="rcell">
                <input type="checkbox" id="per_album" checked /><label for="per_album">Per album</label>
+               <img id="show_map" src="~/images/goto_curpos.svg" title="Toon kaart"/>
             </div>
          </div>
          @if ((Model.State.DebugFlags & DebugFlags.TRUE) != 0) {
@@ -92,6 +92,7 @@
 
 @section Scripts {
    <script type="text/javascript">
+
       app = createApplication(@Model.GetStateAsHtmlString());
       app.mapControl = createMapControl(app);
       app.lbControl = createLightboxControl(app);
