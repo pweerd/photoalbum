@@ -79,7 +79,7 @@ function hookConsole(url, types, cap, timeout) {
 
    if (!Array.isArray(types)) {
       if (typeof types === 'string') types = [types];
-      else types = ['log', 'info', 'error', 'warn', 'trace'];
+      else types = ['log', 'info', 'error', 'warn', 'trace', 'debug'];
    }
    for (let i = 0; i < types.length; i++) {
       let type = types[i];
