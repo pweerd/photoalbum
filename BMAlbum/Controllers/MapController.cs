@@ -38,12 +38,6 @@ namespace BMAlbum.Controllers {
          return View (new MapModel (this, new ClientState (RequestCtx, (Settings)Settings)));
       }
 
-      public IActionResult IdToLocation () {
-         var clientState = new ClientState(RequestCtx, (Settings)Settings);
-         JsonObjectValue json = clientState.Pin != null ? clientState.Pin.ToJson() : new JsonObjectValue();
-         return new JsonActionResult (json);
-      }
-
       private enum _Mode { clusters, photos};
       public IActionResult Clusters () {
          var mem = Request.GetBodyAsStream ();

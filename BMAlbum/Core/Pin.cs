@@ -93,6 +93,7 @@ namespace BMAlbum {
       }
 
       public string ToUrlValue () {
+         if (Id == "current_position") return "current_position";
          string loc = Id ?? Position;
          return Distance == null ? loc : loc + "~" + Distance;
       }
@@ -101,7 +102,9 @@ namespace BMAlbum {
          return ToUrlValue ();
       }
 
-      public JsonObjectValue ToJson () {
+      public JsonValue ToJson () {
+         if (Id == "current_position") return "current_position";
+
          var ret = new JsonObjectValue ();
          ret.Add ("loc", Position);
          if (Id != null) ret.Add ("id", Id);
