@@ -955,6 +955,11 @@ function createLightboxControl(app) {
       _toggleHelp();
       if (!e.originalEvent.inputType && $("#searchq").val() === '') _search(); //Force search when clearing input
    });
+   $('#show_map').on('click', function () {
+      _state.mode = 'map';
+      _state.pin = "current_position";
+      app.start('lb');
+   });
 
    $("#lightbox")[0].addEventListener('lgAfterOpen', function (e) {
       $(".lg-content").removeAttr("style");

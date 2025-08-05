@@ -49,7 +49,13 @@ function createMapControl(app) {
       photos: {}
    };
 
-   let _lastAlbum, _lastZoom;
+   let _curposMarker;
+   let _curposDiv;
+
+   //Keep track of the last map-state. We could do that via the URL, but in case of
+   //only a foto-url that's ugly. While showing the map, we do serialize them via the URL,
+   //so that the url can be pasted into another window.
+   let _lastZoom, _lastCenter;
 
    function _normalizePosition(pos) {
       //console.log('typeof pos1=', typeof pos, pos instanceof google.maps.LatLng);
@@ -59,7 +65,7 @@ function createMapControl(app) {
          let arr = pos.split(',');
          pos = new google.maps.LatLng(arr[0], arr[1]);
       } else if (!(pos instanceof google.maps.LatLng)) {
-         pos = new google.maps.LatLng(pos.lat, pos.lon | pos.lng);
+         pos = new google.maps.LatLng(pos.lat, pos.lon ?? pos.lng);
       }
       //console.log('typeof pos2=', typeof pos, pos instanceof google.maps.LatLng);
       return pos;
@@ -75,7 +81,7 @@ function createMapControl(app) {
          position: _normalizePosition(cl.loc),
          content: img,
          title: tit,
-         zIndex:20
+         zIndex: 20
       });
       marker.addListener('click', () => {
          console.log('click groupmarker zoom=', _map.getZoom(), marker);
@@ -85,7 +91,34 @@ function createMapControl(app) {
       return marker;
    }
 
-   function _firePhoto() {
+   function _updateCurposMarker(pos) {
+      _curpos = pos;
+      if (!_map) return;
+      const curpos = _normalizePosition(pos);
+      if (_curposMarker) {
+         _curposMarker.position = curpos;
+      } else {
+         const img = document.createElement('img');
+         img.src = _state.home_url + 'images/curpos.svg';
+         img.width = 20;
+         img.height = 20;
+
+         _curposMarker = new google.maps.marker.AdvancedMarkerElement({
+            map: _map,
+            position: new google.maps.LatLng(pos.lat, pos.lon),
+            content: img,
+            title: 'Huidige positie',
+            zIndex: 20
+         });
+      }
+      console.log("UPD curpos", curpos.lat(), curpos.lng());
+      return _curposMarker;
+   }
+
+
+   function _firePhoto(ev) {
+      if (ev.domEvent) ev = ev.domEvent;
+      ev.preventDefault();
       _hideMarkerPhoto();
       const pin = this._pin;
 
@@ -96,6 +129,7 @@ function createMapControl(app) {
       setTimeout(function () {
          _state.mode = 'photos';
          _state.pin = pin;
+         _state.slide = undefined;
          _state.q = undefined;
          _state.album = undefined;
          _state.sort = undefined;
@@ -103,7 +137,9 @@ function createMapControl(app) {
          app.start('map');
       });
    }
-   function _firePhotoSlide() {
+   function _firePhotoSlide(ev) {
+      if (ev.domEvent) ev = ev.domEvent;
+      ev.preventDefault();
       _hideMarkerPhoto();
       const pin = this._pin;
 
@@ -136,7 +172,7 @@ function createMapControl(app) {
          let imgUrl = app.createUrl('photo/get') + "&h=240&id=" + encodeURIComponent(pin.id);
          $img.attr('src', imgUrl);
       }
-      
+
       const rc = ev.target.getBoundingClientRect();
       const ourH = $ovl.height();
 
@@ -238,112 +274,107 @@ function createMapControl(app) {
       );
    }
 
-   let _reposTimer;
    let _lastColors = undefined;
    function _fetchMarkers() {
       console.log("_fetchMarkers");
-      clearTimeout(_reposTimer);
-      _reposTimer = setTimeout(() => {
-         let bounds = _map.getBounds();
-         let zoom = _map.getZoom();
-         console.log('delayed _fetchMarkers: zoom', zoom, 'bounds', bounds);
-         if (!bounds) {
-            console.log("no bounds!");
-            return;
-         }
-         if (bounds.getNorthEast().lat() == bounds.getSouthWest().lat()) {
-            console.log("empty bounds!");
-            return;
-         }
+      let bounds = _map.getBounds();
+      let zoom = _map.getZoom();
+      console.log('delayed _fetchMarkers: zoom', zoom, 'bounds', bounds);
+      if (!bounds) {
+         console.log("no bounds!");
+         return;
+      }
+      if (bounds.getNorthEast().lat() == bounds.getSouthWest().lat()) {
+         console.log("empty bounds!");
+         return;
+      }
 
-         let parms = [];
-         parms.push("&bounds=" + _boundsToString(_map.getBounds()));
-         if (zoom >= 15) parms.push("&mode=photos");
-         else {
-            //Determine the photo count to switch from clustering to individual photo's
-            //This is done by taking the minimum square area in pixels of the div into account
-            let elt = document.getElementById("map");
-            let minDim = Math.min(elt.clientHeight, elt.clientWidth); //max square area
-            let maxCount = Math.max(50, (minDim * minDim) / 3000).toFixed(0);
-            console.log("Request clusters for more than ", maxCount, " photos");
-            parms.push("&max_count=" + maxCount);
-         }
+      let parms = [];
+      parms.push("&bounds=" + _boundsToString(_map.getBounds()));
+      if (zoom >= 15) parms.push("&mode=photos");
+      else {
+         //Determine the photo count to switch from clustering to individual photo's
+         //This is done by taking the minimum square area in pixels of the div into account
+         let elt = document.getElementById("map");
+         let minDim = Math.min(elt.clientHeight, elt.clientWidth); //max square area
+         let maxCount = Math.max(50, (minDim * minDim) / 3000).toFixed(0);
+         console.log("Request clusters for more than ", maxCount, " photos");
+         parms.push("&max_count=" + maxCount);
+      }
 
-         zoom = (zoom < maxGoogleZoom) ? googleZoomToEsZoom[zoom] : maxEsZoom;
-         parms.push("&zoom=" + zoom);
+      zoom = (zoom < maxGoogleZoom) ? googleZoomToEsZoom[zoom] : maxEsZoom;
+      parms.push("&zoom=" + zoom);
 
-         app.postJSON('map/clusters', _lastColors, parms, function (json) {
+      app.postJSON('map/clusters', _lastColors, parms, function (json) {
 
-            //Process clusters (groups)
-            let markers = _markersOnMap.clusters;
-            let clusters = json.clusters;
-            _lastColors = json.colors; //if (json.colors)
-            let totBefore = 0;
-            let totAfter = 0;
-            for (let k in clusters) {
-               totBefore++;
-               let mainItem = clusters[k];
-               if (!mainItem) continue;
+         //Process clusters (groups)
+         let markers = _markersOnMap.clusters;
+         let clusters = json.clusters;
+         _lastColors = json.colors;
+         let totBefore = 0;
+         let totAfter = 0;
+         for (let k in clusters) {
+            totBefore++;
+            let mainItem = clusters[k];
+            if (!mainItem) continue;
 
-               totAfter++;
-               mainItem.k = k;
-               let limitCnt = mainItem.count / 2;
+            totAfter++;
+            mainItem.k = k;
+            let limitCnt = mainItem.count / 2;
 
-               let top = calculateAdjacent(k, 'top');
-               let bottom = calculateAdjacent(k, 'bottom');
-               let right =  calculateAdjacent(k, 'right');
-               let left =  calculateAdjacent(k, 'left');
-               let topleft =  calculateAdjacent(left, 'top');
-               let topright =  calculateAdjacent(right, 'top');
-               let bottomright =  calculateAdjacent(right, 'bottom');
-               let bottomleft =  calculateAdjacent(left, 'bottom');
-               let arr = [top, bottom, right, left, topleft, topright, bottomright, bottomleft];
+            let top = calculateAdjacent(k, 'top');
+            let bottom = calculateAdjacent(k, 'bottom');
+            let right = calculateAdjacent(k, 'right');
+            let left = calculateAdjacent(k, 'left');
+            let topleft = calculateAdjacent(left, 'top');
+            let topright = calculateAdjacent(right, 'top');
+            let bottomright = calculateAdjacent(right, 'bottom');
+            let bottomleft = calculateAdjacent(left, 'bottom');
+            let arr = [top, bottom, right, left, topleft, topright, bottomright, bottomleft];
 
-               for (let j = 0; j < 8; j++) {
-                  let h = arr[j];
-                  let hashItem = clusters[h];
-                  if (!hashItem) continue;
-                  if (hashItem.count >= limitCnt) continue;
+            for (let j = 0; j < 8; j++) {
+               let h = arr[j];
+               let hashItem = clusters[h];
+               if (!hashItem) continue;
+               if (hashItem.count >= limitCnt) continue;
 
-                  //collapse entries
-                  mainItem.count += hashItem.count;
-                  clusters[h] = undefined;
-               }
-
-               if (markers[k]) {
-                  markers[k].touched = true;
-                  continue;
-               }
-
-               let marker = _createGroupMarker(mainItem);
-               marker.touched = true;
-               markers[k] = marker;
+               //collapse entries
+               mainItem.count += hashItem.count;
+               clusters[h] = undefined;
             }
-            _markersOnMap.clusters = _removeUntouchedMarkers(markers);
-            console.log('collapse. before=', totBefore, ', after=', totAfter, json);
 
-            //Process individual photos
-            markers = _markersOnMap.photos;
-            let photos = json.photos;
-            for (let k in photos) {
-               let mainItem = photos[k];
-               if (!mainItem) continue;
-               mainItem.id = k;
-
-               if (markers[k]) {
-                  markers[k].touched = true;
-                  continue;
-               }
-               let marker = _createPhotoMarker(mainItem);
-               marker.touched = true;
-               markers[k] = marker;
+            if (markers[k]) {
+               markers[k].touched = true;
+               continue;
             }
-            _markersOnMap.photos = _removeUntouchedMarkers(markers);
 
-            if (history.state && history.state.mode==='map') _pushHistory();
-         });
+            let marker = _createGroupMarker(mainItem);
+            marker.touched = true;
+            markers[k] = marker;
+         }
+         _markersOnMap.clusters = _removeUntouchedMarkers(markers);
+         console.log('collapse. before=', totBefore, ', after=', totAfter, json);
 
-      }, 100);
+         //Process individual photos
+         markers = _markersOnMap.photos;
+         let photos = json.photos;
+         for (let k in photos) {
+            let mainItem = photos[k];
+            if (!mainItem) continue;
+            mainItem.id = k;
+
+            if (markers[k]) {
+               markers[k].touched = true;
+               continue;
+            }
+            let marker = _createPhotoMarker(mainItem);
+            marker.touched = true;
+            markers[k] = marker;
+         }
+         _markersOnMap.photos = _removeUntouchedMarkers(markers);
+
+         if (history.state && history.state.mode === 'map') _pushHistory();
+      });
    }
 
    //function _createH3Marker(key, cnt) {
@@ -395,28 +426,35 @@ function createMapControl(app) {
    }
 
    function _pushHistory() {
-      _state.zoom = _map.getZoom();
-      _state.center = _positionToString(_map.getCenter());
-
-      //Save the lastZoom in order to be able to use the same zoom for a photo from the same album
-      if (_state.pin && _state.pin.album) {
-         _lastAlbum = _state.pin.album;
-         _lastZoom = _state.zoom;
-      } else
-         _lastAlbum = null;
+      _state.zoom = _lastZoom = _map.getZoom();
+      _state.center = _lastCenter = _positionToString(_map.getCenter());
 
       _state.pushHistory('map', history.state && history.state.mode === 'map');
       console.log('PUSHed map hist');
    }
 
+   function _gotoCurpos() {
+
+      const curloc = app.getLocation();
+      let lat, lon;
+      if (_curposMarker) {
+         lat = _curposMarker.position.lat;
+         lon = _curposMarker.position.lng;
+      }
+      console.log('_gotoCurpos', curloc, lat, lon);
+      if (!curloc || !_map) return;
+
+      _map.panTo(_normalizePosition(curloc));
+   }
+
    function _start(from) {
-      console.log("startmap", from, _map);
+      console.log("STARTMAP", from, _map);
       _hideMarkerPhoto();
       document.title = "Kaart | Foto's";
       _state = app.state;
       if (!_map) {
          console.log("GOOGLE", typeof google);
-         if (!Object.hasOwn(window, 'google') || !Object.hasOwn(window.google,'maps')) {
+         if (!Object.hasOwn(window, 'google') || !Object.hasOwn(window.google, 'maps')) {
             window._initMap = function () {
                console.log("lazy loading:", from);
                app.start(from);
@@ -427,32 +465,71 @@ function createMapControl(app) {
             document.body.appendChild(script);
             return false;
          }
+
+         document.addEventListener("geo_location", function (ev) {
+            _updateCurposMarker(app.getLocation());
+         });
          console.log('create map');
          _map = new google.maps.Map(document.getElementById("map"), {
+            mapId: "ALBUM_MAP",
             center: _normalizePosition(_state.map_settings.start_position),
             zoom: _state.map_settings.start_zoom,
-            mapId: "ALBUM_MAP"
          });
-         _map.addListener('bounds_changed', _fetchMarkers);
-         console.log('map', _map);
+
+         _map.addListener('idle', _fetchMarkers);
+
+         //Add goto curpos control
+         const img = document.createElement('img');
+         img.src = _state.home_url + 'images/goto_curpos.svg';
+         const div = document.createElement('div');
+         div.appendChild(img);
+         div.id = 'goto_curpos_map';
+         _curposDiv = div;
+         google.maps.event.addDomListener(div, 'click', _gotoCurpos);
+         _map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(div);
+         console.log('map created');
       }
 
-      let zoom = -1;
-      let loc = null;
-      if (_state.pin) {
-         zoom = maxGoogleZoom;
+      const curloc = app.getLocation();
+      console.log("curloc=", curloc);
+      if (curloc) {
+         _updateCurposMarker(curloc);
+         if (_curposDiv) _curposDiv.classList.remove('hidden');
+      } else {
+         if (_curposDiv) _curposDiv.classList.add('hidden');
+      }
+
+      //Restore zoom and center if needed
+      if (!_state.center) {
+         _state.center = _lastCenter;
+         _state.zoom = _lastZoom;
+      }
+
+      let loc, zoom, why;
+      if (from === 'history') {
+         zoom = _state.zoom ?? _state.map_settings.start_zoom;;
+         loc = _state.center ?? _state.map_settings.start_position;
+         why = 'LOC(hist): ';
+      } else if (!_state.pin) {
+         loc = _state.center ?? _state.map_settings.start_position;
+         zoom = _state.zoom ?? _state.map_settings.start_zoom;
+         why = 'LOC(no pin): ';
+      } else if (_state.pin === "current_position") {
+         loc = curloc ?? _state.center ?? _state.map_settings.start_position;
+         zoom = _state.zoom ?? _state.map_settings.start_zoom;
+         why = 'LOC(curpos): ';
+      } else {
+         zoom = _state.zoom ?? maxGoogleZoom;
          _createMainPhotoMarker(_state.pin);
          loc = _state.pin.loc;
-         //if (_lastZoom && _lastAlbum === _state.pin.album) zoom = _lastZoom;
-         if (_lastZoom) zoom = _lastZoom;
+         why = 'LOC(pin): ';
       }
-
-      if (_state.center) loc = _state.center;
-      if (_state.zoom) zoom = _state.zoom;
+      console.log(why, loc, zoom);
 
       //Now position the map
       if (loc != null) {
          _map.panTo(_normalizePosition(loc));
+
          if (typeof (zoom) === "string") zoom = parseInt(zoom, 10);
          _map.setZoom(zoom);
 
@@ -463,6 +540,7 @@ function createMapControl(app) {
          //google.maps.event.trigger(_map, 'resize');
       }
       if (from !== 'history') _pushHistory();
+
       return true;
    }
 

@@ -123,7 +123,7 @@ function createApplication(state) {
          return false;
       }
    });
-   
+
 
    const _state = state;
    let _isTouch = false;
@@ -131,7 +131,7 @@ function createApplication(state) {
    function _getEntryUrl() {
       let url = new URL(window.location);
       url.search = '';
-      return url.href.endsWith('/') ? url.href : url.href+'/';
+      return url.href.endsWith('/') ? url.href : url.href + '/';
    }
 
    //Save the original url for using in the history
@@ -175,7 +175,7 @@ function createApplication(state) {
    }
 
    function _getOrPostJsonBackend(url, dataToSend, func) {
-      let method="GET", payload;
+      let method = "GET", payload;
 
       if (dataToSend) {
          payload = JSON.stringify(dataToSend);
@@ -250,7 +250,7 @@ function createApplication(state) {
             _enableOrDisableMap(false);
             break;
          case "map":
-            app.mapControl.onPopHistory(ev); 
+            app.mapControl.onPopHistory(ev);
             _enableOrDisableMap(true);
             break;
          default:
@@ -262,7 +262,7 @@ function createApplication(state) {
 
    function _start(from) {
       //if (from==="history") _copyStateParms(_state, history.state);
-      console.log("Start: from=", from, ", history=", history.state); 
+      console.log("Start: from=", from, ", history=", history.state);
       _overlay.hideNow();
 
       //Set the correct help link
@@ -313,10 +313,46 @@ function createApplication(state) {
       }
    }
 
+   let _geoLocation = undefined;
+   function _getLocation() {
+      function onPosition(pos) {
+         let coords = pos.coords;
+
+         _geoLocation = {
+            lat: coords.latitude,
+            lon: coords.longitude,
+            timestamp: pos.timestamp
+         };
+         console.log("GEO:", _geoLocation, pos.coords);
+
+         $("#show_map").removeClass("hidden");
+         document.dispatchEvent(new CustomEvent("geo_location", { detail: _geoLocation }));
+      }
+      function onError(err) {
+         console.log("Geo getCurrentPosition error ", err.code, ":", err.message);
+      }
+
+      const maxAge = 600000;
+      if (!_geoLocation || (Date.now() - _geoLocation.timestamp) > maxAge) {
+         if (navigator.geolocation) {
+            console.log("REQUESTING GEO");
+            navigator.geolocation.getCurrentPosition(onPosition, onError, {
+               enableHighAccuracy: true,
+               timeout: 5000,
+               maximumAge: 0
+            });
+         }
+      }
+      return _geoLocation;
+   }
+   $("#show_map").addClass("hidden");
+   _getLocation();
+
 
    return {
       dumpHistory: _dumpHistory,
       createUrl: _createUrl,
+      getLocation: _getLocation,
       getJSON: _getJSON,
       postJSON: _postJSON,
       state: _state,
