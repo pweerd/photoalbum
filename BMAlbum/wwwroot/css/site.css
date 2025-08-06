@@ -20,15 +20,26 @@
 
 html {
    position: relative;
-   height: 100%;
+   height: 100vh;
+   width: 100vw;
    font-size: 14px;
 }
 
 @media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
+   html {
+     font-size: 16px;
+   }
+   #searchq {
+      width: 20em;
+   }
 }
+@supports (height: 100dvh) {
+   html {
+      height: 100dvh;
+      width: 100dvw;
+   }
+}
+
 
 body {
    width: 100%;
@@ -95,7 +106,7 @@ body {
 
 #searchq {
    /*margin-left: .25em;*/
-   width: 20em;
+   width: 17.5em;
    margin-right: .25em;
    outline-offset: 0px;
 }
