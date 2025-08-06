@@ -181,11 +181,11 @@ namespace BMAlbum {
          //Return the state of the controls
          if (User != null) container["user"] = User.Id;
          container["sortmodes"] = SearchSettings.SortModes.AsJsonObject ();
+         container["sort"] = SortName ?? SearchSettings.SortModes.Default.Name;
          if (Query != null) container["q"] = Query;
          if (Pin != null) container["pin"] = Pin.ToJson();
          container["per_album"] = PerAlbum == TriStateBool.False ? false : true;
          container["mode"] = AppMode.ToString ().ToLowerInvariant ();
-         if (SortName != null) container["sort"] = SortName;
          container["lightbox_settings"] = Settings.LightboxSettings.SettingsForClient;
          container["map_settings"] = Settings.MapSettings.ToJson ();
          if (Settings.ExternalTracksUrl != null)
