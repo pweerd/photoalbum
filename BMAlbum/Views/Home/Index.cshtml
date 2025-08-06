@@ -93,7 +93,7 @@
 @section Scripts {
    <script type="text/javascript">
 
-      app = createApplication(@Model.GetStateAsHtmlString());
+      app = createApplication(@Model.GetStateAsHtmlString() ,@Model.GetAllowGps());
       app.mapControl = createMapControl(app);
       app.lbControl = createLightboxControl(app);
       app.start(history.state ? "history" : "main"); 

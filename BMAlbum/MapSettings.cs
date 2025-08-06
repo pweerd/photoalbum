@@ -14,9 +14,13 @@ namespace BMAlbum {
       private JsonObjectValue _json;
       public readonly int StartZoom;
       public readonly bool Enabled;
+      public readonly bool AllowGPS;
       public MapSettings (XmlNode node, string imagesDir) {
          if (node != null) {
             Enabled = node.ReadBool ("@active", true);
+            if (Enabled) {
+               AllowGPS = node.ReadBool ("gps/@active", true);
+            }
             GoogleKey = node.ReadStr ("google/@key");
             PinSearchDistance = node.ReadStr ("pins/@search_distance");
             GroupPin = node.ReadStr ("pins/group/@pin");

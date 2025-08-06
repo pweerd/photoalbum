@@ -51,7 +51,7 @@
    <faces_admin  dir="SAME ADMINDIR AS IMPORT" />
    <video_frames dir="SAME ADMINDIR AS IMPORT" />
 
-   <photocache >
+   <photocache max_parallel="2">
       <refresh active="false" sleeptime="300" />
       <shrink_small cache="true" quality="80" tag="1" log="false">
          <factor2 bias=".9" />
@@ -273,6 +273,7 @@
    <map active="false">
       <google key="YOUR MAPS GOOGLE CLIENT KEY (dont forget to set active=true)" /> 
       <start center="52.177513910134806,5.861052751913665" zoom="8" />
+      <gps active="true" show="map"/>
       <pins search_distance="4km" >
          <group pin="redgrouppin.svg"/>
          <selected pin="blackpin.svg"/>

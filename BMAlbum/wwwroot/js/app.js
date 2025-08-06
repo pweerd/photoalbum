@@ -20,7 +20,7 @@ const DESKTOP = 1;
 const PHONE = 2;
 const TABLET = 4;
 
-function createApplication(state) {
+function createApplication(state, allowGps) {
 
    if ((state.debug_flags & 0x10000) !== 0 && hookConsole)
       hookConsole(state.home_url + '_clientlog');
@@ -332,6 +332,7 @@ function createApplication(state) {
          console.log("Geo getCurrentPosition error ", err.code, ":", err.message);
       }
 
+      if (!allowGps) return;
       const maxAge = 600000;
       if (!_geoLocation || (Date.now() - _geoLocation.timestamp) > maxAge) {
          if (navigator.geolocation) {
