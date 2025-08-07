@@ -1,8 +1,24 @@
-﻿using Bitmanager.Core;
+﻿/*
+ * Copyright © 2024, De Bitmanager
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+using Bitmanager.Core;
 using Bitmanager.Elastic;
 using Bitmanager.Json;
-using Bitmanager.Query;
 using Bitmanager.Web;
+using BMAlbum.Core;
 using BMAlbum.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
@@ -40,59 +56,97 @@ namespace BMAlbum.Controllers {
 
       private enum _Mode { clusters, photos};
       public IActionResult Clusters () {
+         const int ENLARGE_FACTOR = 3;
          var mem = Request.GetBodyAsStream ();
 
-         var maxPhotoCount = Request.Query.ReadInt ("max_count", 40);
+         var maxPhotoCount = Request.Query.ReadInt ("max_count", 50);
          var zoom = Request.Query.ReadInt ("zoom", -1);
          var bounds = Request.Query.ReadStr ("bounds", null);
          var mode = Request.Query.ReadEnum ("mode", _Mode.clusters);
          var settings = (Settings)Settings;
          var clientState = new ClientState (RequestCtx, settings);
          var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
+         GeoBoundingBox bbox = null;
+         bool alreadyZoomed = false;
 
-         SEARCH:
          var c = settings.ESClient;
-         var req = c.CreateSearchRequest (settings.MainIndex);
-         req.TrackTotalHits = true;
-         var albumAgg = new ESTermsAggregation ("albums", "album.facet", 3);
-         if (mode==_Mode.clusters) {
-            req.Size = 0;
-            var agg = new ESGeoHashAggregation ("clusters", FIELD, zoom);
-            req.Aggregations.Add (agg);
-            agg.SubAggs.Add (albumAgg);
-         } else {
-            req.Size = 500;
-            req.SetSource (FIELD + ",album", null);
-            req.Aggregations.Add (albumAgg);
-            albumAgg.Size = 10;
+         ESSearchResponse resp = null;
+         ESGeoAggregationResult aggResult = null;
+         for (int i=0; i<3; i++) {
+            var req = c.CreateSearchRequest (settings.MainIndex);
+            req.TrackTotalHits = true;
+            var albumAgg = new ESTermsAggregation ("albums", "album.facet", 3);
+            if (mode == _Mode.clusters) {
+               req.Size = 0;
+               var agg = new ESGeoHashAggregation ("clusters", FIELD, zoom);
+               req.Aggregations.Add (agg);
+               agg.SubAggs.Add (albumAgg);
+            } else {
+               req.Size = 500;
+               req.SetSource (FIELD + ",album", null);
+               req.Aggregations.Add (albumAgg);
+               albumAgg.Size = 10;
+            }
+
+            ESQuery q = bounds != null ? new ESGeoBoundingBoxQuery (FIELD, bounds) : new ESExistsQuery (FIELD);
+            req.Query = PhotoController.wrapQueryInFilters (clientState, q, null);
+
+            resp = req.Search ();
+            resp.ThrowIfError ();
+            SiteLog.Log ("MAP({0}): mode={1}, totalHits={2}, max={3}", i, mode, resp.TotalHits, maxPhotoCount);
+
+            aggResult = null;
+            switch (mode) {
+               case _Mode.clusters:
+                  //If the #photo's is limied and we are clustering, we redo the search,
+                  //but now for getting photo's
+                  if (resp.TotalHits <= maxPhotoCount) {
+                     SiteLog.Log ("-- MAP({0}) RETRY mode=photos", i);
+                     mode = _Mode.photos;
+                     continue;
+                  }
+                  aggResult = (ESGeoAggregationResult)resp.Aggregations.FindByName ("clusters", true);
+
+                  //If we have no clusters, we try to enlarge the area and redo the search
+                  if (!alreadyZoomed && aggResult.ItemCount == 0) {
+                     SiteLog.Log ("-- MAP({0}) RETRY zoomed clusters", i);
+                     alreadyZoomed = true;
+                     bbox = new GeoBoundingBox (bounds).Zoom (ENLARGE_FACTOR);
+                     bounds = bbox.ToString ();
+                     continue;
+                  }
+                  break;
+               case _Mode.photos:
+                  //If we have no photos, we try to enlarge the area and redo the search
+                  if (!alreadyZoomed && resp.TotalHits == 0) {
+                     SiteLog.Log ("-- MAP({0}) RETRY zoomed photos", i);
+                     alreadyZoomed = true;
+                     bbox = new GeoBoundingBox (bounds).Zoom (ENLARGE_FACTOR);
+                     bounds = bbox.ToString ();
+                     continue;
+                  }
+                  break;
+            }
+            break;
          }
 
-         ESQuery q = bounds != null ? new ESGeoBoundingBoxQuery (FIELD, bounds) : new ESExistsQuery (FIELD);
-         req.Query = PhotoController.wrapQueryInFilters (clientState, q, null);
-
-         var resp = req.Search ();
-         resp.ThrowIfError ();
-         SiteLog.Log ("MAP: mode={0}, totalHits={1}, max={2}", mode, resp.TotalHits, maxPhotoCount);
-
-         //If the #photo's is limied and we are clustering, we redo the search,
-         //but now for getting photo's
-         if (resp.TotalHits <= maxPhotoCount && mode == _Mode.clusters) {
-            mode = _Mode.photos;
-            goto SEARCH; 
-         }
 
          var json = new JsonMemoryBuffer ();
          json.WriteStartObject ();
          json.WriteProperty ("zoom", zoom);
 
+         string loc;
+         int[] partCounters = alreadyZoomed ? new int[ENLARGE_FACTOR* ENLARGE_FACTOR] : null;
+
          json.WriteStartObject ("clusters");
          if (mode == _Mode.clusters) {
-            var aggResult = (ESGeoAggregationResult)resp.Aggregations.FindByName ("clusters", true);
             for (int i = 0; i < aggResult.ItemCount; i++) {
                var item = aggResult.Items[i];
                var k = item.GetKey ();
                json.WriteStartObject (k);
-               json.WriteProperty ("loc", hashToLocation (k));
+               loc = hashToLocation (k);
+               json.WriteProperty ("loc", loc);
+               if (alreadyZoomed) partCounters[bbox.GetPartIndex (loc, ENLARGE_FACTOR)]++;
                json.WriteProperty ("count", item.Count);
                var str = fetchAlbumsAsString (item);
                if (str != null) json.WriteProperty ("albums", str);
@@ -117,7 +171,9 @@ namespace BMAlbum.Controllers {
             foreach (var d in resp.Documents) {
                var src = d._Source;
                json.WriteStartObject (d.Id);
-               json.WriteProperty ("loc", src.ReadStr (FIELD, string.Empty));
+               loc = src.ReadStr (FIELD, string.Empty);
+               json.WriteProperty ("loc", loc);
+               if (alreadyZoomed) partCounters[bbox.GetPartIndex (loc, ENLARGE_FACTOR)]++;
                var a = src.ReadStr ("album", string.Empty);
                json.WriteProperty ("album", a);
                json.WriteProperty ("count", 1);
@@ -127,6 +183,15 @@ namespace BMAlbum.Controllers {
          }
          json.WriteEndObject ();
          if (colorDict != null) colorDict.ExportToJson (json);
+
+         if (alreadyZoomed) {
+            int maxIndex = 0;
+            for (int i = 1; i < partCounters.Length; i++) {
+               if (partCounters[i] > partCounters[maxIndex]) maxIndex = i;
+            }
+            if (partCounters[maxIndex] > 0)
+               json.WriteProperty ("advised_bounds", (JsonValue)bbox.GetPart (maxIndex, ENLARGE_FACTOR).ToJsonArr ());
+         }
 
          json.WriteEndObject ();
          return new JsonActionResult (json);

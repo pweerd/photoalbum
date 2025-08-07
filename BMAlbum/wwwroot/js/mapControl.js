@@ -275,11 +275,16 @@ function createMapControl(app) {
    }
 
    let _lastColors = undefined;
+   let _skipFetchMarkers;
    function _fetchMarkers() {
-      console.log("_fetchMarkers");
+      if (_skipFetchMarkers) {
+         _skipFetchMarkers = false;
+         console.log("skipping _fetchMarkers because advised bounds");
+         return;
+      }
       let bounds = _map.getBounds();
       let zoom = _map.getZoom();
-      console.log('delayed _fetchMarkers: zoom', zoom, 'bounds', bounds);
+      console.log('_fetchMarkers: zoom', zoom, 'bounds', bounds);
       if (!bounds) {
          console.log("no bounds!");
          return;
@@ -297,7 +302,7 @@ function createMapControl(app) {
          //This is done by taking the minimum square area in pixels of the div into account
          let elt = document.getElementById("map");
          let minDim = Math.min(elt.clientHeight, elt.clientWidth); //max square area
-         let maxCount = Math.max(50, (minDim * minDim) / 3000).toFixed(0);
+         let maxCount = Math.max(50, (minDim * minDim) / 2500).toFixed(0);
          console.log("Request clusters for more than ", maxCount, " photos");
          parms.push("&max_count=" + maxCount);
       }
@@ -306,7 +311,6 @@ function createMapControl(app) {
       parms.push("&zoom=" + zoom);
 
       app.postJSON('map/clusters', _lastColors, parms, function (json) {
-
          //Process clusters (groups)
          let markers = _markersOnMap.clusters;
          let clusters = json.clusters;
@@ -372,6 +376,15 @@ function createMapControl(app) {
             markers[k] = marker;
          }
          _markersOnMap.photos = _removeUntouchedMarkers(markers);
+
+         if (json.advised_bounds) {
+            _skipFetchMarkers = true;
+            console.log("ADVISED: ", json.advised_bounds);
+            var newBounds = new google.maps.LatLngBounds();
+            newBounds.extend(new google.maps.LatLng(json.advised_bounds[0], json.advised_bounds[1]));
+            newBounds.extend(new google.maps.LatLng(json.advised_bounds[2], json.advised_bounds[3]));
+            _map.fitBounds(newBounds);
+         }
 
          if (history.state && history.state.mode === 'map') _pushHistory();
       });
