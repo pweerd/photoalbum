@@ -166,8 +166,15 @@ function createLightboxControl(app) {
 
    //Initializes the lightbox style and returns a LightboxState
    function _prepareLightboxAndGetHeight($elt, _ratio) {
-      //console.log("PREPARE LB (w, cw, w, pw)", $elt.width(), $elt[0].clientWidth, $elt.width() - 9, $elt.parent()[0].clientWidth);
-      const w = $elt.width() - 9; //width without an eventual scrollbar
+      //In order to compute the available width we insert a div that is large enough to force a scrollbar
+      //After the width() we remove the div
+      let div = document.createElement('div');
+      div.style.width = "1px";
+      div.style.height = "20000px";
+      div = $elt[0].appendChild(div);
+      const w = $elt.width()-1;
+      $elt[0].removeChild(div);
+
       if (w <= 0) return; //Probably hidden
       
       const lightboxSettings = _state.lightbox_settings;
@@ -489,7 +496,6 @@ function createLightboxControl(app) {
       }
    }
 
-   let _photoWindow = null;
    function _updateLightboxFaces($elt, data) {
       let sb = [];
       let imgUrl = app.createUrl('facephoto/get') + "&storid=";
@@ -530,7 +536,6 @@ function createLightboxControl(app) {
          _lazyLoader.destroy();
          _lazyLoader = undefined;
       }
-      $elt.empty();
       if (data && data.files && data.files.length>0) _indicateLoading($elt);
 
       //Handle tooltip for the searchbox
