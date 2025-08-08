@@ -63,7 +63,10 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       _onTouchCancel();
    }
    function _onTouchCancel() {
-      if (_touchTimer) clearTimeout(_touchTimer);
+      if (_touchTimer) {
+         clearTimeout(_touchTimer);
+         _touchTimer = undefined;
+      }
       _touchInvokedCtxMenu = false;
       _touchTarget = undefined;
    }
