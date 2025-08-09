@@ -529,7 +529,7 @@ function createMapControl(app) {
          why = 'LOC(no pin): ';
       } else if (_state.pin === "current_position") {
          loc = curloc ?? _state.center ?? _state.map_settings.start_position;
-         zoom = _state.zoom ?? _state.map_settings.start_zoom;
+         zoom = _state.zoom ?? maxGoogleZoom;
          why = 'LOC(curpos): ';
       } else {
          zoom = _state.zoom ?? maxGoogleZoom;
