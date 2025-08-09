@@ -15,6 +15,7 @@
  */
 
 using Bitmanager.Query;
+using BMAlbum.Core.Searchers;
 using System.Xml;
 
 
@@ -25,6 +26,7 @@ namespace BMAlbum {
       public ISearcher CreateSearcher (XmlNode node, string type, string field, string searchField, SearchFieldConfig cfg) {
          if (type == "name_searcher") return new NameSearcher (field, searchField, cfg);
          if (type == "pin_searcher") return new PinSearcher (node, field, searchField, cfg);
+         if (type == "mlt_searcher") return new MoreLikeThisSearcher (node, field, searchField, cfg);
          return null;
       }
    }

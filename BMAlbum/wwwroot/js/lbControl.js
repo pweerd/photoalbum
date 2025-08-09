@@ -442,6 +442,14 @@ function createLightboxControl(app) {
       });
    }
 
+   //sb is an array of html parts
+   function _setLightboxHtml($elt, sb) {
+      sb.push("<div class='lb-sentinel-item'></div>")
+      $elt.html(sb.join(''));
+      const $c = $elt.closest(".scroll_container");
+      if ($c.length > 0) $c[0].scrollTop = 0;
+   }
+
    function _updateLightboxPhotos($elt, data) {
       let sb = [];
       let imgUrl = app.createUrl('photo/get') + "&id=";
@@ -466,9 +474,7 @@ function createLightboxControl(app) {
 
          _createImgMarkup(sb, file, lbState);
       }
-      sb.push("<div class='lb-sentinel-item'></div>")
-      $elt.html(sb.join(''));
-
+      _setLightboxHtml($elt, sb);
 
       //Unfortunately this event is needed, since otherwise the gallery item would be opened before the infoHandler is called.
       $elt.find('.info-badge').on('click', ev => {
@@ -516,8 +522,7 @@ function createLightboxControl(app) {
 
          _createFaceMarkup(sb, file, lbState);
       }
-      sb.push("<div class='lb-sentinel-item'></div>")
-      $elt.html(sb.join(''));
+      _setLightboxHtml($elt, sb);
 
       $elt.find('.lb-item').on('click', function (ev) {
          if (ev.ctrlKey) {
@@ -1003,6 +1008,17 @@ function createLightboxControl(app) {
             _state.slide = undefined;
             _state.sort = "relevance";
             _state.q = 'pin:"' + clickedPhoto.f + '"';
+            _state.year = undefined;
+            _state.album = undefined;
+            _state.per_album = undefined;
+            _lg.needBack = false;
+            _lg.closeGallery();
+            _updateLightBox();
+            break;
+         case 'ctx_find_mlt':
+            _state.slide = undefined;
+            _state.sort = "relevance";
+            _state.q = 'mlt:"' + clickedPhoto.f + '"';
             _state.year = undefined;
             _state.album = undefined;
             _state.per_album = undefined;
