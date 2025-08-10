@@ -41,8 +41,7 @@ function createMapControl(app) {
       9,  //21
       9   //22
    ];
-   const maxGoogleZoom = 13;
-   const maxEsZoom = googleZoomToEsZoom[maxGoogleZoom];
+   const maxEsZoom = googleZoomToEsZoom[googleZoomToEsZoom.length-1];
    let _map;
    let _markersOnMap = {
       clusters: {},
@@ -307,7 +306,7 @@ function createMapControl(app) {
          parms.push("&max_count=" + maxCount);
       }
 
-      zoom = (zoom < maxGoogleZoom) ? googleZoomToEsZoom[zoom] : maxEsZoom;
+      zoom = (zoom < googleZoomToEsZoom.length) ? googleZoomToEsZoom[zoom] : maxEsZoom;
       parms.push("&zoom=" + zoom);
 
       app.postJSON('map/clusters', _lastColors, parms, function (json) {
@@ -519,20 +518,21 @@ function createMapControl(app) {
       }
 
       let loc, zoom, why;
+      const mapSettings = _state.map_settings;
       if (from === 'history') {
-         zoom = _state.zoom ?? _state.map_settings.start_zoom;;
-         loc = _state.center ?? _state.map_settings.start_position;
+         zoom = _state.zoom ?? mapSettings.start_zoom;;
+         loc = _state.center ?? mapSettings.start_position;
          why = 'LOC(hist): ';
       } else if (!_state.pin) {
-         loc = _state.center ?? _state.map_settings.start_position;
-         zoom = _state.zoom ?? _state.map_settings.start_zoom;
+         loc = _state.center ?? mapSettings.start_position;
+         zoom = _state.zoom ?? mapSettings.start_zoom;
          why = 'LOC(no pin): ';
       } else if (_state.pin === "current_position") {
-         loc = curloc ?? _state.center ?? _state.map_settings.start_position;
-         zoom = _state.zoom ?? maxGoogleZoom;
+         loc = curloc ?? _state.center ?? mapSettings.start_position;
+         zoom = _state.zoom ?? mapSettings.detail_zoom;
          why = 'LOC(curpos): ';
       } else {
-         zoom = _state.zoom ?? maxGoogleZoom;
+         zoom = _state.zoom ?? mapSettings.detail_zoom;
          _createMainPhotoMarker(_state.pin);
          loc = _state.pin.loc;
          why = 'LOC(pin): ';

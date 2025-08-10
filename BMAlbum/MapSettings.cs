@@ -13,6 +13,7 @@ namespace BMAlbum {
       public readonly string[] OtherPins;
       private JsonObjectValue _json;
       public readonly int StartZoom;
+      public readonly int DetailZoom;
       public readonly bool Enabled;
       public readonly bool AllowGPS;
       public MapSettings (XmlNode node, string imagesDir) {
@@ -27,6 +28,7 @@ namespace BMAlbum {
             SelectedPin = node.ReadStr ("pins/selected/@pin");
             StartPosition = node.ReadStr ("start/@center");
             StartZoom = node.ReadInt ("start/@zoom");
+            DetailZoom = node.ReadInt ("detail/@zoom", 15);
 
             var list = new List<string> ();
             var incl = node.ReadStr ("pins/other/@pin");
@@ -52,6 +54,7 @@ namespace BMAlbum {
             tmp.Add ("pin_search_distance", PinSearchDistance);
             tmp.Add ("start_position", StartPosition);
             tmp.Add ("start_zoom", StartZoom);
+            tmp.Add ("detail_zoom", DetailZoom);
             tmp.Add ("group_pin", GroupPin);
             tmp.Add ("selected_pin", SelectedPin);
             tmp.Add ("other_pins", new JsonArrayValue (OtherPins));
