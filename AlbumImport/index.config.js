@@ -56,6 +56,8 @@
             "syn_repl": {
               "type": "synonym",
               "synonyms": [
+                 "kayak=>kano",
+                 "tessel=>texel"
               ]
             },
 
@@ -127,7 +129,10 @@
          "album_len": { "type": "integer", "doc_values": true },
          "duration": { "type": "integer", "doc_values": true },
          "camera": { "type": "text", "analyzer": "lc_text_index", "search_analyzer": "lc_text_search" },
-         "tz": { "type": "text", "analyzer": "lc_text"},
+         "tz": { "type": "text", "analyzer": "lc_text" },
+         "tz_photo": { "type": "keyword", "normalizer": "lc_facet" },
+         "tz_photo_utc": { "type": "boolean" },
+         "gps_location": { "type": "geo_point" },
          "location": { "type": "geo_point" },
          "extra_location": { "type": "text", "analyzer": "lc_text_shingles", "search_analyzer": "lc_text", "copy_to": ["all", "all_s"] },
          "cc": { "type": "keyword", "normalizer": "lc_facet" },
@@ -158,8 +163,8 @@
             "face_detect_score": {"type": "float"},
             "detected_face_detect_score": {"type": "float"},
             "score_all": {"type": "float"}
-         }}
-
+         }},
+         "trkid": { "type": "text", "analyzer": "lc_text" }
       }
    }
 }

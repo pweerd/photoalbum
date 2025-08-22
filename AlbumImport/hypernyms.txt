@@ -139,6 +139,10 @@ muziekinstrument;muziek
 vuurplaats;vuur
 kampvuur;vuur
 vreugdevuur;vuur
-taart;gebak
-
+taart;gebak;
+waterlichaam;water
+rivier;water
+beek;water
+kanaal;water
+sloot;water
 

@@ -219,12 +219,20 @@ namespace AlbumImporter {
          if (meta.Height==0 || meta.Width == 0) throw new BMException ("File {0} has no width/height.", idInfo.FileName);
 
          string location = meta.GpsLocation;
+         if (location != null) rec["gps_location"] = location;
+
          rec["height"] = meta.Height;
          rec["width"] = meta.Width;
          rec["orientation"] = meta.Orientation.AsString ();
          if (!double.IsNaN (meta.DurationInSecs)) rec["duration"] = (int)meta.DurationInSecs;
          if (meta.CompressorName != null) rec["c_name"] = meta.CompressorName;
          if (meta.CompressorId != null) rec["c_id"] = meta.CompressorId;
+         string tz = meta.TzOriginal ?? meta.TzCreated;
+
+         if (tz != null) {
+            rec["tz_photo"] = tz;
+            rec["tz_photo_utc"] = tz.EndsWith ("00:00");
+         }
 
          rec["mime"] = meta.MimeType;
          rec["type"] = meta.MimeType.StartsWith ("video") ? "video" : "photo";
@@ -242,10 +250,12 @@ namespace AlbumImporter {
             var pos = tracks.FindPosition (date.ToUniversalTime());
             if (pos != null) {
                if (location == null) location = createLocation (pos.Lat, pos.Lon);
-               if (pos.Track.Timezone != null) rec["tz"] = pos.Track.Timezone;
+               if (pos.Track.Timezone != null) tz =pos.Track.Timezone;
                if (pos.Track.Id != null) rec["trkid"] = pos.Track.Id;
             }
          }
+         rec["tz"] = tz;
+
          if (location != null) {
             rec["location"] = location;
             var extraLocationInfo = getExtraLocationInfo (location, out var cc);
