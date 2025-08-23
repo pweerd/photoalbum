@@ -175,6 +175,7 @@ namespace AlbumImporter {
       }
 
       Logger exifLogger = Logs.CreateLogger ("exif", "import");
+
       public object OnPhoto (PipelineContext ctx, object value) {
          handleExceptions = false;
          idInfo = (IdInfo)value;
@@ -223,7 +224,8 @@ namespace AlbumImporter {
 
          rec["height"] = meta.Height;
          rec["width"] = meta.Width;
-         rec["orientation"] = meta.Orientation.AsString ();
+         rec["orientation"] = OrientationExts.AsString(meta.Orientation);
+         //rec["orientation"] = meta.Orientation.AsString(); //PW todo: No clue why this line doesn't compile...
          if (!double.IsNaN (meta.DurationInSecs)) rec["duration"] = (int)meta.DurationInSecs;
          if (meta.CompressorName != null) rec["c_name"] = meta.CompressorName;
          if (meta.CompressorId != null) rec["c_id"] = meta.CompressorId;

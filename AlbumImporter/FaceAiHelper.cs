@@ -277,13 +277,6 @@ public class FaceAiHelper : IDisposable {
       return FaceAiSharp.Extensions.GeometryExtensions.Dot (a, b);
    }
 
-   public Bitmap ToBitmap (Image<Rgb24> img) {
-      var mem = new MemoryStream ();
-      img.SaveAsBmp (mem);
-      mem.Position = 0;
-      return (Bitmap)System.Drawing.Image.FromStream (mem, false, false);
-   }
-
    public void Dispose () {
       (_faceDetector as IDisposable)?.Dispose ();
       (_embeddingsGenerator as IDisposable)?.Dispose ();
