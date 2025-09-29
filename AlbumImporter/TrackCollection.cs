@@ -44,29 +44,34 @@ namespace AlbumImporter {
 
    public class TrackCollection {
       private readonly List<TrackAdmin> tracks;
-      public TrackCollection (Logger logger, string url) {
+      public TrackCollection (Logger logger, string[] urls, string[] files) {
          tracks = new List<TrackAdmin> ();
-         if (url == null) {
-            logger.Log (_LogType.ltTimer, "Tracks, nothing loaded: url not specified");
-            return;
+         logger.Log (_LogType.ltTimerStart, "Tracks, loading...");
+         int cnt;
+         if (urls != null) {
+            foreach (var url in urls) {
+               cnt = tracks.Count;
+               logger.Log ("-- Loading from url [{0}]...", url);
+               loadTracksFromUrl (logger, tracks, url);
+               logger.Log ("-- Loaded {0} tracks from url [{1}].", tracks.Count-cnt, url);
+            }
          }
+         if (files != null) {
+            foreach (var fn in files) {
+               cnt = tracks.Count;
+               logger.Log ("-- Loading from file/dir [{0}]...", fn);
+               loadTracksFromFile (logger, tracks, fn);
+               logger.Log ("-- Loaded {0} tracks from file/dir [{1}].", tracks.Count - cnt, fn);
+            }
+         }
+
+         tracks.Sort (TrackAdmin.SortTracksOnDate);
+         logger.Log (_LogType.ltTimerStop, "Tracks, Loaded {0} tracks in total", tracks.Count);
+      }
+
+      private void loadTracksFromUrl (Logger logger, List<TrackAdmin> dst, string url) {
          var req = Utils.CreateESRequest (url);
          req.Query = new ESTermQuery ("", "");
-
-         logger.Log (_LogType.ltTimerStart, "Tracks, loading...");
-         addTracksLoadedFromES (tracks, req);
-
-         ////Maybe from files too...
-         logger.Log (_LogType.ltTimer, "Tracks, Loaded {0} tracks from ES", tracks.Count);
-         tracks.Sort (TrackAdmin.SortTracksOnDate);
-         logger.Log (_LogType.ltTimerStop, "Tracks, Sorted {0} tracks", tracks.Count);
-      }
-
-      public Position FindPosition (DateTime dt) {
-         return TrackAdmin.FindPosition (tracks, dt);
-      }
-
-      private void addTracksLoadedFromES (List<TrackAdmin> dst, ESSearchRequest req) {
          req.Fields = "trackdata";
          req.SetSource ("meta", null);
 
@@ -86,6 +91,28 @@ namespace AlbumImporter {
                dst.Add (new TrackAdmin (d.Id, track));
             }
          }
+      }
+
+      private void loadTracksFromFile (Logger logger, List<TrackAdmin> dst, string fn) {
+         Track track;
+         FileAttributes attr = File.GetAttributes (fn);
+
+         if (attr.HasFlag (FileAttributes.Directory)) {
+            foreach (var f in Directory.EnumerateFiles(fn, "*.gpx")) {
+               track = new Track (_GeoNamesMode.Disabled, null);
+               track.LoadGPX (f, string.Empty, _CleanupMode.None);
+               dst.Add (new TrackAdmin (f, track, 60, 60));
+            }
+            return;
+         }
+         track = new Track (_GeoNamesMode.Disabled, null);
+         track.LoadGPX (fn, string.Empty, _CleanupMode.None);
+         dst.Add (new TrackAdmin (fn, track, 60, 60));
+      }
+
+
+      public Position FindPosition (DateTime dt) {
+         return TrackAdmin.FindPosition (tracks, dt);
       }
 
    }

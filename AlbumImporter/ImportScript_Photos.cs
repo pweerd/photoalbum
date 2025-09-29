@@ -37,6 +37,7 @@ using Bitmanager.Webservices;
 using System.Diagnostics;
 using Bitmanager.ImageTools;
 using Bitmanager.AlbumTools;
+using System.Xml;
 
 namespace AlbumImporter {
    enum Orientation { None = 0, Rotate_0 = 1, Rotate_90 = 6, Rotate_180 = 3, Rotate_270 = 8 };
@@ -96,7 +97,14 @@ namespace AlbumImporter {
          var dsNode = ds.ContextNode;
          captions = new CaptionCollection (ctx.ImportLog, dsNode.ReadStrRaw ("captions/@url", mandatory));
          ocrTexts = new OcrCollection (ctx.ImportLog, dsNode.ReadStrRaw ("ocr/@url", mandatory));
-         tracks = new TrackCollection (ctx.ImportLog, dsNode.ReadStrRaw ("tracks/@url", optional, null));
+         var tracksNode = dsNode.SelectSingleNode ("tracks");
+         string[] urls = null;
+         string[] files = null;
+         if (tracksNode != null) {
+            urls = readStrCollection (tracksNode, "url");
+            files = readStrCollection (tracksNode, "file");
+         }
+         tracks = new TrackCollection (ctx.ImportLog, urls, files);
          taggers = new Taggers (dsNode.SelectSingleNode ("taggers"));
          if (taggers.Count == 0) taggers = null;
 
@@ -112,6 +120,23 @@ namespace AlbumImporter {
          num_portrait = 0;
          handleExceptions = true;
          return value;
+      }
+
+      /// <summary>
+      /// Reads a string[] from a node.
+      /// - either 1 element from the attribute
+      /// - or a collection from the named nodes
+      /// </summary>
+      private string[] readStrCollection (XmlNode node, string name) {
+         var str = node.ReadStr ("@" + name, null);
+         if (str != null) return new string[] { str };
+         var coll = node.SelectNodes (name);
+         if (coll.Count == 0) return null;
+         var ret = new string[coll.Count];
+         for (int i=0; i<ret.Length; i++) {
+            ret[i] = coll[i].ReadStr(null);
+         }
+         return ret;
       }
 
       private int num_en, num_portrait;
@@ -249,6 +274,7 @@ namespace AlbumImporter {
 
          //Sync with trackphoto's and propagate location trackid and timezone
          if (date != DateTime.MinValue && !whatsapp) {
+            //if (date > new DateTime (2025, 9, 28)) Debugger.Break ();
             var pos = tracks.FindPosition (date.ToUniversalTime());
             if (pos != null) {
                if (location == null) location = createLocation (pos.Lat, pos.Lon);
