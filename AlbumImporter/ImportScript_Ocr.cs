@@ -15,7 +15,6 @@
  */
 
 using Bitmanager.Core;
-using Bitmanager.Imaging;
 using Bitmanager.ImportPipeline.StreamProviders;
 using Bitmanager.ImportPipeline;
 using Bitmanager.IO;

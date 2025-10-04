@@ -58,7 +58,7 @@ namespace AlbumImporter {
          var entry = src.GetFileEntry (key);
          if (entry == null) throw new BMException ("Name-Id [{0}] not found in [{1}].", key, id);
          var bytes = src.GetBytes (entry);
-         dst.AddBytes (bytes, key, entry.Modified, (CompressMethod)entry.CompressMethod);
+         dst.AddBytes (bytes, key, entry.Modified, (EntryFlags)entry.Flags);
       }
 
 

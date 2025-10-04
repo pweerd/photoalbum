@@ -41,7 +41,7 @@ namespace BMAlbum {
 
       public byte[] GetFrame (string id, bool raiseException=true) {
          if (frames == null) goto NOT_FOUND;
-         var bytes = FileStorageAccessor.GetBytes (frames, frames.GetFileEntry (id));
+         var bytes = frames.GetBytesParallel (id, false);
          if (bytes != null) return bytes;
 
          NOT_FOUND:

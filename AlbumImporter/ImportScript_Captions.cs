@@ -15,32 +15,20 @@
  */
 
 using Bitmanager.Core;
-using Bitmanager.Imaging;
-using Bitmanager.ImportPipeline.StreamProviders;
 using Bitmanager.ImportPipeline;
 using Bitmanager.IO;
 using Bitmanager.Json;
-using System;
-using System.Collections.Generic;
-using System.Drawing.Imaging;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Threading;
-using Bitmanager.Elastic;
-using Bitmanager.Xml;
-using Bitmanager.Storage;
-using SixLabors.ImageSharp.PixelFormats;
+using Bitmanager.Http;
 
 namespace AlbumImporter {
    public class ImportScript_Captions : ImportScriptBase {
-      private readonly JsonClient client = new JsonClient (new Uri ("http://127.0.0.1:5000/"));
+      private readonly HttpSession http;
       private CaptionCollection existingCaptions;
       private bool sameIndex; //PW Nakijken
       private int maxCount;
 
       public ImportScript_Captions () {
+         http = new HttpSession ();
       }
 
       public object OnDatasourceStart (PipelineContext ctx, object value) {
@@ -85,12 +73,13 @@ namespace AlbumImporter {
          string fn = idInfo.FileName;
 
          //Fetch caption from the caption-server
-         var resp = client.Get ("caption?file=" + Encoders.UrlDataEncode (getItemFileName()), true);
+         var resp = http.Get ("http://127.0.0.1:5000/caption?file=" + Encoders.UrlDataEncode (getItemFileName()), CancellationToken.None);
+         resp.ThrowIfError ();
 
          dst["_id"] = id;
          dst["ts"] = DateTime.UtcNow;
-         dst["text_en"] = getCaption (resp.Value, "captions_en");
-         dst["text_nl"] = getCaption (resp.Value, "captions_nl");
+         dst["text_en"] = getCaption (resp.Json, "captions_en");
+         dst["text_nl"] = getCaption (resp.Json, "captions_nl");
 
          WaitAfterExtract ();
          return null;

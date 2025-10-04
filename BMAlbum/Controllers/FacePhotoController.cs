@@ -120,7 +120,7 @@ namespace BMAlbum.Controllers {
          var entry = storage.GetFileEntry (storId);
          if (entry == null) goto NOT_FOUND;
 
-         byte[] buf = FileStorageAccessor.GetBytes (storage, entry);
+         byte[] buf = storage.GetBytesParallel (entry);
          return new BytesActionResult ("image/jpeg", buf);
 
          NOT_FOUND: return new ActionResult404 ();

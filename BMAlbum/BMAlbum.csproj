@@ -1,6 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk.Web">
    <PropertyGroup>
+      <bmversion>220</bmversion>
       <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
       <RollForward>Major</RollForward>
       <TargetFramework>net8.0</TargetFramework>
@@ -21,36 +22,36 @@
       <ProjectReference Include="..\BMAlbumTools\BMAlbumTools.csproj" />
    </ItemGroup>
    <ItemGroup>
-      <Reference Include="BMBoolParser210">
-         <HintPath>..\_References\BMBoolParser210.dll</HintPath>
+      <Reference Include="BMBoolParser$(bmversion)">
+         <HintPath>..\_References\BMBoolParser$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="bmcore102">
-         <HintPath>..\_References\BMCore102.dll</HintPath>
+      <Reference Include="bmcore$(bmversion)">
+         <HintPath>..\_References\BMCore$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMElastic210">
-         <HintPath>..\_References\BMElastic210.dll</HintPath>
+      <Reference Include="BMElastic$(bmversion)">
+         <HintPath>..\_References\BMElastic$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMHttp210">
-         <HintPath>..\_References\BMHttp210.dll</HintPath>
+      <Reference Include="BMHttp$(bmversion)">
+         <HintPath>..\_References\BMHttp$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMImage210">
-         <HintPath>..\_References\BMImage210.dll</HintPath>
+      <Reference Include="BMImage$(bmversion)">
+         <HintPath>..\_References\BMImage$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMQuery210">
-         <HintPath>..\_References\BMQuery210.dll</HintPath>
+      <Reference Include="BMQuery$(bmversion)">
+         <HintPath>..\_References\BMQuery$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMWeb210">
-         <HintPath>..\_References\BMWeb210.dll</HintPath>
+      <Reference Include="BMWeb$(bmversion)">
+         <HintPath>..\_References\BMWeb$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMWebService210">
-         <HintPath>..\_References\BMWebService210.dll</HintPath>
+      <Reference Include="BMWebService$(bmversion)">
+         <HintPath>..\_References\BMWebService$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
       <Reference Include="SixLabors.ImageSharp">

@@ -294,11 +294,11 @@ namespace AlbumImporter {
 
                mem.SetLength (0);
                imgFace.SaveAsJpeg (mem, jpgEncoder);
-               storages.CurrentFaceStorage.AddBytes (mem.GetBuffer (), 0, (int)mem.Length, storKey, DateTime.UtcNow, CompressMethod.Store);
+               storages.CurrentFaceStorage.AddBytes (mem.GetBuffer (), 0, (int)mem.Length, storKey, DateTime.UtcNow, EntryFlags.None);
                if (!faceOK && !doRotateCheck) {
                   imgFace.Dispose ();
                   mem.Position = 0;
-                  imgFace = SixLabors.ImageSharp.Image.Load<Rgb24> (mem);
+                  imgFace = Image.Load<Rgb24> (mem);
                   faceOK = hlp.HasFace (imgFace);
                }
 
@@ -307,7 +307,7 @@ namespace AlbumImporter {
                hlp.Align (cloned, detResult);
                var embeddings = hlp.CreateEmbedding (cloned);
                var bytes = BufferHelper.ToByteArray (embeddings);
-               storages.CurrentEmbeddingStorage.AddBytes (bytes, 0, bytes.Length, storKey, DateTime.UtcNow, CompressMethod.Deflate);
+               storages.CurrentEmbeddingStorage.AddBytes (bytes, 0, bytes.Length, storKey, DateTime.UtcNow, EntryFlags.Deflate);
 
                dbFace = new DbFace ();
                dbFace.FaceCount = detResults.Length;

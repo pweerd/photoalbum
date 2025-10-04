@@ -146,7 +146,7 @@ namespace BMAlbum {
                e = SmallStore.GetFileEntry (cacheName);
             }
             if (e != null) {
-               var bytes = FileStorageAccessor.GetBytes (SmallStore, e);
+               var bytes = SmallStore.GetBytesParallel(e);
                return new MemoryStream (bytes);
             }
          }
@@ -161,7 +161,7 @@ namespace BMAlbum {
             if (ShrinkerSmall.UseCache) {
                lock (SmallStore) {
                   if (SmallStore.GetFileEntry (cacheName) == null)
-                     SmallStore.AddStream (mem, cacheName, DateTime.Now, Bitmanager.Storage.CompressMethod.Store);
+                     SmallStore.AddStream (mem, cacheName, DateTime.Now, EntryFlags.None);
                }
                mem.Position = 0;
             }
@@ -185,7 +185,7 @@ namespace BMAlbum {
                e = LargeStore.GetFileEntry (cacheName);
             }
             if (e != null) {
-               var bytes = FileStorageAccessor.GetBytes (LargeStore, e);
+               var bytes = LargeStore.GetBytesParallel (e);
                return new MemoryStream (bytes);
             }
          }
@@ -200,7 +200,7 @@ namespace BMAlbum {
             if (ShrinkerLarge.UseCache) {
                lock (LargeStore) {
                   if (LargeStore.GetFileEntry (cacheName) == null)
-                     LargeStore.AddStream (mem, cacheName, DateTime.Now, Bitmanager.Storage.CompressMethod.Store);
+                     LargeStore.AddStream (mem, cacheName, DateTime.Now, EntryFlags.None);
                }
                mem.Position = 0;
             }
@@ -240,7 +240,7 @@ namespace BMAlbum {
                e = store.GetFileEntry (name);
             }
             if (e != null) {
-               var bytes = FileStorageAccessor.GetBytes(store, e);
+               var bytes = store.GetBytesParallel (e);
                ret = new MemoryStream (bytes);
             }
          }
@@ -251,7 +251,7 @@ namespace BMAlbum {
          if (store != null)
             lock (store) {
                if (store.GetFileEntry (name) == null)
-                  store.AddStream (strm, name, DateTime.Now, Bitmanager.Storage.CompressMethod.Store);
+                  store.AddStream (strm, name, DateTime.Now, EntryFlags.None);
             }
       }
 

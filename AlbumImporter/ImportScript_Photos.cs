@@ -14,33 +14,19 @@
  * limitations under the License.
  */
 
-using Bitmanager.Imaging;
-using Bitmanager.ImportPipeline.StreamProviders;
 using Bitmanager.ImportPipeline;
-using Bitmanager.IO;
 using Bitmanager.Json;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using System.Drawing;
 using Bitmanager.Core;
-using System.Drawing.Imaging;
 using Bitmanager.Xml;
-using Bitmanager.Elastic;
-using System.Text.RegularExpressions;
 using Bitmanager.IR;
-using System.Runtime;
+using Bitmanager.Elastic;
 using Bitmanager.Webservices;
-using System.Diagnostics;
 using Bitmanager.ImageTools;
 using Bitmanager.AlbumTools;
 using System.Xml;
 
 namespace AlbumImporter {
-   enum Orientation { None = 0, Rotate_0 = 1, Rotate_90 = 6, Rotate_180 = 3, Rotate_270 = 8 };
 
    public class ImportScript_Photos: ImportScriptBase {
       const string WHATSAPP = "WhatsApp";

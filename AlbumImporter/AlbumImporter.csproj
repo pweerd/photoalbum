@@ -12,6 +12,7 @@
       <RootNamespace>AlbumImporter</RootNamespace>
       <NoWarn>$(NoWarn);CA1416</NoWarn>
       <RollForward>Major</RollForward>
+      <bmversion>220</bmversion>
    </PropertyGroup>
    <ItemGroup>
       <PackageReference Include="FaceAiSharp" Version="0.5.23" />
@@ -24,40 +25,40 @@
       <ProjectReference Include="..\BMAlbumTools\BMAlbumTools.csproj" />
    </ItemGroup>
    <ItemGroup>
-      <Reference Include="bmcore102">
-         <HintPath>..\_References\BMCore102.dll</HintPath>
+      <Reference Include="bmcore$(bmversion)">
+         <HintPath>..\_References\BMCore$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMElastic210">
-         <HintPath>..\_References\BMElastic210.dll</HintPath>
+      <Reference Include="BMElastic$(bmversion)">
+         <HintPath>..\_References\BMElastic$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMGps210">
-         <HintPath>..\_References\BMGps210.dll</HintPath>
+      <Reference Include="BMGps$(bmversion)">
+         <HintPath>..\_References\BMGps$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMHttp210">
-         <HintPath>..\_References\BMHttp210.dll</HintPath>
+      <Reference Include="BMHttp$(bmversion)">
+         <HintPath>..\_References\BMHttp$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMImage210">
-         <HintPath>..\_References\BMImage210.dll</HintPath>
+      <Reference Include="BMImage$(bmversion)">
+         <HintPath>..\_References\BMImage$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="bmir210">
-         <HintPath>..\_References\bmir210.dll</HintPath>
+      <Reference Include="BMOcr$(bmversion)">
+         <HintPath>..\_References\BMOcr$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMOcr210">
-         <HintPath>..\_References\BMOcr210.dll</HintPath>
+      <Reference Include="bmir$(bmversion)">
+         <HintPath>..\_References\bmir$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="BMWebService210">
-         <HintPath>..\_References\BMWebService210.dll</HintPath>
+      <Reference Include="BMWebService$(bmversion)">
+         <HintPath>..\_References\BMWebService$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
-      <Reference Include="ImportPipeline210">
-         <HintPath>..\_References\ImportPipeline210.dll</HintPath>
+      <Reference Include="ImportPipeline$(bmversion)">
+         <HintPath>..\_References\ImportPipeline$(bmversion).dll</HintPath>
          <SpecificVersion>False</SpecificVersion>
       </Reference>
       <Reference Include="SixLabors.ImageSharp">
