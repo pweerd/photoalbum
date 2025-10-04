@@ -14,35 +14,14 @@
  * limitations under the License.
  */
 
-using Bitmanager.Imaging;
-using Bitmanager.ImportPipeline.StreamProviders;
 using Bitmanager.ImportPipeline;
 using Bitmanager.IO;
-using Bitmanager.Json;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using System.Drawing;
 using Bitmanager.Core;
-using System.Drawing.Imaging;
 using Bitmanager.Xml;
-using Bitmanager.Elastic;
-using System.Text.RegularExpressions;
-using Bitmanager.IR;
-using System.Runtime;
-using Bitmanager.Webservices;
-using System.Diagnostics;
-using MetadataExtractor.Formats.Exif.Makernotes;
 using Bitmanager.ImageTools;
 using Bitmanager.Storage;
-using System.Xml.Schema;
-using SixLabors.ImageSharp.Advanced;
 using System.Xml;
-using Bitmanager.ImportPipeline.Datasources;
-using System.Threading;
 
 namespace AlbumImporter {
    public class ImportScript_Videos : ImportScriptBase, IDisposable {
@@ -50,9 +29,8 @@ namespace AlbumImporter {
       private readonly HashSet<string> supportedExtAndCodec;
       private IDDatasource idDatasource;
       private string tempConvertFile;
-      private string convertExt;
-      private string convertCmd, copyCmd, extractCmd;
-      private int convertTimeout, copyTimeout, extractTimeout;
+      private string convertCmd, extractCmd;
+      private int convertTimeout, extractTimeout;
       private bool isNewGeneration;
       private bool autoConvert;
       private bool closeNormal;
@@ -112,7 +90,6 @@ namespace AlbumImporter {
          FFMpeg.Logger = Logs.CreateLogger ("ffmpeg", "ffmpeg");
 
          convertCmd = readFFMpegCmd (ctx.DatasourceAdmin.ContextNode, "commands/convert", out convertTimeout);
-         copyCmd = readFFMpegCmd (ctx.DatasourceAdmin.ContextNode, "commands/copy", out copyTimeout);
          extractCmd = readFFMpegCmd (ctx.DatasourceAdmin.ContextNode, "commands/extract_frame", out extractTimeout);
          return value;
       }
@@ -139,15 +116,19 @@ namespace AlbumImporter {
 
       public object OnId (PipelineContext ctx, object value) {
          var idInfo = (IdInfo)value;
-
-         if (MimeType.GetMimeTypeFromFileName(idInfo.FileName).StartsWith("image")) goto EXIT_SKIP;
+         var mimeFromExt = MimeType.GetMimeTypeFromFileName (idInfo.FileName);
+         Metadata md = null;
+         if (mimeFromExt.StartsWith("image")) goto EXIT_SKIP;
          if (!File.Exists (idInfo.FileName)) {
             ctx.ImportLog.Log (_LogType.ltWarning, "Missing file: " + idInfo.FileName);
             goto EXIT_SKIP;
          }
 
-         Metadata md = mdProcessor.GetMetadata (idInfo.FileName);
-         if (!md.MimeType.StartsWith ("video")) goto EXIT_SKIP;
+         //We try to postpone the GetMetadata() as long as possible (slow)
+         if (!mimeFromExt.StartsWith ("video")) {
+            md = mdProcessor.GetMetadata (idInfo.FileName);
+            if (!md.MimeType.StartsWith ("video")) goto EXIT_SKIP;
+         }
 
          var fa = File.GetAttributes (idInfo.FileName);
          ctx.ImportLog.Log ("Video attr={0} file={1}", fa, idInfo.FileName);
@@ -155,6 +136,7 @@ namespace AlbumImporter {
          if (!isNewGeneration && videoFrames.GetFileEntry (idInfo.Id) != null && (fa & FileAttributes.Archive) == 0) goto EXIT_SKIP;
 
          if (autoConvert) {
+            md ??= mdProcessor.GetMetadata (idInfo.FileName);
             if (!supportedExtAndCodec.Contains (createKey (Path.GetExtension(idInfo.FileName), md.CompressorId))) {
                ctx.ImportLog.Log ("converting");
                idInfo = convertVideo (ctx, idInfo, md);
@@ -167,7 +149,7 @@ namespace AlbumImporter {
          File.SetAttributes (idInfo.FileName, fa & ~FileAttributes.Archive);
 
          var bytes = File.ReadAllBytes (tempFrameFile);
-         videoFrames.AddBytes (bytes, idInfo.Id, DateTime.UtcNow, CompressMethod.Store);
+         videoFrames.AddBytes (bytes, idInfo.Id, DateTime.UtcNow, EntryFlags.None);
          ctx.IncrementAdded ();
          return value;
 
