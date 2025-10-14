@@ -17,6 +17,7 @@
 using Bitmanager.Core;
 using Bitmanager.Json;
 using Bitmanager.Xml;
+using System.Data;
 using System.Xml;
 
 namespace BMAlbum.Core {
@@ -35,10 +36,9 @@ namespace BMAlbum.Core {
       public readonly int PageSize;
       public readonly int MinCountForAlbum;
       public readonly int PreloadBackward, PreloadForward;
-
+      public readonly DeviceSizeSettings[] DeviceSizes;
       public readonly string CacheVersion;
       public readonly bool Paginate;
-      public readonly JsonObjectValue SettingsForClient;
 
 
       public LightboxSettings (XmlNode node) {
@@ -50,6 +50,7 @@ namespace BMAlbum.Core {
             PageSize = 100;
             MinCountForAlbum = DEF_MINCOUNT_ALBUM;
             Paginate = false;
+            DeviceSizes = createDefaultDeviceSettings ();
          } else {
             PageSize = node.ReadInt("@pagesize", 100);
             MinCountForAlbum = node.ReadInt ("@album_mincount", DEF_MINCOUNT_ALBUM);
@@ -63,104 +64,150 @@ namespace BMAlbum.Core {
             var tmp = node.SelectSingleNode ("sizes");
             squareOn = tmp.ReadEnum ("@square_on", BrowserType.None);
             sizesNodes = node.SelectNodes ("sizes");
+            DeviceSizes = createDeviceSettings (node);
          }
-
-         SettingsForClient = createClientSettings (sizesNodes);
       }
 
-      private JsonObjectValue createClientSettings (XmlNodeList deviceNodes) {
-         var ret = new JsonObjectValue ("backward", PreloadBackward, "forward", PreloadForward);
-         ret = new JsonObjectValue ("preload", ret);
+      public SizeSettings[] GetSizeSettingsForDevice(BrowserType type) {
+         for (int i=0; i<DeviceSizes.Length; i++) {
+            if ((DeviceSizes[i].Type & type) != 0) return DeviceSizes[i].SizeSettings;
+         }
+         throw new BMException ("Could not find SizeSettings for type [{0}]", type);
+      }
 
-         JsonArrayValue sizeSettings;
-         if (deviceNodes == null || deviceNodes.Count == 0) 
-            sizeSettings = createDefaultSizeSettings ();
-         else {
-            sizeSettings = new JsonArrayValue ();
-            int N = deviceNodes.Count - 1;
-            for (int i = 0; i <= N; i++) {
-               XmlNode devNode = deviceNodes[i];
-               var obj = new JsonObjectValue ();
-               var devType = devNode.ReadEnum<BrowserType> ("@device");
-               if (i == N && devType != BrowserType.All)
-                  throw new BMNodeException (devNode, "Last node needs to have device='all'.");
-               var sizeNodes = devNode.SelectMandatoryNodes ("size");
-               var sizes = new JsonArrayValue ();
-               for (int j = 0; j < sizeNodes.Count; j++) {
-                  XmlNode sub = sizeNodes[j];
-                  if (j == 0 && 0 != sub.ReadInt ("@width"))
-                     throw new BMNodeException (sub, "First node needs to have width='0'.");
-                  sizes.Add (createSizeSettings (sub));
+
+
+      public void WriteClientConfig (JsonWriter json, BrowserType type) {
+         json.WriteStartObject ();
+         json.WriteStartObject ("preload");
+         json.WriteProperty ("backward", PreloadBackward);
+         json.WriteProperty ("forward", PreloadForward);
+         json.WriteEndObject ();
+
+         json.WriteStartArray ("sizes");
+         var sizes = this.GetSizeSettingsForDevice (type);
+         for(int i=0; i<sizes.Length; i++) json.WriteValue (sizes[i]);
+         json.WriteEndArray ();
+
+         json.WriteEndObject ();
+      }
+
+
+
+      private DeviceSizeSettings[] createDefaultDeviceSettings () {
+         DeviceSizeSettings[] ret = new DeviceSizeSettings[2];
+         var arr = new SizeSettings[2];
+         arr[0] = new SizeSettings (0, 3, "1", 0, string.Empty);
+         arr[1] = new SizeSettings (400, 4, "1", 0, string.Empty);
+         ret[0] = new DeviceSizeSettings (BrowserType.Phone, arr);
+
+         arr = new SizeSettings[3];
+         arr[0] = new SizeSettings (0, 2, "3:4", 0, "space-between");
+         arr[1] = new SizeSettings (512, 3, "3:4", 0, "space-between");
+         arr[2] = new SizeSettings (1024, 4, "3:4", 0, "space-between");
+         ret[1] = new DeviceSizeSettings (BrowserType.All, arr);
+
+         return ret;
+      }
+
+      private DeviceSizeSettings[] createDeviceSettings (XmlNode mainNode) {
+         if (mainNode == null) return createDefaultDeviceSettings ();
+         var list = mainNode.SelectNodes ("sizes");
+         if (list.Count==0) return createDefaultDeviceSettings ();
+
+         DeviceSizeSettings[] ret = new DeviceSizeSettings [list.Count];
+         for (int i = 0; i < ret.Length; i++) {
+            ret[i] = new DeviceSizeSettings (list[i]);
+         }
+         int last = ret.Length - 1;
+         if (ret[last].Type != BrowserType.All)
+            throw new BMNodeException (list[last], "Last node needs to have device='all'.");
+
+         return ret;
+      }
+
+
+      public class DeviceSizeSettings {
+         public readonly BrowserType Type;
+         public readonly SizeSettings[] SizeSettings;
+         
+         public DeviceSizeSettings(BrowserType type, SizeSettings[] arr) {
+            Type = type;
+            SizeSettings = arr;
+         }
+         public DeviceSizeSettings (XmlNode node) {
+            Type = node.ReadEnum<BrowserType> ("@device");
+            var sizeNodes = node.SelectMandatoryNodes ("size");
+            SizeSettings = new SizeSettings[sizeNodes.Count];
+            int i;
+            for (i=0; i<sizeNodes.Count; i++) {
+               SizeSettings[i] = new SizeSettings (sizeNodes[i]);
+            }
+            if (SizeSettings[0].Width != 0)
+               throw new BMNodeException (sizeNodes[0], "First node needs to have width='0'.");
+         }
+      }
+
+      public class SizeSettings: IJsonSerializable {
+         public readonly int Width;
+         public readonly int TargetCount;
+         public readonly float Ratio;
+         public readonly int Fixed;
+         public readonly Dictionary<string,string> Attributes;
+
+         //Constructor used for defaults
+         public SizeSettings (int width, int targetCount, string ratio, int fixedHeight, string justifyContent) {
+            Width = width;
+            TargetCount = targetCount;
+            Ratio = toRatio (ratio);
+            Fixed = fixedHeight;
+
+            Attributes = new Dictionary<string, string> (1);
+            Attributes["justify_content"] = justifyContent;
+         }
+
+         //Constructor used for loading from Xml
+         public SizeSettings (XmlNode node) {
+            Width = node.ReadInt ("@width");
+            TargetCount = node.ReadInt ("@target_count", 0);
+            Ratio = toRatio (node.ReadStr ("@max_ratio", ""));
+            Fixed = node.ReadInt ("@fixed", 0);
+
+            Attributes = new Dictionary<string,string> ();
+            bool foundJustifyContent = false;
+            foreach (XmlAttribute a in node.Attributes) {
+               if (a.LocalName.StartsWith ("attr_")) {
+                  string name = a.LocalName.Substring (5).Replace ('_', '-');
+                  if (name == "justify-content") foundJustifyContent = true;
+                  Attributes[name] = a.Value.Trim ();
                }
-               sizeSettings.Add (new JsonObjectValue ("device", (int)devType, "sizes", sizes));
             }
+            if (!foundJustifyContent) Attributes["justify-content"] = string.Empty;
          }
-         ret["devices"] = sizeSettings;
-         return ret;
-      }
 
-      private static JsonArrayValue createDefaultSizeSettings () {
-         var ret = new JsonArrayValue ();
+         private static float toRatio (string v) {
+            int ix = v.IndexOf (':');
+            if (ix < 0) return Invariant.ToFloat (v);
+            var aspect = Invariant.ToFloat (v.Substring (0, ix)) / Invariant.ToFloat (v.Substring (ix + 1));
+            return aspect <= 1 ? aspect : 1 / aspect;
+         }
 
-         var arr = new JsonArrayValue ();
-         arr.Add (createSizeSettings (0, 3, "1", 0, ""));
-         arr.Add (createSizeSettings (400, 4, "1", 0, ""));
-         ret.Add (new JsonObjectValue ("device", (int)BrowserType.Phone, "sizes", arr));
 
-         arr = new JsonArrayValue ();
-         arr.Add (createSizeSettings (0, 2, "3:4", 0, "space-between"));
-         arr.Add (createSizeSettings (512, 3, "3:4", 0, "space-between"));
-         arr.Add (createSizeSettings (1024, 4, "3:4", 0, "space-between"));
-         ret.Add (new JsonObjectValue ("device", (int)BrowserType.All, "sizes", arr));
-
-         return ret;
-      }
-
-      private static JsonObjectValue createSizeSettings (XmlNode node) {
-         var obj = new JsonObjectValue ();
-         obj["width"] = node.ReadInt ("@width");
-         obj["target_count"] = node.ReadInt ("@target_count", 0);
-         var ratio = toRatio (node.ReadStr ("@max_ratio", ""));
-         obj["ratio_lo"] = ratio;
-         obj["ratio_hi"] = 1 / ratio;
-         obj["fixed"] = node.ReadInt ("@fixed", 0);
-
-         var attr = node.Attributes;
-
-         JsonObjectValue jsonAttr = new JsonObjectValue ();
-         obj["attr"] = jsonAttr;
-         bool foundJustifyContent = false;
-         foreach (XmlAttribute a in node.Attributes) {
-            if (a.LocalName.StartsWith ("attr_")) {
-               string name = a.LocalName.Substring (5).Replace('_', '-');
-               if (name == "justify-content") foundJustifyContent = true;
-               jsonAttr[name] = a.Value.Trim();
+         public void WriteTo (JsonWriter wtr) {
+            wtr.WriteStartObject ();
+            wtr.WriteProperty ("width", Width);
+            wtr.WriteProperty ("target_count", TargetCount);
+            wtr.WriteProperty ("ratio_lo", Ratio);
+            wtr.WriteProperty ("ratio_hi", 1/Ratio);
+            wtr.WriteProperty ("fixed", Fixed);
+            wtr.WriteStartObject ("attr");
+            foreach (var kvp in Attributes) {
+               wtr.WriteProperty(kvp.Key, kvp.Value);
             }
+            wtr.WriteEndObject ();
+            wtr.WriteEndObject ();
          }
-         if (!foundJustifyContent) jsonAttr["justify-content"] = "";
-         return obj;
-      }
-      private static JsonObjectValue createSizeSettings (int width, int targetCount, string ratio, int fixedHeight, string justifyContent) {
-         var obj = new JsonObjectValue ();
-         obj["width"] = width;
-         obj["target_count"] = targetCount;
-         var ratioVal = toRatio (ratio);
-         obj["ratio_lo"] = ratioVal;
-         obj["ratio_hi"] = 1 / ratioVal;
-         obj["fixed"] = fixedHeight;
-         obj["square_on"] = (int)BrowserType.Phone;
-
-         JsonObjectValue jsonAttr = new JsonObjectValue ();
-         obj["attr"] = jsonAttr;
-         if (!string.IsNullOrEmpty(justifyContent)) jsonAttr["justify_content"] = justifyContent;
-         return obj;
       }
 
-      private static double toRatio (string v) {
-         int ix = v.IndexOf (':');
-         if (ix < 0) return Invariant.ToFloat (v);
-         var aspect = Invariant.ToFloat (v.Substring (0, ix)) / Invariant.ToFloat (v.Substring (ix + 1));
-         return aspect <= 1 ? aspect : 1 / aspect;
-      }
    }
 }

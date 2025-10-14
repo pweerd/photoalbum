@@ -126,6 +126,9 @@ body {
    margin: 2px;
    object-fit: cover;
    object-position: center;
+   -webkit-touch-callout: none !important;
+   -webkit-user-select: none !important;
+   -webkit-user-drag: none  !important;
    /*image-rendering: pixelated;*/
 }
 
@@ -134,10 +137,13 @@ body {
 }
 .lb-item {
    -webkit-touch-callout: none !important;
+   -webkit-user-select: none !important;
 }
 
 .lb-wrapper {
    position: relative;
+   -webkit-touch-callout: none !important;
+   -webkit-user-select: none !important;
 }
 .lb-sentinel-item {
    caret-color: transparent;

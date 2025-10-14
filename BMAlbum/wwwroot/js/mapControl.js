@@ -15,6 +15,7 @@
  */
 
 function createMapControl(app) {
+   const _mapSettings = app.config.map_settings;
 
    const googleZoomToEsZoom = [
       2,  //0
@@ -48,8 +49,11 @@ function createMapControl(app) {
       photos: {}
    };
 
+   let _gotoCurposDiv;
+   let _curposHasCompass = false;
+   let _curposElt;
    let _curposMarker;
-   let _curposDiv;
+
 
    //Keep track of the last map-state. We could do that via the URL, but in case of
    //only a foto-url that's ugly. While showing the map, we do serialize them via the URL,
@@ -72,7 +76,7 @@ function createMapControl(app) {
 
    function _createGroupMarker(cl) {
       const img = document.createElement('img');
-      img.src = _state.home_url + 'images/' + _state.map_settings.group_pin;
+      img.src = _state.home_url + 'images/' + _mapSettings.group_pin;
       let tit = cl.count + " photo's";
       if (cl.album) tit = tit + " (" + cl.album + ")";
       const marker = new google.maps.marker.AdvancedMarkerElement({
@@ -90,17 +94,20 @@ function createMapControl(app) {
       return marker;
    }
 
-   function _updateCurposMarker(pos) {
+   function _updateCurposMarker(pos, doPan) {
       _curpos = pos;
-      if (!_map) return;
+      if (!_map || !pos) return;
       const curpos = _normalizePosition(pos);
       if (_curposMarker) {
          _curposMarker.position = curpos;
       } else {
+         console.log("CREATE curpos");
          const img = document.createElement('img');
-         img.src = _state.home_url + 'images/curpos.svg';
-         img.width = 20;
-         img.height = 20;
+         img.id = 'curpos';
+         img.src = _getCurlocImg();
+         img.addEventListener("click", _onCurposClick);
+         _curposElt = img;
+
 
          _curposMarker = new google.maps.marker.AdvancedMarkerElement({
             map: _map,
@@ -109,8 +116,10 @@ function createMapControl(app) {
             title: 'Huidige positie',
             zIndex: 20
          });
+
       }
-      console.log("UPD curpos", curpos.lat(), curpos.lng());
+      console.log("UPD curpos", curpos.lat(), curpos.lng(), _state.pin, doPan);
+      if (doPan) _map.panTo(_curposMarker.position);
       return _curposMarker;
    }
 
@@ -208,7 +217,7 @@ function createMapControl(app) {
 
    function _createPhotoMarker(pin) {
       const img = document.createElement('img');
-      img.src = _state.home_url + 'images/' + _state.map_settings.other_pins[pin.color | 0];
+      img.src = _state.home_url + 'images/' + _mapSettings.other_pins[pin.color | 0];
       const marker = new google.maps.marker.AdvancedMarkerElement({
          map: _map,
          position: _normalizePosition(pin.loc),
@@ -221,7 +230,7 @@ function createMapControl(app) {
 
    function _createMainPhotoMarker(pin) {
       const img = document.createElement('img');
-      img.src = _state.home_url + 'images/' + _state.map_settings.selected_pin;
+      img.src = _state.home_url + 'images/' + _mapSettings.selected_pin;
       img.width = 48;
       img.height = 48;
       const marker = new google.maps.marker.AdvancedMarkerElement({
@@ -445,71 +454,136 @@ function createMapControl(app) {
       console.log('PUSHed map hist');
    }
 
-   function _gotoCurpos() {
-
-      const curloc = app.getLocation();
-      let lat, lon;
-      if (_curposMarker) {
-         lat = _curposMarker.position.lat;
-         lon = _curposMarker.position.lng;
+   let _compassRequested;
+   function _getLocation() {
+      const sensors = app.sensors();
+      if (!_compassRequested) {
+         _compassRequested = true;
+         const compassSettings = _mapSettings.compass;
+         if (compassSettings.active) {
+            sensors.initializeCompass(compassSettings.silent ? null : sensors.alertingErrorCallback);
+         }
       }
-      console.log('_gotoCurpos', curloc, lat, lon);
-      if (!curloc || !_map) return;
 
-      _map.panTo(_normalizePosition(curloc));
+      const gpsSettings = _mapSettings.gps;
+      if (gpsSettings.active) {
+         const req = {
+            errorCB: gpsSettings.silent ? null : sensors.alertingErrorCallback,
+            fine: gpsSettings.fine,
+            max_cache_secs: gpsSettings.max_cache_secs,
+         };
+         console.log("GetLocation", req, gpsSettings);
+         return sensors.getLocation(req);
+      }
+      console.log("GEO: not active");
+
    }
 
-   function _start(from) {
+   function _gotoCurpos() {
+      _updateCurposMarker(_getLocation(), true);
+
+   //   const curloc = _getLocation();
+   //   let lat, lon;
+   //   if (_curposMarker) {
+   //      lat = _curposMarker.position.lat;
+   //      lon = _curposMarker.position.lng;
+   //   }
+   //   console.log('_gotoCurpos', curloc, lat, lon);
+   //   if (!curloc || !_map) return;
+
+   //   _map.panTo(_normalizePosition(curloc));
+   }
+
+   function _onCurposClick() {
+      console.log('curpos clicked');
+      app.sensors().initializeCompass();
+   }
+
+   function _getCurlocImg() {
+      const fn = app.sensors().getHeading() !== undefined ? 'images/curpos_compass2.svg' : 'images/curpos.svg';
+      return _state.home_url + fn;
+   }
+   function _onLocation(ev) {
+      const curloc = ev.detail;
+      console.log("_onLocation curloc=", curloc);
+      _updateCurposMarker(curloc, _state.pin === "current_position");
+   }
+
+   function _onCompass(ev) {
+      const heading = ev.detail.heading;
+      let $curpos = $("#curpos");
+      console.log("_onCompass heading=", heading, ", #curpos=", $curpos.length);
+      if (!_curposHasCompass) {
+         $curpos.attr('src', _getCurlocImg());
+         _curposHasCompass = true;
+      }
+      if ($curpos.length > 0) {
+         const style = $curpos[0].style;
+         const rot = "rotate(" + heading + "deg)";
+         style.webkitTransform = rot;
+         style.MozTransform = rot;
+         style.transform = rot;
+      }
+   }
+
+   function _start(from, recursive) {
+      //throw 'hola';
+      if (!_mapSettings.active) {
+         const msg = "Map is not active. Please check your settings.xml";
+         alert(msg);
+         throw new Error(msg);
+      }
       console.log("STARTMAP", from, _map);
       _hideMarkerPhoto();
       document.title = "Kaart | Foto's";
       _state = app.state;
+
+      //If needed, we must fetch the current location here, and not in the init: security
+      let curloc;
+      if (from === 'lb' && _state.pin === "current_position" ) {
+         curloc = recursive ? app.sensors().getCachedLocation() : _getLocation();
+      }
+
       if (!_map) {
          console.log("GOOGLE", typeof google);
          if (!Object.hasOwn(window, 'google') || !Object.hasOwn(window.google, 'maps')) {
             window._initMap = function () {
                console.log("lazy loading:", from);
-               app.start(from);
+               app.start(from, true);
             };
             const script = document.createElement('script')
             const src = "https://maps.googleapis.com/maps/api/js?libraries=places,marker&callback=_initMap&key=";
-            script.src = src + encodeURIComponent(_state.map_settings.key);
+            script.src = src + encodeURIComponent(_mapSettings.key);
             document.body.appendChild(script);
             return false;
          }
 
-         document.addEventListener("geo_location", function (ev) {
-            _updateCurposMarker(app.getLocation());
-         });
+         document.addEventListener("bm_location", _onLocation);
+         document.addEventListener("bm_compass", _onCompass);
+
          console.log('create map');
          _map = new google.maps.Map(document.getElementById("map"), {
             mapId: "ALBUM_MAP",
-            center: _normalizePosition(_state.map_settings.start_position),
-            zoom: _state.map_settings.start_zoom,
+            center: _normalizePosition(_mapSettings.start_position),
+            zoom: _mapSettings.start_zoom,
          });
 
          _map.addListener('idle', _fetchMarkers);
 
          //Add goto curpos control
-         const img = document.createElement('img');
-         img.src = _state.home_url + 'images/goto_curpos.svg';
-         const div = document.createElement('div');
-         div.appendChild(img);
-         div.id = 'goto_curpos_map';
-         _curposDiv = div;
-         google.maps.event.addDomListener(div, 'click', _gotoCurpos);
-         _map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(div);
+         if (_mapSettings.gps.active) {
+            const img = document.createElement('img');
+            img.src = _state.home_url + 'images/goto_curpos.svg';
+            const div = document.createElement('div');
+            div.appendChild(img);
+            div.id = 'btn_goto_curpos';
+            _gotoCurposDiv = div;
+            google.maps.event.addDomListener(div, 'click', _gotoCurpos);
+            _map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(div);
+         }
          console.log('map created');
       }
 
-      const curloc = app.getLocation();
-      console.log("curloc=", curloc);
-      if (curloc) {
-         _updateCurposMarker(curloc);
-         if (_curposDiv) _curposDiv.classList.remove('hidden');
-      } else {
-         if (_curposDiv) _curposDiv.classList.add('hidden');
-      }
 
       //Restore zoom and center if needed
       if (!_state.center) {
@@ -518,21 +592,21 @@ function createMapControl(app) {
       }
 
       let loc, zoom, why;
-      const mapSettings = _state.map_settings;
       if (from === 'history') {
-         zoom = _state.zoom ?? mapSettings.start_zoom;;
-         loc = _state.center ?? mapSettings.start_position;
+         zoom = _state.zoom ?? _mapSettings.start_zoom;;
+         loc = _state.center ?? _mapSettings.start_position;
          why = 'LOC(hist): ';
       } else if (!_state.pin) {
-         loc = _state.center ?? mapSettings.start_position;
-         zoom = _state.zoom ?? mapSettings.start_zoom;
+         loc = _state.center ?? _mapSettings.start_position;
+         zoom = _state.zoom ?? _mapSettings.start_zoom;
          why = 'LOC(no pin): ';
       } else if (_state.pin === "current_position") {
-         loc = curloc ?? _state.center ?? mapSettings.start_position;
-         zoom = _state.zoom ?? mapSettings.detail_zoom;
+         if (curloc) _updateCurposMarker(curloc, true);
+         loc = curloc ?? _state.center ?? _mapSettings.start_position;
+         zoom = _state.zoom ?? _mapSettings.detail_zoom;
          why = 'LOC(curpos): ';
       } else {
-         zoom = _state.zoom ?? mapSettings.detail_zoom;
+         zoom = _state.zoom ?? _mapSettings.detail_zoom;
          _createMainPhotoMarker(_state.pin);
          loc = _state.pin.loc;
          why = 'LOC(pin): ';
@@ -540,7 +614,7 @@ function createMapControl(app) {
       console.log(why, loc, zoom);
 
       //Now position the map
-      if (loc != null) {
+      if (loc) {
          _map.panTo(_normalizePosition(loc));
 
          if (typeof (zoom) === "string") zoom = parseInt(zoom, 10);

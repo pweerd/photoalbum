@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
+using Bitmanager.Core;
 using Bitmanager.Json;
 using Bitmanager.Web;
+using BMAlbum.Core;
 using BMAlbum.Models;
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics;
 
 namespace BMAlbum.Controllers {
    public class HomeController : BaseController {
@@ -43,6 +44,33 @@ namespace BMAlbum.Controllers {
          return View (new HomeModel (this, clientState));
       }
 
+
+      public IActionResult Config (string dvt) {
+         var settings = (Settings)base.Settings;
+
+         BrowserType type;
+         if (!string.IsNullOrEmpty (dvt) && dvt[0] >= '0' && dvt[0] <= '9')
+            type = (BrowserType)Invariant.ToInt32 (dvt);
+         else
+            type = Invariant.ToEnum<BrowserType> (dvt);
+         
+         var json = new JsonMemoryBuffer ();
+         json.WriteStartObject ();
+
+         if (RequestCtx.IsInternalIp) json.WriteProperty ("is_local", true);
+         json.WriteProperty ("sortmodes_main", settings.MainSearchSettings.SortModes);
+         json.WriteProperty ("sortmodes_faces", settings.FaceSearchSettings.SortModes);
+         json.WritePropertyName ("lightbox_settings");
+         settings.LightboxSettings.WriteClientConfig (json, type);
+         json.WritePropertyName ("map_settings");
+         settings.MapSettings.WriteClientConfig (json, type);
+         if (settings.ExternalTracksUrl != null)
+            json.WriteProperty ("external_tracks_url", settings.ExternalTracksUrl);
+
+         json.WriteEndObject ();
+
+         return new JsonActionResult(json);
+      }
 
 
       public IActionResult Guid () {

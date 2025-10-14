@@ -32,16 +32,15 @@ function createLightboxControl(app) {
       };
 
       limitRatio(ratio) {
-         if (_device & this.sizeSettings.square_on) return 1;
-
          if (ratio < this.sizeSettings.ratio_lo) return this.sizeSettings.ratio_lo;
          if (ratio > this.sizeSettings.ratio_hi) return this.sizeSettings.ratio_hi;
          return ratio;
       }
    }
 
-   const _device = app.device;
    const _state = app.state;
+   const _config = app.config;
+   const _lbSettings = _config.lightbox_settings;
    let _faceMode;
    let _data;
    let _lg;
@@ -177,23 +176,13 @@ function createLightboxControl(app) {
 
       if (w <= 0) return; //Probably hidden
       
-      const lightboxSettings = _state.lightbox_settings;
-      const lightboxSizes = lightboxSettings.devices;
+      const lightboxSettings = _lbSettings;
 
-      let sizeSettings;
-
-      //Search correct settings, based on device type and width
-      for (let i = 0; i < lightboxSizes.length; i++) {
-         if ((lightboxSizes[i].device & _device) == 0) continue;
-
-         //Correct device type
-         let sizes = lightboxSizes[i].sizes;
-         let j = sizes.length - 1;
-         //Search correct width entry. The 1st entry should have width=0
-         for (; j >= 0; j--) if (w >= sizes[j].width) break; 
-         sizeSettings = sizes[j];
-         break;
-      }
+      //Search correct width entry in sizes. The 1st entry should have width=0
+      const sizes = lightboxSettings.sizes;
+      let j = sizes.length - 1;
+      for (; j >= 0; j--) if (w >= sizes[j].width) break; 
+      const sizeSettings = sizes[j];
 
       //Set the associated styles
       for (const [k, v] of Object.entries(sizeSettings.attr)) {
@@ -257,7 +246,7 @@ function createLightboxControl(app) {
       addRow("Tit_en", photo.t_en);
       addRow("Text", photo.t_txt);
       addRow("Camera", photo.c);
-      if (_state.debug || _state.is_local) {
+      if (_state.debug || _config.is_local) {
          addRow("Dir", photo.f.substring(0, ix1));
          addRow("Sortkey", photo.sk);
          if (photo.mime.startsWith('video')) {
@@ -785,7 +774,6 @@ function createLightboxControl(app) {
          //Propagate the new state back into the UI (if set)
          if (newState.per_album !== undefined) $("#per_album").prop("checked", newState.per_album);
          $("#searchq").val(newState.q || '');
-         _toggleHelp();
 
          console.log('NEED HIST:', needHistory, from, _state.isChanged());
          if (needHistory) _pushHistoryCmd();
@@ -815,8 +803,8 @@ function createLightboxControl(app) {
     * Hooked preload: fixed repping around array limits and delayed preloading with 0.5 seconds
     */
    function _hookedPreload(index) {
-      const fwPreload = _state.lightbox_settings.preload.forward;
-      const bwPreload = _state.lightbox_settings.preload.backwarc;
+      const fwPreload = _lbSettings.preload.forward;
+      const bwPreload = _lbSettings.preload.backward;
       //console.log("PRELOAD", index, this.settings);
       let self = this;
       setTimeout(function () {
@@ -905,7 +893,7 @@ function createLightboxControl(app) {
       if ($cb.length === 0) return;
       if ($cb.find('option').length > 0) return;
 
-      var sortModes = _state.sortmodes;
+      var sortModes = _state.mode === "faces" ? _config.sortmodes_faces : _config.sortmodes_main;
       for (var prop in sortModes) {
          $cb.append($('<option>', { value: prop, text: sortModes[prop] }));
       }
@@ -916,15 +904,6 @@ function createLightboxControl(app) {
          _state.sort = this.value;
          _updateLightBox();
       });
-   }
-
-   function _toggleHelp() {
-      return; //pw
-      if ($('#searchq').val().trim()==='') {
-         $("#help_link").removeClass("hidden");
-      } else {
-         $("#help_link").addClass("hidden");
-      }
    }
 
 
@@ -962,10 +941,9 @@ function createLightboxControl(app) {
          e.preventDefault();
       }
    }).on('input', function (e) {
-      _toggleHelp();
       if (!e.originalEvent.inputType && $("#searchq").val() === '') _search(); //Force search when clearing input
    });
-   $('#show_map').on('click', function () {
+   $('#btn_show_map').on('click', function () {
       _state.mode = 'map';
       _state.pin = "current_position";
       app.start('lb');
@@ -1001,7 +979,7 @@ function createLightboxControl(app) {
             let f = clickedPhoto.f;
             let idx = f.lastIndexOf('\\');
             if (idx > 0) f = f.substring(idx + 1);
-            window.open(_state.external_tracks_url.format(_unique++, encodeURIComponent(clickedPhoto.trkid + "|" + f)),
+            window.open(_config.external_tracks_url.format(_unique++, encodeURIComponent(clickedPhoto.trkid + "|" + f)),
                "trackstab");
             break;
          case 'ctx_find_nearby':
@@ -1105,13 +1083,18 @@ function createLightboxControl(app) {
       console.log('CTXMENU', ix, curPhoto);
       context.photo = curPhoto;
 
-      let localVideo = _state.is_local && curPhoto.mime.startsWith('video');
-      this.showMenuItem("#ctx_goto_track", _state.external_tracks_url && curPhoto.trkid);
-      this.showMenuItem("#ctx_goto_map", curPhoto.l !== undefined);
+      //phones are not considered to be local. The UI is simply too small for forinstance the faces app
+      const local = _config.is_local && !app.isPhone();
+      const localVideo = local && curPhoto.mime.startsWith('video');
+      const allowMap = _config.map_settings.active;
+
+      this.showMenuItem("#ctx_goto_track", _config.external_tracks_url && curPhoto.trkid);
+      this.showMenuItem("#ctx_goto_map", allowMap && curPhoto.l !== undefined);
       this.showMenuItem("#ctx_find_nearby", curPhoto.l !== undefined);
-      this.showMenuItem("#ctx_goto_faces", _state.is_local && curPhoto.fcnt);
+      this.showMenuItem("#ctx_goto_faces", local && curPhoto.fcnt);
+      this.showMenuItem("#ctx_goto_faces_dir", local);
       this.showMenuItem("#ctx_frame", localVideo && _state.debug);
-      this.showMenuItem("#ctx_copy", _state.is_local);
+      this.showMenuItem("#ctx_copy", local);
       this.showMenuItem("#ctx_frame", localVideo);
       this.showMenuItem("#ctx_rot_90", localVideo);
       this.showMenuItem("#ctx_rot_180", localVideo);
@@ -1297,6 +1280,7 @@ function createLightboxControl(app) {
       }
       console.log('Drag ', ev.target.textContent);
    };
+
 
    function _syncState() {
       _faceMode = _state.mode === 'faces';

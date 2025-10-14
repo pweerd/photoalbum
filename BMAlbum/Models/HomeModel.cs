@@ -23,30 +23,22 @@ namespace BMAlbum.Models {
       public readonly ClientState State;
       public readonly MapSettings MapSettings;
       public readonly RequestContext RequestCtx;
-      public readonly bool AllowGps;
+      public readonly bool AllowSensors;
 
       public HomeModel (BaseController c, ClientState state) {
-         AllowGps = ((Settings)c.Settings).MapSettings.AllowGPS;
-         if (c.Request.Query.TryGetValue ("gps", out var values)) {
-            if (values.Count == 0)
-               AllowGps = true;
-            else 
-               AllowGps = Invariant.ToBool(values[values.Count - 1], true);
-         }
          RequestCtx = c.RequestCtx;
          State = state;
          MapSettings = state.Settings.MapSettings;
+         AllowSensors = state.AllowSensors;
       }
+
+      public HtmlString AllowSensorsStr => new HtmlString (AllowSensors ? "true" : "false");
 
       public HtmlString GetStateAsHtmlString () {
          //var s = State.ToJsonAsHtmlString (true);
          //Logs.DebugLog.Log ("Model: state={0}", s);
          //return s;
          return State.ToJsonAsHtmlString ();
-      }
-
-      public HtmlString GetAllowGps () {
-         return new HtmlString(AllowGps ? "true" : "false");
       }
    }
 }

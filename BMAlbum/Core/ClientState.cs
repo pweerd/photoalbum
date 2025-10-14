@@ -28,12 +28,13 @@ namespace BMAlbum {
    }
    public enum AppMode {
       Photos=1,
-      Photo,
-      Faces,
-      Map
+      Photo=2,
+      Faces=3,
+      Map=4
    }
 
    public class ClientState : Bitmanager.Web.ClientState {
+      private static readonly string[] appModes = new string[] { string.Empty, "photos", "photo", "faces", "map" };
       public readonly Settings Settings;
       private readonly SearchSettings SearchSettings;
       public string SortName;
@@ -52,6 +53,7 @@ namespace BMAlbum {
       public SortMode Sort;
       public AppMode AppMode;
       public bool Unhide;
+      public bool AllowSensors;
       public bool InternalIp;
       public int ActualPageSize;
 
@@ -61,7 +63,6 @@ namespace BMAlbum {
          User = settings.Users.DefUser;
          PerAlbum = TriStateBool.Unspecified;
          Facets = new List<KeyValuePair<string, string>>();
-         CacheVersion = settings.LightboxSettings.CacheVersion;
 
          var req = ctx.HttpContext.Request;
          if (req.RouteValues.TryGetValue ("user", out var uid)) {
@@ -70,6 +71,7 @@ namespace BMAlbum {
          if (User==null) User = settings.Users.DefUser;
 
          SortName = null;
+         AllowSensors = true;
          parseRequestParms (ctx.HttpContext.Request);
          ActualPageSize = (DebugFlags & Bitmanager.Web.DebugFlags.ONE) != 0 ? 1 : PageSize;
 
@@ -105,6 +107,7 @@ namespace BMAlbum {
       public override StringBuilder ExportUrlParameters (StringBuilder sb) {
          base.ExportUrlParameters(sb);
          if (Unhide) optAppend (sb, "unhide");
+         if (!AllowSensors) optAppend (sb, "sensors=false");
          return sb;
       }
 
@@ -146,7 +149,6 @@ namespace BMAlbum {
                } else {
                   Album = val;
                   Facets.Add (new KeyValuePair<string, string> (key, val));
-                  //PW if (key == "album") PerAlbum = TriStateBool.False;
                }
                break;
             case "year":
@@ -157,6 +159,9 @@ namespace BMAlbum {
                   Year = val;
                   Facets.Add (new KeyValuePair<string, string> (key, val));
                }
+               break;
+            case "sensors":
+               AllowSensors = Invariant.ToBool (val, true);
                break;
             default:
                return base.parseParm (key, val);
@@ -180,16 +185,11 @@ namespace BMAlbum {
 
          //Return the state of the controls
          if (User != null) container["user"] = User.Id;
-         container["sortmodes"] = SearchSettings.SortModes.AsJsonObject ();
          container["sort"] = SortName ?? SearchSettings.SortModes.Default.Name;
          if (Query != null) container["q"] = Query;
          if (Pin != null) container["pin"] = Pin.ToJson();
          container["per_album"] = PerAlbum == TriStateBool.False ? false : true;
-         container["mode"] = AppMode.ToString ().ToLowerInvariant ();
-         container["lightbox_settings"] = Settings.LightboxSettings.SettingsForClient;
-         container["map_settings"] = Settings.MapSettings.ToJson ();
-         if (Settings.ExternalTracksUrl != null)
-            container["external_tracks_url"] = Settings.ExternalTracksUrl;
+         container["mode"] = appModes[(int)AppMode];
          if (Slide != null) container["slide"] = Slide;
          if (Album != null) container["album"] = Album;
          if (Year != null) container["year"] = Year;
@@ -200,9 +200,6 @@ namespace BMAlbum {
                container[kvp.Key] = kvp.Value;
             }
          }
-
-         if (CacheVersion != null) container["cache_version"] = CacheVersion;
-         if (InternalIp) container["is_local"] = true;
          return base.ToJson (container);
       }
 

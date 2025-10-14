@@ -211,6 +211,7 @@
             <_file name="lib/lg/plugins/zoom/lg-zoom.umd.js"  />
 
             <file name="js/bmCommon.js"  />
+            <file name="js/bmSensors.js"  />
             <file name="js/bmCtxMenu.js" />
             <file name="js/clipboard/clip.js"/>
             <file name="js/overlay/overlay.js"  />

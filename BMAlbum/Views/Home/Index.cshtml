@@ -36,7 +36,7 @@
          <div id="row_per_album" class="labeled-input">
             <div class="rcell">
                <input type="checkbox" id="per_album" checked /><label for="per_album">Per album</label>
-               <img id="show_map" src="~/images/goto_curpos.svg" title="Toon kaart"/>
+               <img id="btn_show_map" class="hidden" src="~/images/goto_curpos.svg" title="Toon kaart"/>
             </div>
          </div>
          @if ((Model.State.DebugFlags & DebugFlags.TRUE) != 0) {
@@ -96,9 +96,18 @@
 @section Scripts {
    <script type="text/javascript">
 
-      app = createApplication(@Model.GetStateAsHtmlString() ,@Model.GetAllowGps());
-      app.mapControl = createMapControl(app);
-      app.lbControl = createLightboxControl(app);
-      app.start(history.state ? "history" : "main"); 
+      app = createApplication(@Model.GetStateAsHtmlString(),function(app) {
+         console.log ("ON_INIT", app);
+         app.mapControl = createMapControl(app);
+         app.lbControl = createLightboxControl(app);
+         const allowSensors = @Model.AllowSensorsStr;
+         if (allowSensors && app.config.map_settings.active) {
+            if (app.config.map_settings.show_goto_map) $("#btn_show_map").removeClass("hidden");
+         } else {
+            app.initDummySensors();
+         }
+
+         app.start(history.state ? "history" : "main"); 
+      });
    </script>
 }   

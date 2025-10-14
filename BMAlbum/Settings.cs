@@ -87,7 +87,6 @@ namespace BMAlbum {
 
          VideoFrames = VideoFrames.Create (Xml.SelectSingleNode ("video_frames"));
 
-         g.SiteLog.Log("Lightbox client settings:\n{0}", LightboxSettings.SettingsForClient);
          g.SiteLog.Log ("VideoFrames loaded from {0}", VideoFrames?.Filename);
       }
 

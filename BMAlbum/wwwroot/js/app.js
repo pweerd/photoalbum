@@ -20,10 +20,16 @@ const DESKTOP = 1;
 const PHONE = 2;
 const TABLET = 4;
 
-function createApplication(state, allowGps) {
+//Operating systems
+const IOS = 1;
+const ANDROID = 2;
 
-   if ((state.debug_flags & 0x10000) !== 0 && hookConsole)
-      hookConsole(state.home_url + '_clientlog');
+function createApplication(state, fnInit) {
+   const _clientLog = createClientLog(state.home_url + '_clientlog');
+   _clientLog.hookError();
+   if ((state.debug_flags & 0x10000) !== 0) {
+      _clientLog.hookConsole();
+   }
    hookHistory();
 
    String.prototype.format = function () {
@@ -141,16 +147,16 @@ function createApplication(state, allowGps) {
 
    _state.user_home_url = state.user ? _state.home_url + _state.user + '/' : _state.home_url;
 
-   let _device = function () {
-      let ua = navigator.userAgent.toLowerCase();
-      let mobile = /iphone|ipad|ipod|android/.test(ua);
+   let _device, _os;
+   let ua = navigator.userAgent.toLowerCase();
+   if (/iphone|ipad|ipod/.test(ua)) _os = IOS;
+   if (/android/.test(ua)) _os = ANDROID;
 
-      if (mobile) {
-         return (/mobile/.test(ua)) ? PHONE : TABLET;
-      }
-      return DESKTOP;
-   }();
-   console.log("DEVICE", _device);
+   if ((_os & (IOS | ANDROID)) != 0) {
+      _device = (/mobile/.test(ua)) ? PHONE : TABLET;
+   } else 
+      _device = DESKTOP;
+   console.log("DEVICE=", _device, ', OS=', _os);
 
    function _createUrl(relPath, parms) {
       console.log("CreateUrl", relPath, parms);
@@ -260,7 +266,7 @@ function createApplication(state, allowGps) {
    }
 
 
-   function _start(from) {
+   function _start(from, recursive) {
       //if (from==="history") _copyStateParms(_state, history.state);
       console.log("Start: from=", from, ", history=", history.state);
       _overlay.hideNow();
@@ -275,10 +281,10 @@ function createApplication(state, allowGps) {
          case "photos":
             _state.center = undefined;
             _state.zoom = undefined;
-            if (app.lbControl.start(from)) _enableOrDisableMap(false);
+            if (app.lbControl.start(from, recursive)) _enableOrDisableMap(false);
             break;
          case "map":
-            if (app.mapControl.start(from)) _enableOrDisableMap(true);
+            if (app.mapControl.start(from, recursive)) _enableOrDisableMap(true);
             break;
          default:
             alert('invalid mode: [' + _state.mode + ']');
@@ -313,54 +319,29 @@ function createApplication(state, allowGps) {
       }
    }
 
-   let _geoLocation = undefined;
-   function _getLocation() {
-      function onPosition(pos) {
-         let coords = pos.coords;
-
-         _geoLocation = {
-            lat: coords.latitude,
-            lon: coords.longitude,
-            timestamp: pos.timestamp
-         };
-         console.log("GEO:", _geoLocation, pos.coords);
-
-         $("#show_map").removeClass("hidden");
-         document.dispatchEvent(new CustomEvent("geo_location", { detail: _geoLocation }));
-      }
-      function onError(err) {
-         console.log("Geo getCurrentPosition error ", err.code, ":", err.message);
-      }
-
-      if (!allowGps) return;
-      const maxAge = 600000;
-      if (!_geoLocation || (Date.now() - _geoLocation.timestamp) > maxAge) {
-         if (navigator.geolocation) {
-            console.log("REQUESTING GEO");
-            navigator.geolocation.getCurrentPosition(onPosition, onError, {
-               enableHighAccuracy: true,
-               timeout: 5000,
-               maximumAge: 0
-            });
-         }
-      }
-      return _geoLocation;
-   }
-   $("#show_map").addClass("hidden");
-   _getLocation();
-
-
-   return {
+   let _sensors = undefined;
+   let _app = {
+      clientLog: _clientLog,
       dumpHistory: _dumpHistory,
       createUrl: _createUrl,
-      getLocation: _getLocation,
       getJSON: _getJSON,
       postJSON: _postJSON,
       state: _state,
       device: _device,
+      os: _os,
       isTouch: _isTouch,
       overlay: _overlay,
-      start: _start
+      start: _start,
+      sensors: function () { if (!_sensors) _sensors = createSensorsApi(); return _sensors; },
+      initDummySensors: function () { _sensors = createDummySensorsApi(); },
+      isPhone: function() { return _device === PHONE; },
    };
+
+   _getJSON("home/config", "dvt=" + _device, function (data) {
+      _app.config = data;
+      fnInit(_app)
+   });
+
+   return _app;
 }
 

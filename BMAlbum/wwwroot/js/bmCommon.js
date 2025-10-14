@@ -21,12 +21,13 @@ String.prototype.format = function () {
    });
 };
 
-function hookConsole(url, types, cap, timeout) {
-   let _cap = cap || 100;
-   let _timeout = timeout || 5000;
+
+function createClientLog(url, cap, timeout) {
+   const _cap = cap ?? 100;
+   const _timeout = timeout ?? 5000;
+   const _url = url;
    let _cache = [];
    let _timer;
-   let _url = url;
 
    function _sendCacheToServer() {
       if (_cache.length > 0) {
@@ -73,44 +74,55 @@ function hookConsole(url, types, cap, timeout) {
       }
       _addToCache({ t: type, m: payload.join('') });
    }
-
-
-
-
-   if (!Array.isArray(types)) {
-      if (typeof types === 'string') types = [types];
-      else types = ['log', 'info', 'error', 'warn', 'trace', 'debug'];
+   function _logErrorToServer(obj) {
+      const arr = ["Runtime error: "];
+      arr.push(obj.message);
+      arr.push("\n-- File=");
+      arr.push(obj.filename);
+      arr.push("\n-- Line=");
+      arr.push(obj.lineno);
+      arr.push("\n-- Col=");
+      arr.push(obj.colno);
+      if (obj.stack) {
+         arr.push("\n-- Stack=");
+         arr.push(obj.stack);
+      }
+      _addToCache({ t: 'error', m: arr.join('') });
    }
-   for (let i = 0; i < types.length; i++) {
-      let type = types[i];
-      let oldLog = console[type];
-      let recurseDepth = 0;
-      console[type] = function () {
-         if (oldLog) oldLog.apply(console, arguments);
-         if (recurseDepth === 0) {
-            ++recurseDepth;
-            try {
-               _logToServer(type, arguments);
+   function _hookError() {
+      window.addEventListener("error", _logErrorToServer);
+   }
+
+   function _hookConsole(types) {
+      if (!Array.isArray(types)) {
+         if (typeof types === 'string') types = [types];
+         else types = ['log', 'info', 'error', 'warn', 'trace', 'debug'];
+      }
+      for (let i = 0; i < types.length; i++) {
+         let type = types[i];
+         let oldLog = console[type];
+         let recurseDepth = 0;
+         console[type] = function () {
+            if (oldLog) oldLog.apply(console, arguments);
+            if (recurseDepth === 0) {
+               ++recurseDepth;
+               try {
+                  _logToServer(type, arguments);
+               }
+               catch (err) { }
+               --recurseDepth;
             }
-            catch (err) { }
-            --recurseDepth;
-         }
-      };
-      console.log('console.', type, ' is hooked.');
+         };
+         console.log('console.', type, ' is hooked.');
+      }
    }
+
 
    return {
-      logServerMsg: function (msg, type, flush) {
-         _addToCache({
-            t: type ? type : 'debug',
-            m: msg ? msg.toString() : ''
-         }, flush);
-      },
-
-      setConsoleCache: function (cap, timeout) {
-         _cap = cap;
-         _timeout = (timeout !== undefined && timeout >= 0) ? timeout : 15000;
-      }
+      hookError: _hookError,
+      logErrorToServer: _logErrorToServer,
+      logToServer: _logToServer,
+      hookConsole: _hookConsole
    }
 }
 
