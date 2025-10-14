@@ -235,8 +235,7 @@ namespace AlbumImporter {
 
          rec["height"] = meta.Height;
          rec["width"] = meta.Width;
-         rec["orientation"] = OrientationExts.AsString(meta.Orientation);
-         //rec["orientation"] = meta.Orientation.AsString(); //PW todo: No clue why this line doesn't compile...
+         rec["orientation"] = meta.Orientation.AsString(); 
          if (!double.IsNaN (meta.DurationInSecs)) rec["duration"] = (int)meta.DurationInSecs;
          if (meta.CompressorName != null) rec["c_name"] = meta.CompressorName;
          if (meta.CompressorId != null) rec["c_id"] = meta.CompressorId;
