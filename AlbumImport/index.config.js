@@ -57,6 +57,8 @@
               "type": "synonym",
               "synonyms": [
                  "kayak=>kano",
+                 "boomerang=>frisbee",
+                 "boemerang=>frisbee",
                  "tessel=>texel"
               ]
             },
