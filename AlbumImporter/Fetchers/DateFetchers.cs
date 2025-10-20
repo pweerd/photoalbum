@@ -181,7 +181,7 @@ namespace AlbumImporter {
          }
 
          public override DateTime GetDate (IdInfo id, DirectorySettings dirSettings, Metadata md) {
-            return ToUtc (md.DateCreated);
+            return ToUtc (md.BestDate);
          }
       }
 
