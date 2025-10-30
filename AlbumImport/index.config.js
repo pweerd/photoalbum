@@ -57,6 +57,7 @@
               "type": "synonym",
               "synonyms": [
                  "kayak=>kano",
+                 "paddestoel,paddenstoelen,paddestoelen=>paddenstoel",
                  "boomerang=>frisbee",
                  "boemerang=>frisbee",
                  "tessel=>texel"
