@@ -803,20 +803,20 @@ function createLightboxControl(app) {
     * Hooked preload: fixed repping around array limits and delayed preloading with 0.5 seconds
     */
    function _hookedPreload(index) {
-      const fwPreload = _lbSettings.preload.forward;
-      const bwPreload = _lbSettings.preload.backward;
+      let fwPreload = _lbSettings.preload.forward;
+      let bwPreload = _lbSettings.preload.backward;
       //console.log("PRELOAD", index, this.settings);
-      let self = this;
+      const self = this;
       setTimeout(function () {
          const N = self.galleryItems.length;
+         if (N <= fwPreload) fwPreload = N - 1;
          for (let i = 1; i <= fwPreload; i++) {
-            let nextIndex = index + i;
-            if (nextIndex >= N) nextIndex -= N;
+            let nextIndex = (index + i) % N;
             self.loadContent(nextIndex, false);
          }
+         if (N <= bwPreload) bwPreload = N - 1;
          for (let i = 1; i <= bwPreload; i++) {
-            let nextIndex = index - i;
-            if (nextIndex < 0) nextIndex += N;
+            let nextIndex = (N + index - i) % N;
             self.loadContent(nextIndex, false);
          }
       }, 50);
