@@ -21,7 +21,9 @@ String.prototype.format = function () {
    });
 };
 
-
+/**
+ * ClientLog stuff
+ */
 function createClientLog(url, cap, timeout) {
    const _cap = cap ?? 100;
    const _timeout = timeout ?? 5000;
@@ -126,6 +128,9 @@ function createClientLog(url, cap, timeout) {
    }
 }
 
+/**
+ * History stuff
+ */
 function hookHistory() {
    let _oldPush;
    let _oldReplace;
@@ -173,3 +178,35 @@ function hookHistory() {
       console.log("HISTORY hooked:", history);
    }
 }
+
+/**
+ * DeviceCharacteristics
+ */
+function _createDeviceCharacteristics() {
+   function _dump(d) {
+      console.log("device characteristics:", d);
+      return d;
+   }
+   let isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+   let ua = navigator.userAgent.toLowerCase();
+   let isIOS = (/iphone|ipad|ipod/.test(ua));
+   let isAndroid = (/android/.test(ua));
+   let isDesktop = !isIOS && !isAndroid;
+   let isPhone = false;
+   let isTablet = false;
+   if (!isDesktop) {
+      if ((/mobile/.test(ua))) isPhone = true; else isTablet = true;
+   }
+   return _dump({
+      isTouch: isTouch,
+      isIOS: isIOS,
+      isAndroid: isAndroid,
+      isDesktop: isDesktop,
+      isPhone: isPhone,
+      isIPhone: isPhone && isIOS,
+      isTablet: isTablet,
+      isIPad: isTablet && isIOS,
+   });
+}
+window.device = _createDeviceCharacteristics();
+

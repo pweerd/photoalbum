@@ -135,7 +135,7 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
 
 
    $element.on("contextmenu", _onContextMenu);
-   if (/iphone|ipad/.test(navigator.userAgent.toLowerCase())) {
+   if (device.isIPhone || device.isIPad) {
       $element
          .on("touchstart", _onTouchStart)
          .on("touchend", _onTouchEnd)
@@ -152,7 +152,7 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       $menu
          .off("mouseleave", _onMenuLeave)
          .off("click", _onMenuClick);
-      if (/iphone|ipad/.test(navigator.userAgent.toLowerCase())) {
+      if (device.isIPhone || device.isIPad) {
          $element
             .off("touchstart", _onTouchStart)
             .off("touchend", _onTouchEnd)
