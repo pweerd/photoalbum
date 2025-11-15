@@ -208,7 +208,7 @@ function createMapControl(app) {
    function _initMarker(marker, pin) {
       marker._pin = pin;
       marker.addListener('click', _firePhoto);
-      if (!app.isTouch) {
+      if (!device.isTouch) {
          marker.addEventListener('mouseover', _showMarkerPhoto);
          marker.addEventListener('mouseout', _hideMarkerPhoto);
       }

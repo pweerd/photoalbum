@@ -742,6 +742,11 @@ function createLightboxControl(app) {
          needHistory = false;
          if (!_state.isChanged()) {
             _updateLightboxContainer($elt, _data);
+            if (!device.isDesktop) {
+               //For some reason _lg causes problems (zoomed out) when a change in device orientation occurs
+               //Therefore we refresh it always
+               _lg.refresh();
+            }
             return;
          }
       }
@@ -1084,7 +1089,7 @@ function createLightboxControl(app) {
       context.photo = curPhoto;
 
       //phones are not considered to be local. The UI is simply too small for forinstance the faces app
-      const local = _config.is_local && !app.isPhone();
+      const local = _config.is_local && !device.isPhone;
       const localVideo = local && curPhoto.mime.startsWith('video');
       const allowMap = _config.map_settings.active;
 

@@ -14,15 +14,104 @@
  * limitations under the License.
  */
 
-const dbg_overlay = false;
-//NB these constants should match the BrowserType enum in LightboxSettings.cs
-const DESKTOP = 1;
-const PHONE = 2;
-const TABLET = 4;
+function pinchAndZoom(target, txt) {
+   let imageElementScale = 1;
 
-//Operating systems
-const IOS = 1;
-const ANDROID = 2;
+   let start = {};
+
+   // Define a flag to keep track of initial load
+   let initialLoad = true;
+
+   // Define variables to keep track of the existing transform values
+   let translateX = 0;
+   let translateY = 0;
+
+   // Calculate distance between two fingers
+   const distance = (event) => {
+      return Math.hypot(event.touches[0].pageX - event.touches[1].pageX, event.touches[0].pageY - event.touches[1].pageY);
+   };
+
+   target.addEventListener('touchstart', (event) => {
+      console.log('pinchAndZoom:start', txt, event.touches.length);
+      if (event.touches.length === 2) {
+         event.preventDefault(); // Prevent page scroll
+         event.stopPropagation();
+         //return;
+
+
+         // Calculate where the fingers have started on the X and Y axis
+         start.x = (event.touches[0].pageX + event.touches[1].pageX) / 2;
+         start.y = (event.touches[0].pageY + event.touches[1].pageY) / 2;
+         start.distance = distance(event);
+      }
+   });
+
+   target.addEventListener('touchmove', (event) => {
+      console.log('pinchAndZoom:move', txt, event.touches.length);
+      if (event.touches.length === 2) {
+         event.preventDefault(); // Prevent page scroll
+         event.stopPropagation();
+         //return;
+
+         // Safari provides event.scale as two fingers move on the screen
+         // For other browsers just calculate the scale manually
+         let scale;
+         if (event.scale) {
+            scale = event.scale;
+         } else {
+            const deltaDistance = distance(event);
+            scale = deltaDistance / start.distance;
+         }
+         imageElementScale = Math.min(Math.max(1, scale), 4);
+
+         // Check if it's the initial load
+         if (initialLoad) {
+            // Get the existing transform style property for proper calculations
+            var style = window.getComputedStyle(target);
+            const existingTransform = style.getPropertyValue('transform');
+
+            if (existingTransform.toString() !== "none") {
+               const rect = target.getBoundingClientRect();
+               translateX = -rect.width / 2;
+               translateY = -rect.height / 2;
+            }
+            initialLoad = false; // Update the flag to indicate initial load has occurred
+         }
+
+         // Calculate how much the fingers have moved on the X and Y axis
+         const deltaX = (((event.touches[0].pageX + event.touches[1].pageX) / 2) - start.x) * 2; // x2 for accelerated movement
+         const deltaY = (((event.touches[0].pageY + event.touches[1].pageY) / 2) - start.y) * 2; // x2 for accelerated movement
+
+         // Combine the existing transform with the additional calculations
+         const transform = `translate3d(` + (translateX + deltaX) + `px, ` + (translateY + deltaY) + `px, 0) scale(` + imageElementScale + `)`;
+         target.style.transform = transform;
+
+         target.style.WebkitTransform = transform;
+         //target.style.zIndex = "9999";
+      }
+   });
+
+   target.addEventListener('touchend', (event) => {
+      console.log('pinchAndZoom:end', txt, event.touches.length);
+      if (event.touches.length === 2) {
+         event.preventDefault(); // Prevent page scroll
+         event.stopPropagation();
+         //return;
+
+         // Reset target to it's original format
+         target.style.transform = "";
+         target.style.WebkitTransform = "";
+         target.style.zIndex = "";
+         //reset initialLoad and translateX and translateY needed to apply the existing transform on image
+         initialLoad = true;
+         translateX = 0;
+         translateY = 0;
+      }
+   });
+}
+
+
+const dbg_overlay = false;
 
 function createApplication(state, fnInit) {
    const _clientLog = createClientLog(state.home_url + '_clientlog');
@@ -132,7 +221,6 @@ function createApplication(state, fnInit) {
 
 
    const _state = state;
-   let _isTouch = false;
 
    function _getEntryUrl() {
       let url = new URL(window.location);
@@ -146,17 +234,6 @@ function createApplication(state, fnInit) {
    _state.cmd ||= '';
 
    _state.user_home_url = state.user ? _state.home_url + _state.user + '/' : _state.home_url;
-
-   let _device, _os;
-   let ua = navigator.userAgent.toLowerCase();
-   if (/iphone|ipad|ipod/.test(ua)) _os = IOS;
-   if (/android/.test(ua)) _os = ANDROID;
-
-   if ((_os & (IOS | ANDROID)) != 0) {
-      _device = (/mobile/.test(ua)) ? PHONE : TABLET;
-   } else 
-      _device = DESKTOP;
-   console.log("DEVICE=", _device, ', OS=', _os);
 
    function _createUrl(relPath, parms) {
       console.log("CreateUrl", relPath, parms);
@@ -229,14 +306,6 @@ function createApplication(state, fnInit) {
    }
 
 
-   function _detectTouch(ev) {
-      _isTouch = true;
-      $(window).off('touchstart', _detectTouch);
-      console.log("touch event: ", ev.originalEvent.type);
-   }
-
-
-
    function _dumpHistory(why) {
       //console.log('Dumping history. length=', history.length, ", Why=", why, ', state=', history);
    }
@@ -275,16 +344,30 @@ function createApplication(state, fnInit) {
       const helpUrl = _state.mode === "faces" ? "help_faces_nl.html" : "help_nl.html";
       $("#help_link").attr("href", _state.home_url + helpUrl);
 
+      //if (device.isIPhone || device.isIPad) {
+      //   if (_state.mode === "map") {
+      //      _disableViewportScaling();
+      //   } else {
+      //      _disableViewportScaling(function () {
+      //         _enableViewportScaling();
+      //      });
+      //   }
+      //}
+
+      //document.body.style.transform = "";
+      //document.body.style.WebkitTransform = "";
+      //document.body.style.zIndex = "";
+
       switch (_state.mode) {
          case "faces":
          case "photo":
          case "photos":
             _state.center = undefined;
             _state.zoom = undefined;
-            if (app.lbControl.start(from, recursive)) _enableOrDisableMap(false);
+            if (_app.lbControl.start(from, recursive)) _enableOrDisableMap(false);
             break;
          case "map":
-            if (app.mapControl.start(from, recursive)) _enableOrDisableMap(true);
+            if (_app.mapControl.start(from, recursive)) _enableOrDisableMap(true);
             break;
          default:
             alert('invalid mode: [' + _state.mode + ']');
@@ -319,6 +402,7 @@ function createApplication(state, fnInit) {
       }
    }
 
+
    let _sensors = undefined;
    let _app = {
       clientLog: _clientLog,
@@ -327,21 +411,36 @@ function createApplication(state, fnInit) {
       getJSON: _getJSON,
       postJSON: _postJSON,
       state: _state,
-      device: _device,
-      os: _os,
-      isTouch: _isTouch,
       overlay: _overlay,
       start: _start,
       sensors: function () { if (!_sensors) _sensors = createSensorsApi(); return _sensors; },
       initDummySensors: function () { _sensors = createDummySensorsApi(); },
-      isPhone: function() { return _device === PHONE; },
    };
 
-   _getJSON("home/config", "dvt=" + _device, function (data) {
+   function getDeviceType() {
+      //NB these constants should match the BrowserType enum in LightboxSettings.cs
+      const DESKTOP = 1;
+      const PHONE = 2;
+      const TABLET = 4;
+
+      if (device.isPhone) return PHONE;
+      if (device.isTablet) return TABLET;
+      return DESKTOP;
+   }
+   _getJSON("home/config", "dvt=" + getDeviceType(), function (data) {
       _app.config = data;
       fnInit(_app)
    });
+   return _app; //Experiment: remove this for pinchAndZoom
 
+   if (device.isIPhone || device.isIPad) {
+      document.addEventListener('gesturestart', function (e) {
+         e.preventDefault();
+      });
+      console.log('pinchAndZoom');
+      pinchAndZoom(document.body, 'body');
+   }
    return _app;
 }
+
 

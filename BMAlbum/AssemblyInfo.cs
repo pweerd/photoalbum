@@ -6,5 +6,5 @@ using System.Reflection;
 [assembly: AssemblyProduct("Bitmanager foto/video Album website")]
 [assembly: AssemblyCompany("De Bitmanager (https://bitmanager.nl)")]
 [assembly: AssemblyCopyright("Copyright © 2024, De Bitmanager")]
-[assembly: AssemblyVersion("2.0.2025.1013")]
-[assembly: AssemblyFileVersion("2.0.2025.1013")]
+[assembly: AssemblyVersion("2.0.2025.1115")]
+[assembly: AssemblyFileVersion("2.0.2025.1115")]
