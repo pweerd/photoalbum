@@ -69,6 +69,7 @@ namespace AlbumImporter {
       private GenericDocument curDoc;
       private string fixedFile;
       private string url;
+      private string bufferTime;
       private int bufferSize;
       private int sleepTime;
 
@@ -83,7 +84,7 @@ namespace AlbumImporter {
          curReq = req;
          req.Sort.Add (new ESSortField ("id.keyword", ESSortDirection.asc));
 
-         using (var e = new ESRecordEnum (req, bufferSize, "15m")) {
+         using (var e = new ESRecordEnum (req, bufferSize, bufferTime)) {
             e.Async = true;
             foreach (var rec in e) {
                var idInfo = new IdInfo (rec, repl);
@@ -118,7 +119,8 @@ namespace AlbumImporter {
          if (fixedFile != null) return;
 
          url = node.ReadStr ("@url");
-         bufferSize = node.ReadInt ("@buffersize", ESRecordEnum.DEF_BUFFER_SIZE);
+         bufferSize = node.ReadInt ("@buffer_size", ESRecordEnum.DEF_BUFFER_SIZE);
+         bufferTime = node.ReadStr("@buffer_time", "15m");
          sleepTime = node.ReadInt ("@sleep_per_record", 0);
          string f = node.ReadStr ("@filter", null);
          if (f != null) idFilter = new Regex (f, OPTIONS);
