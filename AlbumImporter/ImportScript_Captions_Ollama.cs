@@ -1,0 +1,89 @@
+/*
+ * Copyright © 2023, De Bitmanager
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+using Bitmanager.Core;
+using Bitmanager.ImportPipeline;
+using Bitmanager.IO;
+using Bitmanager.Json;
+using Bitmanager.Http;
+
+namespace AlbumImporter {
+   public class ImportScript_Captions_Ollama : ImportScriptBase {
+      private OllamaClient ollamaClient;
+      private GoogleTranslator translator;
+      private CaptionCollection existingCaptions;
+
+      private bool sameIndex; //PW Nakijken
+
+      public ImportScript_Captions_Ollama () {
+      }
+
+      public object OnDatasourceStart (PipelineContext ctx, object value) {
+         ollamaClient = new OllamaClient(ctx.ImportEngine.CancelToken);
+         translator = new GoogleTranslator(ctx.ImportEngine.CancelToken);
+         Init(ctx, true);
+
+         string url = base.copyFromUrl;
+         if (url == null && !fullImport) url = base.oldIndexUrl;
+         existingCaptions = new CaptionCollection (ctx.ImportLog, url);
+
+         if (!fullImport) existingCaptions.Load (ctx.ImportLog, ctx.Action.Endpoint);
+         //ctx.ImportLog.Log (_LogType.ltTimerStart, "captions: starting Captions service");
+         //ctx.ImportEngine.ProcessHostCollection.EnsureStarted ("caption");
+         //ctx.ImportLog.Log (_LogType.ltTimerStop, "captions: started");
+
+         ctx.ImportLog.Log ("Starting captions import. FullImport={0}, copy_from={1}, existing records={2}",
+            fullImport,
+            copyFromUrl,
+            existingCaptions.Count);
+
+         handleExceptions = true;
+         return null;
+      }
+
+      public object OnId (PipelineContext ctx, object value) {
+         idInfo = (IdInfo)value;
+         string id = idInfo.Id;
+         var dst = ctx.Action.Endpoint.Record;
+         if (existingCaptions.TryGetValue (idInfo.Id, out var captionRec)) {
+            if (sameIndex) {
+               ctx.ActionFlags |= _ActionFlags.Skip;
+            } else {
+               dst["_id"] = id;
+               dst["ts"] = captionRec.Ts;
+               dst["text_en"] = captionRec.Caption_EN;
+               dst["text_nl"] = captionRec.Caption_NL;
+            }
+            // ctx.ImportLog.Log ("Id={0}, existing", id);
+            return value;
+         }
+
+         ctx.ImportLog.Log ("Processing Id={0}", id);
+         string fn = idInfo.FileName;
+
+         //Fetch caption from the caption-server
+         string caption = ollamaClient.PostGetResponse(idInfo.FileName);
+
+         dst["_id"] = id;
+         dst["ts"] = DateTime.UtcNow;
+         dst["text_en"] = caption;
+         dst["text_nl"] = translator.Translate(caption, "nl", "en");
+
+         WaitAfterExtract ();
+         return null;
+      }
+   }
+}
