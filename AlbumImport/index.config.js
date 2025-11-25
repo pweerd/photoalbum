@@ -71,9 +71,12 @@
             }
           },
           "analyzer" : {
-            "lc_text" : {
-               "tokenizer" : "non_alphanum",
-               "filter": ["asciifolding", "lowercase", "index_delimiter"]
+             "hash" : {
+                "tokenizer" : "whitespace"
+             },
+             "lc_text" : {
+                "tokenizer" : "non_alphanum",
+                "filter": ["asciifolding", "lowercase", "index_delimiter"]
              },
              "lc_text_shingles" : {
                 "tokenizer" : "non_alphanum",
@@ -140,6 +143,8 @@
          "extra_location": { "type": "text", "analyzer": "lc_text_shingles", "search_analyzer": "lc_text", "copy_to": ["all", "all_s"] },
          "cc": { "type": "keyword", "normalizer": "lc_facet" },
          "ocr": { "type": "text", "analyzer": "lc_text_index", "search_analyzer": "lc_text_search", "copy_to": ["text_nl", "text_nl_s", "all", "all_s"] },
+         "ph1": { "type": "text", "analyzer": "hash" },
+         "ph2": { "type": "text", "analyzer": "hash" },
          "text": { "type": "text", "analyzer": "lc_text_index", "search_analyzer": "lc_text_search", "copy_to": ["text_nl", "text_nl_s", "all", "all_s"] },
          "all": { "type": "text", "analyzer": "lc_text_index", "search_analyzer": "lc_text_search" },
          "all_s": { "type": "text", "analyzer": "nl_stem_index", "search_analyzer": "nl_stem_search" },

@@ -32,6 +32,7 @@ namespace AlbumImporter {
       const string WHATSAPP = "WhatsApp";
       private static readonly Dictionary<string, int> albumIDs = new Dictionary<string, int> ();
       private DirectorySettingsCache settingsCache = new DirectorySettingsCache (null);
+      private PHashCollection phashes;
       private CaptionCollection captions;
       private OcrCollection ocrTexts;
       private TrackCollection tracks;
@@ -81,6 +82,7 @@ namespace AlbumImporter {
          hypernymCollector = new HypernymCollector (tokenizer, hypernyms, lexicon);
 
          var dsNode = ds.ContextNode;
+         phashes = new PHashCollection(ctx.ImportLog, dsNode.ReadStrRaw("hashes/@url", optional));
          captions = new CaptionCollection (ctx.ImportLog, dsNode.ReadStrRaw ("captions/@url", mandatory));
          ocrTexts = new OcrCollection (ctx.ImportLog, dsNode.ReadStrRaw ("ocr/@url", mandatory));
          var tracksNode = dsNode.SelectSingleNode ("tracks");
@@ -205,8 +207,12 @@ namespace AlbumImporter {
             if (caption.Caption_EN != null) rec["text_en"] = captionEN = caption.Caption_EN;
             if (caption.Caption_NL != null) rec["text_nl"] = captionNL = processCaptionNL(caption.Caption_NL);
          }
-         if (ocrTexts.TryGetValue (idInfo.Id, out var ocrText)) {
+         if (ocrTexts.TryGetValue(idInfo.Id, out var ocrText)) {
             rec["ocr"] = ocrText.Text;
+         }
+         if (phashes.TryGetValue(idInfo.Id, out var phash)) {
+            rec["ph1"] = PHash.FingerprintToString(phash.PHash1);
+            rec["ph2"] = PHash.FingerprintToString(phash.PHash2);
          }
          rec["ext"] = Path.GetExtension (relName).Substring (1);
          rec["root"] = idInfo.Id.Substring (0, ix-1);
