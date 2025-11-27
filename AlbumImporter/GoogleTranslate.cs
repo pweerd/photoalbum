@@ -83,7 +83,12 @@ namespace AlbumImporter {
             for (int i = 0; i < json.Count; i++) {
                var tmp = (JsonArrayValue)json[i];
                string tr = removeUnwantedChars(tmp[0].AsString());
-               if (ret == null) ret = tr; else ret += tr;
+
+               if (tr.Length == 0) continue;
+               if (ret == null) ret = tr;
+               else if (char.IsWhiteSpace(ret[^1]) || char.IsWhiteSpace(tr[0])) ret += tr;
+               else ret = ret + ' ' + tr;
+
             }
             return ret;
          }
