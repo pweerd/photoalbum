@@ -26,8 +26,6 @@ namespace AlbumImporter {
       private GoogleTranslator translator;
       private CaptionCollection existingCaptions;
 
-      private bool sameIndex; //PW Nakijken
-
       public ImportScript_Captions_Ollama () {
       }
 
@@ -45,10 +43,11 @@ namespace AlbumImporter {
          //ctx.ImportEngine.ProcessHostCollection.EnsureStarted ("caption");
          //ctx.ImportLog.Log (_LogType.ltTimerStop, "captions: started");
 
-         ctx.ImportLog.Log ("Starting captions import. FullImport={0}, copy_from={1}, existing records={2}",
+         ctx.ImportLog.Log ("Starting captions import. FullImport={0}, copy_from={1}, existing records={2}, sameIndex={3}",
             fullImport,
             copyFromUrl,
-            existingCaptions.Count);
+            existingCaptions.Count,
+            sameIndex);
 
          handleExceptions = true;
          return null;
@@ -68,6 +67,12 @@ namespace AlbumImporter {
                dst["text_nl"] = captionRec.Caption_NL;
             }
             // ctx.ImportLog.Log ("Id={0}, existing", id);
+            return value;
+         }
+
+         if (idInfo.MimeType != MimeType.Jpeg && idInfo.MimeType != MimeType.Png) {
+            ctx.ImportLog.Log(_LogType.ltInfo, "Ignored, not a jpg/png: Id={0}", id);
+            ctx.ActionFlags |= _ActionFlags.Skip;
             return value;
          }
 

@@ -24,7 +24,6 @@ namespace AlbumImporter {
    public class ImportScript_Captions : ImportScriptBase {
       private readonly HttpSession http;
       private CaptionCollection existingCaptions;
-      private bool sameIndex; //PW Nakijken
       private int maxCount;
 
       public ImportScript_Captions () {

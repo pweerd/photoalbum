@@ -48,6 +48,7 @@ namespace AlbumImporter {
       protected int maxErrors;
       protected bool mustCopyExisting;
       protected bool fullImport;
+      protected bool sameIndex;
       protected bool handleExceptions;
 
       protected ImportScriptBase () {
@@ -102,6 +103,7 @@ namespace AlbumImporter {
          alias = Utils.GetIndexWithoutTimeStamp (newIndex);
          oldIndex = Utils.GetRealIndexName (ep, alias, out oldTimestamp);
          oldIndexUrl = new Uri (esConnection.BaseUri, alias).ToString ();
+         sameIndex = newIndex == oldIndex;
 
          if (copyFromUrl != null) {
             var req = Utils.CreateESRequest (copyFromUrl);
