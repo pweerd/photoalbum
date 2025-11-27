@@ -24,6 +24,7 @@ namespace AlbumImporter {
          JsonObjectValue options;
          defTemplate["options"] = options = new JsonObjectValue("seed", 42);
          //"num_ctx", 0, 
+         options["temperature"] = 0;
          options["keep_alive"] = "10m";
       }
 
