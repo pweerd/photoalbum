@@ -40,6 +40,7 @@ namespace AlbumImporter {
       private FaceNames faceNames;
       private LocationByPoint locationByPointSrv;
       private MetadataProcessor mdProcessor;
+      private CaptionReplacers enCaptionReplacer, trCaptionReplacer;
 
       private Taggers taggers;
       private Lexicon lexicon;
@@ -103,6 +104,9 @@ namespace AlbumImporter {
          faceNames = ReadFaceNames();
          ExifTool.Logger = Logs.CreateLogger ("exiftool", "exiftool");
          mdProcessor = new MetadataProcessor ();
+
+         enCaptionReplacer = new CaptionReplacers (dsNode.SelectMandatoryNode("captions/replacers[@lang='en']"));
+         trCaptionReplacer = new CaptionReplacers(dsNode.SelectMandatoryNode("captions/replacers[@lang='translated']"));
 
          num_en = 0;
          num_portrait = 0;
@@ -204,15 +208,22 @@ namespace AlbumImporter {
          string captionEN = null;
          string captionNL = null;
          if (captions.TryGetValue (idInfo.Id, out var caption)) {
-            if (caption.Caption_EN != null) rec["text_en"] = captionEN = caption.Caption_EN;
-            if (caption.Caption_NL != null) rec["text_nl"] = captionNL = processCaptionNL(caption.Caption_NL);
+            string txt;
+            txt = enCaptionReplacer.Replace(caption.Caption_EN);
+            if (!string.IsNullOrEmpty(txt)) rec["text_en"] = captionEN = txt;
+            txt = trCaptionReplacer.Replace(caption.Caption_NL);
+            if (!string.IsNullOrEmpty(txt)) rec["text_nl"] = captionNL = txt;
          }
          if (ocrTexts.TryGetValue(idInfo.Id, out var ocrText)) {
             rec["ocr"] = ocrText.Text;
          }
          if (phashes.TryGetValue(idInfo.Id, out var phash)) {
-            rec["ph1"] = PHash.FingerprintToString(phash.PHash1);
-            rec["ph2"] = PHash.FingerprintToString(phash.PHash2);
+            rec["ph1txt"] = PHash.FingerprintToString(phash.PHash1);
+            rec["ph2txt"] = PHash.FingerprintToString(phash.PHash2);
+            unchecked {
+               rec["ph1"] = (long)phash.PHash1;
+               rec["ph2"] = (long)phash.PHash2;
+            }
          }
          rec["ext"] = Path.GetExtension (relName).Substring (1);
          rec["root"] = idInfo.Id.Substring (0, ix-1);
