@@ -8,45 +8,46 @@ using System.Threading.Tasks;
 
 namespace AlbumImporter {
    public class OllamaClient {
-      string url = "http://localhost:11434/api/generate";
+      public const string DEF_URL = "http://localhost:11434/api/generate";
       private readonly HttpSession http;
       public readonly JsonObjectValue Template;
       public readonly string Url;
-      private static readonly JsonObjectValue defTemplate;
       private readonly CancellationToken cancelToken;
-
-      static OllamaClient() { 
-         defTemplate = new JsonObjectValue();
-         defTemplate["model"] = "llava";
-         defTemplate["prompt"] = "Describe the image in 1 sentence";
-         defTemplate["images"] = new JsonArrayValue((JsonValue)"");
-         defTemplate["stream"] = false;
-         JsonObjectValue options;
-         defTemplate["options"] = options = new JsonObjectValue("seed", 42);
-         //"num_ctx", 0, 
-         options["temperature"] = 0;
-         options["keep_alive"] = "10m";
-      }
 
       public OllamaClient(CancellationToken ct) {
          http = new HttpSession();
-         Url = "http://localhost:11434/api/generate";
-         Template = defTemplate;
+         Url = DEF_URL;
+         Template = CreateDefaultTemplate();
          cancelToken = ct;
       }
       public OllamaClient(string url, JsonObjectValue template, CancellationToken ct) {
          http = new HttpSession();
          Url = url;
-         Template = template ?? defTemplate;
+         Template = template ?? CreateDefaultTemplate();
          var arr = Template.ReadArr("images", null);
          if (arr == null) Template.Add("images", arr = new JsonArrayValue());
          if (arr.Count == 0) arr.Add(JsonNullValue.Instance);
          cancelToken = ct;
       }
 
+      public static JsonObjectValue CreateDefaultTemplate() {
+         var template = new JsonObjectValue();
+         template["model"] = "llava";
+         template["prompt"] = "What is shown in this image?";
+         //defTemplate["prompt"] = "Describe the image in 1 sentence";
+         template["images"] = new JsonArrayValue((JsonValue)"");
+         template["stream"] = false;
+         template["keep_alive"] = "10m";
+         JsonObjectValue options;
+         template["options"] = options = new JsonObjectValue("seed", 42);
+         //"num_ctx", 0, 
+         options["temperature"] = 0;
+         return template;
+      }
+
       public JsonObjectValue Post(JsonObjectValue v) {
          var payload = HttpPayload.Create (v);
-         var resp = http.Post (url, payload, cancelToken);
+         var resp = http.Post (Url, payload, cancelToken);
          resp.ThrowIfError();
          return resp.Json;
       }

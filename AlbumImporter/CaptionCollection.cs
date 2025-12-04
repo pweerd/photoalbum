@@ -30,11 +30,15 @@ namespace AlbumImporter {
       public readonly DateTime Ts;
       public readonly string Caption_EN;
       public readonly string Caption_NL;
+      public readonly string Prompt;
+      public readonly int Temperature;
       public Caption (GenericDocument doc) {
          Id = doc.Id;
          Caption_EN = doc._Source.ReadStr ("text_en");
          Caption_NL = doc._Source.ReadStr ("text_nl");
-         Ts = doc._Source.ReadDate ("ts", DateTime.MinValue);
+         Ts = doc._Source.ReadDate("ts", DateTime.MinValue);
+         Prompt = doc._Source.ReadStr("prompt", null);
+         Temperature = doc._Source.ReadInt("temperature",-1);
       }
    }
 
