@@ -553,6 +553,8 @@ function createLightboxControl(app) {
    function _fillCombo($cb, arr, cur) {
       $cb.empty();
       $cb.append(new Option("Alle", -1));
+      if (!arr) return;
+
       let curItem = cur ? cur.toLowerCase() : undefined;
       let selIndex = -1;
       for (let i = 0; i < arr.length; i++) {
