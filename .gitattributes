@@ -1,0 +1,9 @@
+*               text=auto
+*.txt		text eol=lf
+*.md		text eol=lf
+*.csproj	text eol=lf
+*.cs		text eol=lf
+*.svg		text eol=lf
+*.jpg		-text
+*.png		-text
+*.ico		-text

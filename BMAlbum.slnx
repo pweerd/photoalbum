@@ -1,0 +1,23 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="AlbumImport/FaceNames.sample.txt" />
+    <File Path="AlbumImport/FaceNames.txt" />
+    <File Path="AlbumImport/import.sample.xml" />
+    <File Path="AlbumImport/import.xml" />
+    <File Path="AlbumImport/index.config.js" />
+    <File Path="AlbumImport/index_captions.config.js" />
+    <File Path="AlbumImport/index_faces.config.js" />
+    <File Path="AlbumImport/index_ids.config.js" />
+    <File Path="AlbumImport/index_ocr.config.js" />
+  </Folder>
+  <Project Path="AlbumImporter/AlbumImporter.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+  <Project Path="BMAlbum/BMAlbum.csproj" />
+  <Project Path="BMAlbumTools/BMAlbumTools.csproj" />
+  <Project Path="UnitTests/UnitTests.csproj" />
+</Solution>
