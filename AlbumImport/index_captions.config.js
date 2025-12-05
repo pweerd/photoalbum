@@ -11,7 +11,9 @@
       "properties": {
          "ts": {"type": "date"},
          "text_en": {"type": "text"},
-         "text_nl": {"type": "text"}
+         "text_nl": { "type": "text" },
+         "prompt": { "type": "keyword" },
+         "temperature": { "type": "integer" }
       }
    }
 }
