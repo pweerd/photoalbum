@@ -76,11 +76,69 @@ namespace BMAlbum.Controllers {
          return ESBoolQuery.CreateFilteredQuery (q, state.User.Filter);
       }
 
+      private struct DocPlusDate {
+         public readonly GenericDocument Doc;
+         public readonly string Date;
+         public DocPlusDate(GenericDocument doc) {
+            Doc = doc;
+            Date = doc.ReadStr("date", null);
+         }
+
+         public static int SortCb(DocPlusDate d1, DocPlusDate d2) {
+            return string.CompareOrdinal(d1.Date, d2.Date);
+         } 
+      }
+      private IActionResult getDuplicates(ClientState clientState, SearchSettings searchSettings) {
+         var req = settings.ESClient.CreateSearchRequest (settings.MainIndex);
+         req.Size = 0;
+         req.Query = wrapQueryInFilters(clientState, null, null);
+         var agg = new ESTermsAggregation("hash", "ph1", 1000);
+         agg.MinDocCount = 2;
+         req.Aggregations.Add(agg);
+         var tophitsAgg = new ESTopHitsAggregation("hits", 20);
+         agg.AddSubAggregation(tophitsAgg);
+         var resp = req.Search();
+         resp.ThrowIfError();
+
+         var json = new JsonMemoryBuffer ();
+         json.WriteStartObject();
+         json.WriteProperty("new_state", (IJsonSerializable)clientState.ToJson());
+         var docs = new List<DocPlusDate>(128);
+         var hashResult = resp.Aggregations.FindByName(true, "hash");
+         foreach (var hashItem in hashResult.Items) {
+            var hitsResult = hashItem.FindInnerAggregation("hits", true);
+            foreach (ESTopHitsAggregationResultItem hit in hitsResult.Items) {
+               docs.Add(new DocPlusDate(hit.Doc));
+            }
+         }
+         docs.Sort(DocPlusDate.SortCb);
+         var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
+
+         writeFiles(json, docs.Select((d)=>d.Doc).ToList(), debug, null);
+
+         if (debug) {
+            json.WriteStartObject("dbg");
+            json.WriteStartArray("timings");
+            //foreach (var t in timings) json.WriteValue(t);
+            json.WriteEndArray();
+            json.WritePropertyName("es_request");
+            json.WriteValue(req);
+            json.WriteEndObject();
+         }
+
+         json.WriteEndObject();
+         return new JsonActionResult(json);
+      }
+
 
       public IActionResult Index () {
          var clientState = new ClientState (RequestCtx, settings);
          SiteLog.Log ("Index: q={0}, pin={1}, perAlbum={2}", clientState.Query, clientState.Pin, clientState.PerAlbum);
          var searchSettings = settings.MainSearchSettings;
+
+         if (clientState.Query == "duplicates") 
+            return getDuplicates (clientState, searchSettings);
+
          var reqSortMode = clientState.Sort ?? searchSettings.SortModes.Default;
          if (string.Equals ("auto", reqSortMode.Name, StringComparison.OrdinalIgnoreCase))
             reqSortMode = null;
