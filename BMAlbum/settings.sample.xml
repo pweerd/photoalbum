@@ -274,7 +274,17 @@
    <map active="false">
       <google key="YOUR MAPS GOOGLE CLIENT KEY (dont forget to set active=true)" /> 
       <start center="52.177513910134806,5.861052751913665" zoom="8" />
-      <gps active="true" show="map"/>
+      <detail zoom="15"  />
+      <per_device_settings>
+         <settings device="phone" map_active="true">
+            <gps active="true" silent="false" granularity="coarse"/>
+            <compass active="true" silent="true" />
+         </settings>
+         <settings device="all" _show_goto_map="false"  map_active="true">
+            <gps active="true" silent="true" granularity="coarse"/>
+            <compass active="true" silent="true" />
+         </settings>
+      </per_device_settings>
       <pins search_distance="4km" >
          <group pin="redgrouppin.svg"/>
          <selected pin="blackpin.svg"/>
