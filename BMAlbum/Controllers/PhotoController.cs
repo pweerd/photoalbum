@@ -14,25 +14,28 @@
  * limitations under the License.
  */
 
+using Bitmanager.BoolParser;
+using Bitmanager.Core;
+using Bitmanager.Elastic;
+using Bitmanager.ImageTools;
+using Bitmanager.IO;
 using Bitmanager.Json;
+using Bitmanager.Query;
 using Bitmanager.Web;
+using Bitmanager.Web.ActionResults;
+using Bitmanager.Xml;
+using BMAlbum.Core;
 using BMAlbum.Models;
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics;
-using System.Text;
-using System.IO;
-using Bitmanager.Core;
-using Bitmanager.IO;
-using Bitmanager.Xml;
-using Bitmanager.Web.ActionResults;
-using Bitmanager.Elastic;
-using Bitmanager.BoolParser;
-using Bitmanager.Query;
-using System.Text.RegularExpressions;
-using Bitmanager.ImageTools;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using BMAlbum.Core;
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography.Xml;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace BMAlbum.Controllers {
 
@@ -79,20 +82,34 @@ namespace BMAlbum.Controllers {
       private struct DocPlusDate {
          public readonly GenericDocument Doc;
          public readonly string Date;
-         public DocPlusDate(GenericDocument doc) {
+         //public readonly string Ymd;
+         public readonly long Hash;
+         public DocPlusDate (GenericDocument doc, string fld) {
             Doc = doc;
-            Date = doc.ReadStr("date", null);
+            Date = doc.ReadStr("date", string.Empty);
+            //if (Date.Length >= 8) Ymd = Date.Substring (0, 8);
+            Hash = doc.ReadLong (fld, 0);
          }
 
-         public static int SortCb(DocPlusDate d1, DocPlusDate d2) {
-            return string.CompareOrdinal(d1.Date, d2.Date);
-         } 
+
+         public static int SortHashDate (DocPlusDate d1, DocPlusDate d2) {
+            int rc = Comparer<long>.Default.Compare (d1.Hash, d2.Hash);
+            if (rc == 0)
+               rc = string.CompareOrdinal (d1.Date, d2.Date);
+            return rc;
+         }
+         public static int SortDateAsc (DocPlusDate d1, DocPlusDate d2) {
+            return string.CompareOrdinal (d1.Date, d2.Date);
+         }
+         public static int SortDateDesc (DocPlusDate d1, DocPlusDate d2) {
+            return string.CompareOrdinal (d2.Date, d1.Date);
+         }
       }
-      private IActionResult getDuplicates(ClientState clientState, SearchSettings searchSettings) {
+      private IActionResult getDuplicates(ClientState clientState, SearchSettings searchSettings, string fld) {
          var req = settings.ESClient.CreateSearchRequest (settings.MainIndex);
          req.Size = 0;
          req.Query = wrapQueryInFilters(clientState, null, null);
-         var agg = new ESTermsAggregation("hash", "ph1", 1000);
+         var agg = new ESTermsAggregation("hash", fld, 1000);
          agg.MinDocCount = 2;
          req.Aggregations.Add(agg);
          var tophitsAgg = new ESTopHitsAggregation("hits", 20);
@@ -108,10 +125,16 @@ namespace BMAlbum.Controllers {
          foreach (var hashItem in hashResult.Items) {
             var hitsResult = hashItem.FindInnerAggregation("hits", true);
             foreach (ESTopHitsAggregationResultItem hit in hitsResult.Items) {
-               docs.Add(new DocPlusDate(hit.Doc));
+               docs.Add(new DocPlusDate(hit.Doc, fld));
             }
          }
-         docs.Sort(DocPlusDate.SortCb);
+         WebGlobals.Instance.SiteLog.Log("Duplicates: fld={0}, count={1}", fld, docs.Count);
+
+         //Sort duplicates
+         Comparison<DocPlusDate> cmp = DocPlusDate.SortHashDate;
+         if (clientState.SortName == "oldontop") cmp = DocPlusDate.SortDateAsc;
+         else if (clientState.SortName == "newontop") cmp = DocPlusDate.SortDateDesc;
+         docs.Sort(cmp);
          var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
 
          writeFiles(json, docs.Select((d)=>d.Doc).ToList(), debug, null);
@@ -136,8 +159,10 @@ namespace BMAlbum.Controllers {
          SiteLog.Log ("Index: q={0}, pin={1}, perAlbum={2}", clientState.Query, clientState.Pin, clientState.PerAlbum);
          var searchSettings = settings.MainSearchSettings;
 
-         if (clientState.Query == "duplicates") 
-            return getDuplicates (clientState, searchSettings);
+         if (clientState.Query == "duplicates")
+            return getDuplicates (clientState, searchSettings, "ph1");
+         if (clientState.Query == "duplicates2")
+            return getDuplicates (clientState, searchSettings, "ph2");
 
          var reqSortMode = clientState.Sort ?? searchSettings.SortModes.Default;
          if (string.Equals ("auto", reqSortMode.Name, StringComparison.OrdinalIgnoreCase))
