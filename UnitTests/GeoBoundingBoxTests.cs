@@ -28,7 +28,7 @@ using System.Text;
 
 namespace UnitTests {
    [TestClass]
-   public class GeoBoundingBoxTests : TestBaseSimple { //FileRepo
+   public class GeoBoundingBoxTests : TestBase { 
 
       [TestMethod]
       public void TestBox () {
