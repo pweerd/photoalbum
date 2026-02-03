@@ -26,15 +26,11 @@ using System.Xml;
 
 namespace BMAlbum.Core.Searchers {
    public class PHashSearcher : SingleFieldSearcher {
-      private static readonly JsonArrayValue stopWords;
-      private static readonly JsonArrayValue fields;
 
       public PHashSearcher(XmlNode node, string field, string searchField, SearchFieldConfig fieldConfig)
              : base (field, searchField, fieldConfig) {
       }
 
-
-      private static Regex hashExpr = new Regex("^(?:[0,1][0..9,A..F]{2} ?)+$", RegexOptions.Compiled);
 
       private ESQuery createTermQ (string fld, string v) {
          return new ESConstantScoreQuery(new ESTermQuery(fld, v));
