@@ -53,7 +53,7 @@ namespace BMAlbum.Controllers {
             type = (BrowserType)Invariant.ToInt32 (dvt);
          else
             type = Invariant.ToEnum<BrowserType> (dvt);
-         
+
          var json = new JsonMemoryBuffer ();
          json.WriteStartObject ();
 
@@ -69,7 +69,23 @@ namespace BMAlbum.Controllers {
 
          json.WriteEndObject ();
 
-         return new JsonActionResult(json);
+         return new JsonActionResult (json);
+      }
+
+
+      public IActionResult Manifest () {
+         string fn = Path.Combine (WebGlobals.Instance.AppRoot, "manifest.json");
+         byte[] bytes;
+         DateTime lastMod;
+         try {
+            bytes = System.IO.File.ReadAllBytes (fn);
+            lastMod = System.IO.File.GetLastWriteTimeUtc (fn);
+         } catch (FileNotFoundException e) {
+            return new HttpActionResult (404);
+         }
+         return new BytesActionResult (MimeType.Json, bytes)
+            .SetLastModified (lastMod)
+            .SetCache (CacheOptions.Private);
       }
 
 
