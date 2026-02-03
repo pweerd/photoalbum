@@ -25,51 +25,53 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AlbumImporter {
+namespace AlbumImporter.FaceRecognition {
 
    /// <summary>
    /// Collection of faces that are read from the DB (face index)
    /// </summary>
    public class FaceCollection {
       private readonly Dictionary<string, DbFace> dict;
-      public readonly string FingerPrint;
-      public readonly int LargestStorageId;
-      public readonly int LargestFaceId;
+      public int LargestStorageId { get; private set; }
+      public int LargestFaceId { get; private set; }
       public int Count => dict.Count;
 
-      public FaceCollection (Logger logger, string url, bool onlyManualOrCorrected=false) {
-         dict = new Dictionary<string, DbFace> ();
-         if (logger != null) logger.Log ("Loading Faces data from {0}.", url);
-         if (url == null) goto EXIT_RTN;
-         
-         var req = Utils.CreateESRequest (url);
+      public FaceCollection() {
+         dict = new Dictionary<string, DbFace>(10000);
+      }
+      public FaceCollection(Logger logger, IndexInfo index, bool copyNeeded) 
+         :this() {
+         Load(logger, index, copyNeeded);
+      }
 
-         //Filter out admin or error records
-         var bq = new ESBoolQuery ();
-         bq.AddNot (new ESExistsQuery ("type"));
-         req.Query = bq;
-
-         FingerPrint = Utils.GetIndexFingerPrint (req.Connection, req.IndexName);
-         if (FingerPrint == null) goto EXIT_RTN;
+      public void Load(Logger logger, IndexInfo index, bool copyNeeded) {
+         if (index == null) return;
+         logger?.Log("Loading faces data from {0}", index.Url);
+         var req = index.CreateESRequest ();
+         req.Query = new ESExistsQuery ("count");
+         ////Only load the faces that were assigned some value.
+         //req.Query = new ESExistsQuery ("src");
 
          int largestStorId = 0;
          int largestFaceId = 0;
-         using (var e = new ESRecordEnum (req)) {
-            foreach (var rec in e) {
-               var face = new DbFace (rec);
-               if (onlyManualOrCorrected && !face.NameSrc.IsManualDefined()) continue;
+         int oldCount = dict.Count;
+         using (var recs = new ESRecordEnum(req)) {
+            foreach (var rec in recs) {
+               //if (rec.Id.StartsWith (@"D\2009-02-22 Jan en Jeannet 25 jaar\20090222 152351  Jan en Jeannet 25 jaar.JPG~1"))
+               //   Debugger.Break ();
+
+               var face = new DbFace (rec, copyNeeded);
                if (face.FaceStorageId > largestStorId) largestStorId = face.FaceStorageId;
-               if (face.Names != null) 
+               if (face.Names != null)
                   foreach (var name in face.Names)
                      if (name.Id > largestFaceId) largestFaceId = name.Id;
-               dict.Add (face.Id, face);
+               dict.TryAdd(face.Id, face);
             }
          }
-         LargestStorageId = largestStorId;
-         LargestFaceId = largestFaceId;
+         if (largestStorId > LargestStorageId) LargestStorageId = largestStorId;
+         if (largestFaceId > LargestFaceId) LargestFaceId = largestFaceId;
 
-      EXIT_RTN:
-         if (logger != null) logger.Log ("Loaded {0} Face items from {1}. Largest storageId={2}", dict.Count, url, LargestStorageId);
+         logger?.Log("Loaded {0} faces data from {1}. CopyNeeded={2}", dict.Count - oldCount, index.Url, copyNeeded);
       }
 
       public bool TryGetValue (string id, out DbFace face) {
@@ -80,9 +82,13 @@ namespace AlbumImporter {
       public List<DbFace> GetFaces () {
          if (_cached == null) {
             _cached = dict.Values.ToList ();
-            _cached.Sort((a,b) => string.CompareOrdinal(a.Id, b.Id));
+            _cached.Sort(SortOnId);
          }
          return _cached;
+      }
+
+      public static int SortOnId (DbFace a, DbFace b) {
+         return string.CompareOrdinal (a.Id, b.Id);
       }
 
 
@@ -99,12 +105,13 @@ namespace AlbumImporter {
             else j = m;
          }
 
+         //j is now pointing at the first existingFaces[J] >= id
          int len = id.Length;
          for (; j< existingFaces.Count; j++) {
             string key = existingFaces[j].Id;
             if (key.Length < len + 2) break;
-            if (!key.StartsWith (id, StringComparison.Ordinal)) break;
             if (key[len] != '~') break;
+            if (!key.StartsWith (id, StringComparison.Ordinal)) break;
 
             if (ret==null) ret = new List<DbFace> ();
             ret.Add (existingFaces[j]);

@@ -25,6 +25,11 @@ using Bitmanager.Webservices;
 using Bitmanager.ImageTools;
 using Bitmanager.AlbumTools;
 using System.Xml;
+using AlbumImporter.PHash;
+using AlbumImporter.Captions;
+using AlbumImporter.Ocr;
+using AlbumImporter.Tracks;
+using AlbumImporter.FaceRecognition;
 
 namespace AlbumImporter {
 
@@ -83,9 +88,9 @@ namespace AlbumImporter {
          hypernymCollector = new HypernymCollector (tokenizer, hypernyms, lexicon);
 
          var dsNode = ds.ContextNode;
-         phashes = new PHashCollection(ctx.ImportLog, dsNode.ReadStrRaw("hashes/@url", optional));
-         captions = new CaptionCollection (ctx.ImportLog, dsNode.ReadStrRaw ("captions/@url", mandatory));
-         ocrTexts = new OcrCollection (ctx.ImportLog, dsNode.ReadStrRaw ("ocr/@url", mandatory));
+         phashes = new PHashCollection(ctx.ImportLog, IndexInfo.Create(dsNode.ReadStrRaw("hashes/@url", optional), false), false);
+         captions = new CaptionCollection (ctx.ImportLog, IndexInfo.Create(dsNode.ReadStrRaw ("captions/@url", mandatory), false), false);
+         ocrTexts = new OcrCollection (ctx.ImportLog, IndexInfo.Create(dsNode.ReadStrRaw ("ocr/@url", mandatory), false), false, false);
          var tracksNode = dsNode.SelectSingleNode ("tracks");
          string[] urls = null;
          string[] files = null;
@@ -98,7 +103,7 @@ namespace AlbumImporter {
          if (taggers.Count == 0) taggers = null;
 
          facesThreshold = (float)dsNode.ReadFloat ("faces/@threshold", .25);
-         faces = new FaceCollection (ctx.ImportLog, dsNode.ReadStrRaw ("faces/@url", mandatory), false).GetFaces ();
+         faces = new FaceCollection (ctx.ImportLog, IndexInfo.Create(dsNode.ReadStrRaw ("faces/@url", mandatory), false), false).GetFaces ();
          faces.Sort ((a, b) => string.Compare (a.Id, b.Id, StringComparison.Ordinal));
 
          faceNames = ReadFaceNames();
@@ -218,8 +223,8 @@ namespace AlbumImporter {
             rec["ocr"] = ocrText.Text;
          }
          if (phashes.TryGetValue(idInfo.Id, out var phash)) {
-            rec["ph1txt"] = PHash.FingerprintToString(phash.PHash1);
-            rec["ph2txt"] = PHash.FingerprintToString(phash.PHash2);
+            rec["ph1txt"] = PHash.PHash.FingerprintToString(phash.PHash1);
+            rec["ph2txt"] = PHash.PHash.FingerprintToString(phash.PHash2);
             unchecked {
                rec["ph1"] = (long)phash.PHash1;
                rec["ph2"] = (long)phash.PHash2;

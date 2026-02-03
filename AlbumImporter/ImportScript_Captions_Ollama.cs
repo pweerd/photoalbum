@@ -16,10 +16,11 @@
 
 using Bitmanager.Core;
 using Bitmanager.ImportPipeline;
-using Bitmanager.IO;
 using Bitmanager.Json;
 using Bitmanager.Http;
 using Bitmanager.Xml;
+using AlbumImporter.Ollama;
+using AlbumImporter.Captions;
 
 namespace AlbumImporter {
    public class ImportScript_Captions_Ollama : ImportScriptBase {
@@ -33,6 +34,17 @@ namespace AlbumImporter {
       }
 
       public object OnDatasourceStart(PipelineContext ctx, object value) {
+         Init(ctx, true);
+         translator = new GoogleTranslator(ctx.ImportEngine.CancelToken);
+
+         existingCaptions = new CaptionCollection();
+         if (!fullImport || !forceRebuild) {
+            if (curIndex != null) {
+               existingCaptions.Load(ctx.ImportLog, activeOldIndex, !sameIndex);
+            }
+         }
+
+
          //Initialize OllamaClient
          //The complete request or the prompt/temperature are customizable from the xml.
          temperature = -1;
@@ -62,23 +74,12 @@ namespace AlbumImporter {
             temperature = options.ReadInt("temperature", -1);
          ctx.ImportLog.Log("Ollama client initialized with prompt [{0}] and temperature [{1}].", prompt, temperature);
 
-         //Init translator
-         translator = new GoogleTranslator(ctx.ImportEngine.CancelToken);
-
-         //Init rest
-         Init(ctx, true);
-
-         string url = base.copyFromUrl;
-         if (url == null && !fullImport) url = base.oldIndexUrl;
-         existingCaptions = new CaptionCollection(ctx.ImportLog, url);
-
-         if (!fullImport) existingCaptions.Load(ctx.ImportLog, ctx.Action.Endpoint);
-
-         ctx.ImportLog.Log("Starting captions import. FullImport={0}, copy_from={1}, existing records={2}, sameIndex={3}",
-            fullImport,
-            copyFromUrl,
+         ctx.ImportLog.Log("Starting captions(Ollama) import. Flags={0}, existing records={1}, cur={2}, old={3}, copy={4}",
+            ctx.ImportFlags,
             existingCaptions.Count,
-            sameIndex);
+            curIndex,
+            oldIndex,
+            copyFromIndex);
 
          handleExceptions = true;
          return null;
@@ -89,20 +90,16 @@ namespace AlbumImporter {
          string id = idInfo.Id;
          var dst = ctx.Action.Endpoint.Record;
          if (existingCaptions.TryGetValue (idInfo.Id, out var captionRec)) {
-            if (sameIndex) {
-               ctx.ActionFlags |= _ActionFlags.Skip;
+            if (captionRec.Failed && forceRebuild) goto PROCESS;
+            if (captionRec.CopyNeeded) {
+               captionRec.Export (dst);
             } else {
-               dst["_id"] = id;
-               dst["ts"] = captionRec.Ts;
-               dst["text_en"] = captionRec.Caption_EN;
-               dst["text_nl"] = captionRec.Caption_NL;
-               if (captionRec.Prompt != null) dst["prompt"] = captionRec.Prompt;
-               if (captionRec.Temperature != -1) dst["temperature"] = captionRec.Temperature;
+               ctx.ActionFlags |= _ActionFlags.Skip;
             }
-            // ctx.ImportLog.Log ("Id={0}, existing", id);
             return value;
          }
 
+      PROCESS:
          if (idInfo.MimeType != MimeType.Jpeg && idInfo.MimeType != MimeType.Png) {
             ctx.ImportLog.Log(_LogType.ltInfo, "Ignored, not a jpg/png: Id={0}", id);
             ctx.ActionFlags |= _ActionFlags.Skip;
@@ -112,13 +109,18 @@ namespace AlbumImporter {
          ctx.ImportLog.Log ("Processing Id={0}", id);
          string fn = idInfo.FileName;
 
-         //Fetch caption from the caption-server
-         string caption = ollamaClient.PostGetResponse(idInfo.FileName);
-
          dst["_id"] = id;
          dst["ts"] = DateTime.UtcNow;
-         dst["text_en"] = caption;
-         dst["text_nl"] = translator.Translate(caption, "nl", "en");
+         string caption = null;
+         try {
+            caption = ollamaClient.PostGetResponse (idInfo.FileName);
+            dst["text_en"] = caption;
+         } catch (Exception ex) {
+            dst["failed"] = true;
+            OnError (ctx, ex);
+            return null; //Just add the record
+         }
+         dst["text_nl"] = translator.Translate (caption, "nl", "en");
          dst["prompt"] = prompt;
          dst["temperature"] = temperature;
 

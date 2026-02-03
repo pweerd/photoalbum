@@ -24,20 +24,29 @@ using Image = SixLabors.ImageSharp.Image;
 using PointF = SixLabors.ImageSharp.PointF;
 using RectangleF = SixLabors.ImageSharp.RectangleF;
 
-namespace AlbumImporter {
+namespace AlbumImporter.FaceRecognition {
 
-   public class FaceHit {
+   public class FaceHit {  
       public readonly DbFace MatchedFace;
       public readonly DbFace FaceToMatch;
-      public string Explain;
+      private readonly IFaceScorer scorer;
+      private string explain;
       public readonly float Score;
       public readonly int MatchedNameId;
 
-      public FaceHit (DbFace matched, DbFace faceToMatch, float score) {
+      public FaceHit (DbFace matched, DbFace faceToMatch, float score, IFaceScorer scorer) {
          MatchedFace = matched;
          FaceToMatch = faceToMatch;
          Score = score;
          MatchedNameId = matched.Names[0].Id;
+         this.scorer = scorer;
+      }
+
+      public string Explain {
+         get {
+            if (explain == null && scorer != null) explain = scorer.Explain (FaceToMatch, MatchedFace);
+            return explain;
+         }
       }
    }
 
@@ -84,38 +93,6 @@ namespace AlbumImporter {
 
 
 }
-
-//PW
-//public class DetectorResult {
-//   public readonly RectangleF Box;
-//   public readonly IReadOnlyList<PointF> LandmarksRO;
-//   public readonly PointF[] Landmarks;
-//   public readonly float Score;
-//   public DetectorResult (FaceDetectorResult r) {
-//      Box = r.Box;
-//      LandmarksRO = r.Landmarks;
-//      Landmarks = r.Landmarks.ToArray ();
-//      Score = (float)r.Confidence;
-//   }
-
-//   /// <summary>
-//   /// Ratio is 0..2
-//   /// 1 means face is frontal
-//   /// Below 1 means face is en-profile
-//   /// Above 1 means face is looking up or down 
-//   /// </summary>
-//   public float FaceRatio {
-//      get {
-//         float ret = float.NaN;
-//         if (LandmarksRO.Count >= 5) {
-//            float dx = Math.Max (0, LandmarksRO[1].X - LandmarksRO[0].X);
-//            float dy = ((LandmarksRO[3].Y + LandmarksRO[4].Y) - (LandmarksRO[1].Y + LandmarksRO[1].Y)) / 2;
-//            ret = (dy <= 0) ? 2f : Math.Min (2f, dx / dy);
-//         }
-//         return ret;
-//      }
-//   }
-//}
 
 
 public class FaceAiHelper : IDisposable {

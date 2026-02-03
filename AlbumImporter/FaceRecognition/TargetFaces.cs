@@ -16,10 +16,11 @@
 //#define DBG
 using Bitmanager.Core;
 
-namespace AlbumImporter {
+namespace AlbumImporter.FaceRecognition {
    public class TargetFaces {
       private readonly DbFace[] faces;
       public int Count => faces.Length;
+      public DbFace[] Faces => faces;
 
       public TargetFaces (List<DbFace> list) {
          faces = list.ToArray ();
@@ -62,12 +63,12 @@ namespace AlbumImporter {
                }
                continue;
             }
-            if (bestFace != null) hits.Add (new FaceHit (bestFace, face, maxScore));
+            if (bestFace != null) hits.Add (new FaceHit (bestFace, face, maxScore, scorer));
             maxScore = score;
             bestFace = known;
             prevId = nameId;
          }
-         if (bestFace != null) hits.Add (new FaceHit (bestFace, face, maxScore));
+         if (bestFace != null) hits.Add (new FaceHit (bestFace, face, maxScore, scorer));
 
          if (hits.Count == 0) return null;
          return hits.ToSortedList (true);

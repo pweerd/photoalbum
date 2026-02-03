@@ -29,6 +29,7 @@ namespace AlbumImporter {
       private string user;
       private string root;
       private Regex defMimeFilter, mimeFilter;
+
       public ImportScript_Ids () {
          skippedExts = new HashSet<string> ();
          okExts = new HashSet<string> ();

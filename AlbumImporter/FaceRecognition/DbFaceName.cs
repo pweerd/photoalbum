@@ -17,7 +17,7 @@
 using Bitmanager.AlbumTools;
 using Bitmanager.Json;
 
-namespace AlbumImporter {
+namespace AlbumImporter.FaceRecognition {
    
    /// <summary>
    /// Represents a known or a matched face

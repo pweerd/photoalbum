@@ -18,7 +18,7 @@ using Bitmanager.Core;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 
-namespace AlbumImporter {
+namespace AlbumImporter.FaceRecognition {
    public static class RectangleExtensions {
       public static float Area (this RectangleF rect) {
          return rect.Width * rect.Height;

@@ -18,7 +18,7 @@ using Bitmanager.Core;
 using SimpleSimd;
 using System.Text;
 
-namespace AlbumImporter {
+namespace AlbumImporter.FaceRecognition {
 
    public interface IFaceScorer {
       float Score (DbFace toMatched, DbFace matchCandidate);
@@ -30,16 +30,13 @@ namespace AlbumImporter {
       private static readonly float[] heightFactors;
       private readonly float[] faceCountFactors;
       private readonly float minFaceCountFactor;
-      private StringBuilder sb = new StringBuilder();
+      private readonly StringBuilder sb;
 
       public FaceScorer (float[] faceCountFactors) {
+         this.sb = new StringBuilder ();
          this.faceCountFactors = faceCountFactors;
          this.minFaceCountFactor = faceCountFactors.Length==0 ? 1 : faceCountFactors[^1];
       }
-
-      //static float heightScore (int h) {
-      //   return heightFactors [h< heightFactors.Length ? h : heightFactors.Length-1];
-      //}
 
       private static readonly float log250 = (float)Math.Log10 (250);
       private static float heightScore (int h) {

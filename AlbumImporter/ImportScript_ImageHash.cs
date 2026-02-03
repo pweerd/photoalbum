@@ -14,40 +14,39 @@
  * limitations under the License.
  */
 
-using Bitmanager.Core;
 using Bitmanager.ImportPipeline;
-using Bitmanager.IO;
-using Bitmanager.Json;
-using Bitmanager.Http;
+using AlbumImporter.PHash;
 
 namespace AlbumImporter {
    public class ImportScript_ImageHash : ImportScriptBase {
-      private PHashCollection existingFingerprints;
-      private bool sameIndex; //PW Nakijken
-      private int maxCount;
+      private PHashCollection existingHashes;
 
       public ImportScript_ImageHash() {
       }
 
-      public object OnDatasourceStart (PipelineContext ctx, object value) {
-         Init (ctx, true);
+      public object OnDatasourceStart(PipelineContext ctx, object value) {
+         Init(ctx, true);
 
-         string url = base.copyFromUrl;
-         if (url == null && !fullImport) url = base.oldIndexUrl;
-         existingFingerprints = new PHashCollection (ctx.ImportLog, url);
+         existingHashes = new PHashCollection();
+         if (!fullImport || !forceRebuild) {
+            if (curIndex != null) {
+               existingHashes.Load(ctx.ImportLog, activeOldIndex, !sameIndex);
+            }
+         }
 
-         if (!fullImport) existingFingerprints.Load (ctx.ImportLog, ctx.Action.Endpoint);
 
-         ctx.ImportLog.Log ("Starting fingerprints import. FullImport={0}, copy_from={1}, existing records={2}",
-            fullImport,
-            copyFromUrl,
-            existingFingerprints.Count);
+         ctx.ImportLog.Log("Starting perceptual hashes import. Flags={0}, existing records={1}, cur={2}, old={3}, copy={4}",
+            ctx.ImportFlags,
+            existingHashes.Count,
+            curIndex,
+            oldIndex,
+            copyFromIndex);
 
          handleExceptions = true;
          return null;
       }
 
-      public object OnId (PipelineContext ctx, object value) {
+      public object OnId(PipelineContext ctx, object value) {
          idInfo = (IdInfo)value;
          string fn = idInfo.FileName;
          if (idInfo.MimeType == null || !idInfo.MimeType.StartsWith("image/")) {
@@ -56,22 +55,22 @@ namespace AlbumImporter {
          }
          string id = idInfo.Id;
          var dst = ctx.Action.Endpoint.Record;
-         PHashItemItem fp;
-         if (existingFingerprints.TryGetValue (idInfo.Id, out fp)) {
-            if (sameIndex) {
-               ctx.ActionFlags |= _ActionFlags.Skip;
-            } else {
-               fp.Save (dst);
+         PHashItemItem hash;
+         if (existingHashes.TryGetValue(idInfo.Id, out hash)) {
+            if (hash.CopyNeeded) {
+               hash.Save(dst);
             }
-            // ctx.ImportLog.Log ("Id={0}, existing", id);
+            else {
+               ctx.ActionFlags |= _ActionFlags.Skip;
+            }
             return value;
          }
 
-         ctx.ImportLog.Log ("Processing Id={0}", id);
+         ctx.ImportLog.Log("Processing Id={0}", id);
 
          dst["_id"] = id;
-         dst["ph1"] = PHash.GetFingerprint(idInfo.FileName).ToString("X");
-         dst["ph2"] = PHash.GetFingerprint3(idInfo.FileName).ToString("X");
+         dst["ph1"] = PHash.PHash.GetFingerprint (idInfo.FileName).ToString ("X");
+         dst["ph2"] = PHash.PHash.GetFingerprint3(idInfo.FileName).ToString("X");
          dst["ts"] = DateTime.UtcNow;
 
          WaitAfterExtract();

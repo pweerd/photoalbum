@@ -17,7 +17,7 @@
 using Bitmanager.Core;
 using Bitmanager.Gps;
 
-namespace AlbumImporter {
+namespace AlbumImporter.Tracks {
    public class TrackAdmin {
       private static readonly IComparer<DateTime> dtComparer = Comparer<DateTime>.Default;
 

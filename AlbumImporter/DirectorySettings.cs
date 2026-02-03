@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+using AlbumImporter.Fetchers;
 using Bitmanager.Core;
 using Bitmanager.Xml;
 using System.Xml;

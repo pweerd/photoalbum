@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace AlbumImporter {
+namespace AlbumImporter.Fetchers {
    public enum _CameraSource { None, FromMetadata, FromMeta=FromMetadata, FromValue}
    public class CameraFetcher {
       public static readonly List<string> EMPTY = new List<string> (0);

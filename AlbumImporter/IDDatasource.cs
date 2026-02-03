@@ -72,6 +72,7 @@ namespace AlbumImporter {
       private string bufferTime;
       private int bufferSize;
       private int sleepTime;
+      private bool skipNonExistingFiles;
 
       public void Import (PipelineContext ctx, IDatasourceSink sink) {
          var p = ctx.Pipeline;
@@ -91,6 +92,10 @@ namespace AlbumImporter {
                if (idFilter != null && !idFilter.IsMatch (idInfo.Id)) continue;
                if (mimeFilter != null && !mimeFilter.IsMatch (idInfo.MimeType)) continue;
                if (dbgFilter != null && dbgFilter.IsMatch (idInfo.Id)) Debugger.Break();
+               if (skipNonExistingFiles && !File.Exists (idInfo.FileName)) {
+                  ctx.ImportLog.Log (_LogType.ltWarning , "File [{0}] does not exist. ID=[{1}]." , idInfo.FileName , idInfo.Id);
+                  continue;
+               }
 
                curDoc = rec;
                ctx.IncrementEmitted ();
@@ -121,7 +126,8 @@ namespace AlbumImporter {
          url = node.ReadStr ("@url");
          bufferSize = node.ReadInt ("@buffer_size", ESRecordEnum.DEF_BUFFER_SIZE);
          bufferTime = node.ReadStr("@buffer_time", "15m");
-         sleepTime = node.ReadInt ("@sleep_per_record", 0);
+         sleepTime = node.ReadInt ("@sleep_per_record" , 0);
+         skipNonExistingFiles = node.ReadBool ("@check_file" , true);
          string f = node.ReadStr ("@filter", null);
          if (f != null) idFilter = new Regex (f, OPTIONS);
          f = node.ReadStr ("@mime_filter", null);

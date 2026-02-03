@@ -29,6 +29,7 @@ namespace AlbumImporter {
       NotAssigned = 0, 
       Manual = 1,
       Corrected = 2,
+      ManualOrCorrected = 3,
       Auto = 4,
 
       Known = 0x10,

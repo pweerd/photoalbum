@@ -18,13 +18,8 @@ using Bitmanager.Core;
 using Bitmanager.Elastic;
 using Bitmanager.Gps;
 using Bitmanager.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace AlbumImporter {
+namespace AlbumImporter.Tracks {
 
    public class TrackPhoto {
       public readonly string Id;

@@ -15,24 +15,11 @@
  */
 
 using Bitmanager.Core;
-using Bitmanager.ImportPipeline.StreamProviders;
 using Bitmanager.ImportPipeline;
-using Bitmanager.IO;
-using Bitmanager.Json;
-using System;
-using System.Collections.Generic;
-using System.Drawing.Imaging;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Threading;
-using Bitmanager.Elastic;
 using System.Xml;
 using Bitmanager.Xml;
 using Bitmanager.Ocr;
-using System.Collections;
-using static System.Net.Mime.MediaTypeNames;
+using AlbumImporter.Ocr;
 
 namespace AlbumImporter {
    /// <summary>
@@ -56,15 +43,19 @@ namespace AlbumImporter {
          idsToSkip = loadToSkip (ctx.DatasourceAdmin.ContextNode.SelectSingleNode ("skip"));
          ctx.ImportLog.Log ("List of id's to be skipped contains {0} ID's", idsToSkip?.Count);
 
-         string url = base.copyFromUrl;
-         if (url == null && !fullImport) url = base.oldIndexUrl;
-         existingOcr = new OcrCollection (ctx.ImportLog, url, true);
-         ctx.ImportLog.Log ("OCR import FINGERPRINT: [{0}]", existingOcr.FingerPrint);
+         existingOcr = new OcrCollection();
+         if (!fullImport || !forceRebuild) {
+            if (curIndex != null) {
+               existingOcr.Load(ctx.ImportLog, activeOldIndex, !sameIndex, true);
+            }
+         }
 
-         ctx.ImportLog.Log ("Starting OCR import. FullImport={0}, copy_from={1}, existing records={2}", 
-            fullImport, 
-            copyFromUrl, 
-            existingOcr.Count);
+         ctx.ImportLog.Log("Starting OCR import. Flags={0}, existing records={1}, cur={2}, old={3}, copy={4}",
+            ctx.ImportFlags,
+            existingOcr.Count,
+            curIndex,
+            oldIndex,
+            copyFromIndex);
 
          handleExceptions = true;
          return null;
@@ -89,10 +80,6 @@ namespace AlbumImporter {
          return null;
       }
 
-      //fullImport without copy_from => coll is empty
-      //fullimport with copy_from    => emit existing or generated
-      //incrImport without copy_from => skip if found
-      //incrImport with copy_from    => impossible
       public object OnId (PipelineContext ctx, object value) {
          idInfo = (IdInfo)value;
          if (idsToSkip != null && idsToSkip.Contains (idInfo.Id)) {
@@ -101,10 +88,13 @@ namespace AlbumImporter {
          }
          var dst = ctx.Action.Endpoint.Record;
          if (existingOcr.TryGetValue (idInfo.Id, out var ocr)) {
-            if (fullImport) {
+            if (ocr.CopyNeeded) {
                dst["_id"] = idInfo.Id;
                dst["ts"] = ocr.Ts;
-               if (ocr.Text != null) dst["text"] = ocr.Text;
+               if (ocr.Text != null) {
+                  dst["text"] = ocr.Text;
+                  dst["text_len"] = ocr.Text.Length;
+               }
             } else {
                ctx.ActionFlags |= _ActionFlags.Skip;
             }
@@ -122,7 +112,10 @@ namespace AlbumImporter {
             ocrEngine = engineCache.Acquire ();
             var result = ocrEngine.DoOcr (pix, OcrInfoLevel.OnlyWords);
             string txt = result.Text.TrimToNull ();
-            if (txt != null) dst["text"] = txt;
+            if (txt != null) {
+               dst["text"] = txt;
+               dst["text_len"] = txt.Length;
+            }
          } finally {
             ocrEngine?.Dispose ();
             pix.Dispose ();

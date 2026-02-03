@@ -49,16 +49,16 @@ namespace AlbumImporter {
          OldEmbeddingStorage = CurrentEmbeddingStorage;
       }
 
-      public void CopyOldToCur(string key, string id) {
-         copyOldToCur (CurrentEmbeddingStorage, OldEmbeddingStorage, key, id);
-         copyOldToCur (CurrentFaceStorage, OldFaceStorage, key, id);
+      public void CopyOldToCur(string oldKey, string newKey) {
+         copyOldToCur (CurrentEmbeddingStorage, OldEmbeddingStorage, oldKey, newKey);
+         copyOldToCur (CurrentFaceStorage, OldFaceStorage, oldKey, newKey);
       }
-      private void copyOldToCur (FileStorage dst, FileStorage src, string key, string id) {
+      private void copyOldToCur (FileStorage dst, FileStorage src, string oldKey, string newKey) {
          if (dst == src) throw new BMException ("Cannot copy storage-entry: src and dst are the same instance!");
-         var entry = src.GetFileEntry (key);
-         if (entry == null) throw new BMException ("Name-Id [{0}] not found in [{1}].", key, id);
+         var entry = src.GetFileEntry (oldKey);
+         if (entry == null) throw new BMException ("Storage-entry [{0}] not found in [{1}].", oldKey, src.FileName);
          var bytes = src.GetBytes (entry);
-         dst.AddBytes (bytes, key, entry.Modified, (EntryFlags)entry.Flags);
+         dst.AddBytes (bytes, newKey, entry.Modified, (EntryFlags)entry.Flags);
       }
 
 

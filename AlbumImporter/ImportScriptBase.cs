@@ -19,22 +19,23 @@ using Bitmanager.Core;
 using Bitmanager.Elastic;
 using Bitmanager.ImportPipeline;
 using Bitmanager.IO;
+using Bitmanager.Json;
 using Bitmanager.Storage;
 using Bitmanager.Xml;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using System;
 
 namespace AlbumImporter {
+
+
    /// <summary>
    /// Base class for the ImportScripts
    /// </summary>
    public class ImportScriptBase : IDisposable {
       protected IdInfo idInfo;
       protected Logger logger;
-      protected string oldIndex, newIndex, alias;
-      protected string oldTimestamp, newTimestamp;
-      protected string oldIndexUrl;
-      protected string copyFromUrl;
+      protected IndexInfo curIndex, oldIndex, copyFromIndex, activeOldIndex;
       protected string faceAdminDir;
       protected string videoFramesDir;
       protected string tempFrameFile;
@@ -46,10 +47,10 @@ namespace AlbumImporter {
 
       protected int sleepAfterExtract;
       protected int maxErrors;
-      protected bool mustCopyExisting;
       protected bool fullImport;
-      protected bool sameIndex;
+      protected bool forceRebuild;
       protected bool handleExceptions;
+      protected bool sameIndex;  //curIndex and activeOldIndex are the same
 
       protected ImportScriptBase () {
          logger = Logs.ErrorLog;
@@ -77,14 +78,14 @@ namespace AlbumImporter {
          this.handleExceptions = false;
          this.maxErrors = maxErrors;
          fullImport = (ctx.ImportFlags & _ImportFlags.FullImport) != 0;
+         forceRebuild = (ctx.ImportFlags & _ImportFlags.ForceRebuild) != 0;
          faceAdminDir = XmlUtils.ReadPath (ctx.ImportEngine.Xml.DocumentElement, "faces_admin/@dir", null);
          videoFramesDir = XmlUtils.ReadPath (ctx.ImportEngine.Xml.DocumentElement, "video_frames/@dir", null);
          tempFrameFile = Path.Combine (ctx.ImportEngine.TempDir, "tmp_frame.jpg");
 
          var dsNode = ctx.DatasourceAdmin.ContextNode;
          sleepAfterExtract = ctx.DatasourceAdmin.ContextNode.ReadInt ("@sleep_after_extract", 0);
-         copyFromUrl = dsNode.ReadStr ("copy_from/@url", null);
-         mustCopyExisting = false;
+         copyFromIndex = IndexInfo.Create(dsNode.ReadStr("copy_from/@url", null), true);
 
          videoFramesGeneration = new FileGenerations2 (Path.Combine (videoFramesDir, "video_frames"), ".stor");
          if (initVideoFrames) {
@@ -98,21 +99,23 @@ namespace AlbumImporter {
             return;
          }
 
+         //Determine curIndex, oldIndex, etc
          esConnection = ep.Connection;
-         newIndex = Utils.GetRealIndexName (ep, null, out newTimestamp);
-         alias = Utils.GetIndexWithoutTimeStamp (newIndex);
-         oldIndex = Utils.GetRealIndexName (ep, alias, out oldTimestamp);
-         oldIndexUrl = new Uri (esConnection.BaseUri, alias).ToString ();
-         sameIndex = newIndex == oldIndex;
-
-         if (copyFromUrl != null) {
-            var req = Utils.CreateESRequest (copyFromUrl);
-            var fpCopy = Utils.GetIndexFingerPrint (req.Connection, req.IndexName);
-            if (fpCopy == null) throw new BMException ("Couldn't find copy_from url [{0}].", copyFromUrl);
-            var fpOld = Utils.GetIndexFingerPrint (esConnection, alias);
-            mustCopyExisting = fpCopy != fpOld;
-            if (!mustCopyExisting) copyFromUrl = null;
+         curIndex = IndexInfo.Create(ep, 'N');
+         oldIndex = IndexInfo.Create(ep, 'O');
+         activeOldIndex = oldIndex;
+         if (fullImport) {
+            if (copyFromIndex != null) activeOldIndex = copyFromIndex;
+         } else {
+            if (copyFromIndex != null)
+               logger.Log (_LogType.ltWarning, "Ignored copy_from [{0}]. copy_from is only supported in fullindex-mode.", copyFromIndex.Url);
+            copyFromIndex = null;
          }
+         sameIndex = activeOldIndex == null || curIndex.IsSameIndex (activeOldIndex);
+
+         curIndex.Refresh();
+         activeOldIndex?.Refresh();
+
       }
 
       protected FaceNames ReadFaceNames () {

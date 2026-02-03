@@ -24,7 +24,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace AlbumImporter {
+namespace AlbumImporter.Ocr {
 
    public class OcrText {
       private static readonly Regex expr = new Regex ("\\p{L}{4}", RegexOptions.CultureInvariant | RegexOptions.Compiled);
@@ -33,11 +33,13 @@ namespace AlbumImporter {
       public readonly string Text;
       public readonly DateTime Ts;
       public readonly bool Valid;
-      public OcrText (GenericDocument doc) {
+      public readonly bool CopyNeeded;
+      public OcrText (GenericDocument doc, bool copyNeeded) {
          Id = doc.Id;
          Ts = doc._Source.ReadDate ("ts", DateTime.MinValue);
          Text = doc._Source.ReadStr ("text", null);
          Valid = Text != null && expr.IsMatch (Text);
+         CopyNeeded = copyNeeded;
       }
    }
 
@@ -47,26 +49,30 @@ namespace AlbumImporter {
    /// </summary>
    public class OcrCollection {
       private readonly Dictionary<string, OcrText> dict;
-      public readonly string FingerPrint;
       public int Count => dict.Count;
-      public OcrCollection (Logger logger, string url, bool all=false) {
-         dict = new Dictionary<string, OcrText> ();
-         if (logger != null) logger.Log ("Loading OCR data from {0}", url);
-         if (url!=null) {
-            var req = Utils.CreateESRequest (url);
-            FingerPrint = Utils.GetIndexFingerPrint (req.Connection, req.IndexName);
-            if (FingerPrint != null) {
-               if (!all) req.Query = new ESExistsQuery ("text");
-               using (var e = new ESRecordEnum (req)) {
-                  foreach (var rec in e) {
-                     var ocrText = new OcrText (rec);
-                     dict.Add (ocrText.Id, ocrText);
-                  }
-               }
+      public OcrCollection() {
+         dict = new Dictionary<string, OcrText>(10000);
+      }
+      public OcrCollection(Logger logger, IndexInfo index, bool copyNeeded, bool all)
+         : this() {
+         Load (logger, index, copyNeeded, all);
+      }
+
+      public void Load(Logger logger, IndexInfo index, bool copyNeeded, bool all) {
+         if (index == null) return;
+         logger?.Log("Loading OCR data from {0}", index.Url);
+         var req = index.CreateESRequest ();
+         if (!all) req.Query = new ESExistsQuery("text");
+         int oldCount = dict.Count;
+         using (var recs = new ESRecordEnum(req)) {
+            foreach (var rec in recs) {
+               var ocr = new OcrText (rec, copyNeeded);
+               dict.TryAdd(ocr.Id, ocr);
             }
          }
-         if (logger != null) logger.Log ("Loaded {0} OCR items from {1}", Count, url);
+         logger?.Log("Loaded {0} OCR data from {1}. CopyNeeded={2}", dict.Count - oldCount, index.Url, copyNeeded);
       }
+
 
       public bool TryGetValue (string id, out OcrText ocrText) {
          return dict.TryGetValue (id, out ocrText);

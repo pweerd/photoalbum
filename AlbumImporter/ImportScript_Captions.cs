@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
+using AlbumImporter.Captions;
 using Bitmanager.Core;
-using Bitmanager.ImportPipeline;
-using Bitmanager.IO;
-using Bitmanager.Json;
 using Bitmanager.Http;
+using Bitmanager.ImportPipeline;
+using Bitmanager.Json;
 
 namespace AlbumImporter {
    public class ImportScript_Captions : ImportScriptBase {
       private readonly HttpSession http;
       private CaptionCollection existingCaptions;
+      private GoogleTranslator translator;
+
       private int maxCount;
 
       public ImportScript_Captions () {
@@ -33,19 +35,24 @@ namespace AlbumImporter {
       public object OnDatasourceStart (PipelineContext ctx, object value) {
          Init (ctx, true);
 
-         string url = base.copyFromUrl;
-         if (url == null && !fullImport) url = base.oldIndexUrl;
-         existingCaptions = new CaptionCollection (ctx.ImportLog, url);
+         translator = new GoogleTranslator (ctx.ImportEngine.CancelToken);
+         existingCaptions = new CaptionCollection();
+         if (!fullImport || !forceRebuild) {
+            if (curIndex != null) {
+               existingCaptions.Load(ctx.ImportLog, activeOldIndex, !sameIndex);
+            }
+         }
 
-         if (!fullImport) existingCaptions.Load (ctx.ImportLog, ctx.Action.Endpoint);
          ctx.ImportLog.Log (_LogType.ltTimerStart, "captions: starting Captions service");
          ctx.ImportEngine.ProcessHostCollection.EnsureStarted ("caption");
          ctx.ImportLog.Log (_LogType.ltTimerStop, "captions: started");
 
-         ctx.ImportLog.Log ("Starting captions import. FullImport={0}, copy_from={1}, existing records={2}",
-            fullImport,
-            copyFromUrl,
-            existingCaptions.Count);
+         ctx.ImportLog.Log("Starting captions(python) import. Flags={0}, existing records={1}, cur={2}, old={3}, copy={4}",
+            ctx.ImportFlags,
+            existingCaptions.Count,
+            curIndex,
+            oldIndex,
+            copyFromIndex);
 
          handleExceptions = true;
          return null;
@@ -55,19 +62,17 @@ namespace AlbumImporter {
          idInfo = (IdInfo)value;
          string id = idInfo.Id;
          var dst = ctx.Action.Endpoint.Record;
-         if (existingCaptions.TryGetValue (idInfo.Id, out var caption)) {
-            if (sameIndex) {
-               ctx.ActionFlags |= _ActionFlags.Skip;
+         if (existingCaptions.TryGetValue (idInfo.Id, out var captionRec)) {
+            if (captionRec.Failed && forceRebuild) goto PROCESS;
+            if (captionRec.CopyNeeded) {
+               captionRec.Export (dst);
             } else {
-               dst["_id"] = id;
-               dst["ts"] = caption.Ts;
-               dst["text_en"] = caption.Caption_EN;
-               dst["text_nl"] = caption.Caption_NL;
+               ctx.ActionFlags |= _ActionFlags.Skip;
             }
-            // ctx.ImportLog.Log ("Id={0}, existing", id);
             return value;
          }
 
+      PROCESS:
          ctx.ImportLog.Log ("Processing Id={0}", id);
          string fn = idInfo.FileName;
 
@@ -77,8 +82,16 @@ namespace AlbumImporter {
 
          dst["_id"] = id;
          dst["ts"] = DateTime.UtcNow;
-         dst["text_en"] = getCaption (resp.Json, "captions_en");
-         dst["text_nl"] = getCaption (resp.Json, "captions_nl");
+         string caption = null;
+         try {
+            caption = getCaption (resp.Json, "captions_en");
+            dst["text_en"] = caption;
+         } catch (Exception ex) {
+            dst["failed"] = true;
+            OnError (ctx, ex);
+            return null; //Just add the record
+         }
+         dst["text_nl"] = translator.Translate (caption, "nl", "en");
 
          WaitAfterExtract ();
          return null;

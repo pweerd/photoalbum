@@ -9,7 +9,8 @@
       "_meta": { "lastmod": "" },
       "dynamic": false,
       "properties": {
-         "ts": {"type": "date"},
+         "ts": { "type": "date" },
+         "text_len": { "type": "integer" },
          "text": {"type": "text"}
       }
    }

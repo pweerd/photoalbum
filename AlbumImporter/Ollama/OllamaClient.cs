@@ -1,4 +1,20 @@
-﻿using Bitmanager.Http;
+﻿/*
+ * Copyright © 2023, De Bitmanager
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+using Bitmanager.Http;
 using Bitmanager.Json;
 using System;
 using System.Collections.Generic;
@@ -6,7 +22,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AlbumImporter {
+namespace AlbumImporter.Ollama {
    public class OllamaClient {
       public const string DEF_URL = "http://localhost:11434/api/generate";
       private readonly HttpSession http;
@@ -14,19 +30,19 @@ namespace AlbumImporter {
       public readonly string Url;
       private readonly CancellationToken cancelToken;
 
-      public OllamaClient(CancellationToken ct) {
-         http = new HttpSession();
-         Url = DEF_URL;
-         Template = CreateDefaultTemplate();
-         cancelToken = ct;
+      public OllamaClient (CancellationToken ct)
+         : this (DEF_URL, null, ct) {
       }
-      public OllamaClient(string url, JsonObjectValue template, CancellationToken ct) {
-         http = new HttpSession();
+
+      public OllamaClient (string url, JsonObjectValue template, CancellationToken ct) {
+         http = new HttpSession ();
+         //http.Timeout = TimeSpan.FromMinutes (5);
+
          Url = url;
-         Template = template ?? CreateDefaultTemplate();
+         Template = template ?? CreateDefaultTemplate ();
          var arr = Template.ReadArr("images", null);
-         if (arr == null) Template.Add("images", arr = new JsonArrayValue());
-         if (arr.Count == 0) arr.Add(JsonNullValue.Instance);
+         if (arr == null) Template.Add ("images", arr = new JsonArrayValue ());
+         if (arr.Count == 0) arr.Add (JsonNullValue.Instance);
          cancelToken = ct;
       }
 

@@ -30,13 +30,10 @@ namespace AlbumImporter {
       private readonly Logger logger;
       private readonly List<string> presentTimestamps;
 
-      public StorageSyncher (Logger logger, string esHost, string index) 
-         : this (logger, new ESConnection(esHost), index) {
-      }
-      public StorageSyncher (Logger logger, ESConnection conn, string index) {
+      public StorageSyncher (Logger logger, IndexInfo index) {
          this.logger = logger;
          logger.Log ("Synching storages with present indexes: fetching indexes");
-         var resp = conn.Send (HttpMethod.Get, getIndexMaskReqUrl(index));
+         var resp = index.Connection.Send (HttpMethod.Get, getIndexMaskReqUrl(index));
          var json = resp.ThrowIfError ().Json;
          var list = new List<string> ();
          foreach (var key in json.Keys) {
@@ -53,10 +50,12 @@ namespace AlbumImporter {
       }
 
       private static string getTimestamp (string name) {
-         return name.Substring (name.Length - 16, 16);
+         return name.Substring (name.Length - 16, 16); //Something like '_20251204_143603'
       }
-      private static string getIndexMaskReqUrl (string name) {
-         return name.Substring (0, name.Length - 15) + "*/_settings";
+      private static string getIndexMaskReqUrl (IndexInfo index) {
+         string name = index.Name;
+         if (index.Timestamp != null) name = name.Substring (0, name.Length - index.Timestamp.Length);
+         return name + "_*/_settings";
       }
 
       private bool isPresent (string fn) {

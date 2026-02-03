@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace AlbumImporter {
+namespace AlbumImporter.Captions {
    public class CaptionReplacers {
       private const RegexOptions OPTIONS = RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture;
       private readonly Regex[] expr;
@@ -49,14 +49,5 @@ namespace AlbumImporter {
          }
          return (char.IsUpper(txt[0])) ? txt : char.ToUpperInvariant(txt[0]) + txt.Substring(1);
       }
-
-      //PW kan weg
-      //public void Replace(GenericDocument doc) {
-      //   var src = doc._Source;
-      //   string txt = src.ReadStr(field, null);
-      //   if (string.IsNullOrEmpty(txt)) return;
-
-      //   src[field] = Replace(txt);
-      //}
    }
 }

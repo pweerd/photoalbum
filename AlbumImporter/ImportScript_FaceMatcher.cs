@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
+using AlbumImporter.FaceRecognition;
 using Bitmanager.AlbumTools;
 using Bitmanager.Core;
 using Bitmanager.Elastic;
 using Bitmanager.ImportPipeline;
 using Bitmanager.Json;
 using Bitmanager.Xml;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Security.AccessControl;
-using System.Text.RegularExpressions;
-using System.Xml;
+using MetadataExtractor;
+using System.Security.Cryptography;
 
 namespace AlbumImporter {
 
@@ -33,16 +31,15 @@ namespace AlbumImporter {
       private FaceNames faceNames;
       private Storages storages;
       private float[] weightPerFaceCount;
-      private Regex filter;
+      private FaceStatistics faceStats;
+      private TargetFaces targetFaces;
+
 
       private IFaceScorer faceScorer;
       private float threshold;
 
       public object OnDatasourceStart (PipelineContext ctx, object value) {
          Init (ctx, true);
-
-         string fltr = ctx.DatasourceAdmin.ContextNode.ReadStr ("filter/@expr", null);
-         if (fltr != null) filter = new Regex(fltr, RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
          //Load the facecount weights
          var weightNode = ctx.DatasourceAdmin.ContextNode.SelectMandatoryNode ("weight");
@@ -52,7 +49,7 @@ namespace AlbumImporter {
          factors.Add (0);
          factors.Add (1f);
          var logBase = Math.Log2(weightNode.ReadFloat ("@face_factor"));
-         for (int i=1; i<100000; i++) {
+         for (int i = 1; i < 100000; i++) {
             float f = (float)Math.Pow (2, logBase * i);
             if (f < min) break;
             factors.Add (f);
@@ -66,169 +63,164 @@ namespace AlbumImporter {
          faceScorer = new FaceScorer (weightPerFaceCount);
 
 
-         //Read all face names
+         //Read all face names and faces
          faceNames = ReadFaceNames ();
+         var coll = new FaceCollection ();
+         coll.Load (
+            ctx.ImportLog,
+            activeOldIndex,
+            !sameIndex
+         );
+         existingFaces = coll.GetFaces ();
 
-         logger.Log ("Fetching existing faces");
-         string url = base.copyFromUrl;
-         if (url == null) url = base.oldIndexUrl;
-         existingFaces = new FaceCollection (ctx.ImportLog, url, false).GetFaces ();
+         //save old face-stats if we process in-place
+         faceStats = new FaceStatistics (logger, faceNames, ctx.ImportEngine.Xml.BaseDir);
+         if (sameIndex) 
+            faceStats.LoadExisting (activeOldIndex, true);
+
 
          logger.Log ("Loading storages");
          storages = fullImport
-            ? new Storages (faceAdminDir, newTimestamp, oldTimestamp)
-            : new Storages (faceAdminDir, newTimestamp);
+            ? new Storages (faceAdminDir, curIndex.Timestamp, activeOldIndex.Timestamp)
+            : new Storages (faceAdminDir, curIndex.Timestamp);
 
 
          logger.Log ("Loading embeddings from storage");
          foreach (var f in existingFaces) assignEmbedding (f);
 
+         logger.Log ("Loading target faces");
+         targetFaces = loadTargetFaces (ctx, existingFaces);
 
-         var targetFaces = loadTargetFaces (ctx, existingFaces, out var updatedFaces);
-
-         ctx.ImportLog.Log ("Starting face matching. FullImport={0}, target faces={1}, updated faces={2}",
+         ctx.ImportLog.Log ("Starting face matching. FullImport={0}, target faces={1}",
             fullImport,
-            targetFaces.Count,
-            updatedFaces.Count);
+            targetFaces.Count);
 
-         var ep = ctx.Action.Endpoint;
-         var facesInPhoto = new List<DbFace> (30);
-         int idx;
-
-         if (filter != null) existingFaces = filterFaces (ctx.ImportLog, existingFaces, filter);
-
-         if (fullImport) {  //Full import: we need to emit *all* records and copy *all* face-imgs
-            var idSet = fetchAllIds ();
-            idx = 0;
-            while (idx < existingFaces.Count) {
-               loadAndMatchFacesForOnePhoto (targetFaces, facesInPhoto, existingFaces, ref idx);
-               //skip no longer existing ID's
-               var mainId = facesInPhoto[0].MainId;
-               if (!idSet.Contains (mainId)) continue;
-
-               for (int i = 0; i < facesInPhoto.Count; i++) {
-                  ctx.IncrementEmitted ();
-                  var f = facesInPhoto[i];
-                  f.AssignMatchesToNamesAndClearMatches (faceScorer);
-                  if (f.FaceStorageId > 0) {
-                     string key = f.FaceStorageId.ToString ();
-                     storages.CopyOldToCur (key, f.Id);
-                  }
-                  f.UpdateNames (faceNames);
-                  f.Export (ep.Record);
-                  ctx.Pipeline.HandleValue (ctx, "record", ep.Record);
-               }
-            }
-         } else { //Incremental import: only emit assigned faces
-            //Export updated faces
-            for (int i = 0; i < updatedFaces.Count; i++) {
-               ctx.IncrementEmitted ();
-               updatedFaces[i].Export (ep.Record);
-               ctx.Pipeline.HandleValue (ctx, "record", ep.Record);
-            }
-            idx = 0;
-            while (idx < existingFaces.Count) {
-               loadAndMatchFacesForOnePhoto (targetFaces, facesInPhoto, existingFaces, ref idx);
-
-               for (int i = 0; i < facesInPhoto.Count; i++) {
-                  ctx.IncrementEmitted ();
-                  var f = facesInPhoto[i];
-                  if (f.FaceCount == 0) continue;
-                  if (f.NameSrc.IsManualDefined ()) continue;
-
-                  bool needExport = f.AssignMatchesToNamesAndClearMatches (faceScorer);
-                  needExport |= f.UpdateNames (faceNames);
-                  if (needExport) {
-                     f.Export (ep.Record);
-                     ctx.Pipeline.HandleValue (ctx, "record", ep.Record);
-                  }
-               }
-            }
-         }
          return null;
       }
 
-      private static List<DbFace> filterFaces (Logger logger, List<DbFace> faces, Regex expr) {
-         var ret = new List<DbFace> ();
-         foreach (var face in faces) {
-            if (expr.IsMatch(face.Id)) ret.Add (face);
-         }
-         logger.Log ("Filtered faces by {0}: {1} out of {2}", expr, ret.Count, faces.Count);
-         return ret;
-      }
-
       public object OnDatasourceEnd (PipelineContext ctx, object value) {
-         esConnection.CreateIndexRequest ().Refresh (newIndex);
 
-         dumpNameUsage ();
-         dumpDuplicateNames();
+         //In case of a different index: emit all manual/corrected faces that were not added before
+         var ep = (ESDataEndpoint)ctx.Action.Endpoint;
+         if (!sameIndex) {
+            int exported=0;
+            foreach (var f in existingFaces) {
+               if (!f.CopyNeeded) continue;
+               if (!f.NameSrc.IsManualDefined ()) continue;
+
+               if (f.FaceStorageId >= 0) {
+                  var key = f.FaceStorageId.ToString();
+                  storages.CopyOldToCur (key, key);
+               }
+               f.Export (ep.Record);
+               ctx.Pipeline.HandleValue (ctx, "record/face", f);
+               exported++;
+            }
+            ctx.ImportLog.Log (_LogType.ltInfo, "DatasourceEnd: exported {0} manual/corrected faces that had not hit from the ID datasource.", exported);
+         }
+         ep.FlushCache ();
+         curIndex.Refresh ();
 
 
-         handleExceptions = false;
          ctx.ImportLog.Log ("Closing storage file(s)");
          storages?.Dispose ();
 
          try {
-            if (esConnection != null && newIndex != null) {
-               var syncher = new StorageSyncher (ctx.ImportLog, esConnection, newIndex);
-               syncher.Synchronize (faceAdminDir);
-            }
+            var syncher = new StorageSyncher (ctx.ImportLog, curIndex);
+            syncher.Synchronize (faceAdminDir);
          } catch (Exception e) {
             ctx.ImportLog.Log (e, "Failed to synchronize: {0}", e.Message);
          }
+
+         if (sameIndex) {
+            faceStats.DumpNameUsage (curIndex);
+            faceStats.DumpDifferences (curIndex);
+         } else {
+            faceStats.DumpNameUsage (curIndex, activeOldIndex, true);
+            faceStats.DumpDifferences (curIndex, activeOldIndex, true);
+         }
+         DumpDuplicateNames (logger, curIndex);
          return null;
       }
 
 
+      public object OnId (PipelineContext ctx, object value) {
+         idInfo = (IdInfo)value;
+         var facesInPhoto = FaceCollection.GetExistingFacesForId (existingFaces, idInfo.Id);
+         if (facesInPhoto == null) {
+            goto EXIT_RTN; //No face-record found
+         }
 
+
+         var ep = ctx.Action.Endpoint;
+         if (facesInPhoto[0].FaceCount == 0) {//No faces in this photo
+            if (facesInPhoto[0].CopyNeeded) {
+               facesInPhoto[0].Export (ep.Record);
+               ctx.Pipeline.HandleValue (ctx, "record/face", ep.Record);
+            }
+            goto EXIT_RTN;
+         }
+
+         ctx.Emitted += facesInPhoto.Count - 1; //correct for the #faces (+1 was done by the datasource)
+         
+         //Assign matches
+         for (int i = 0; i < facesInPhoto.Count; i++) {
+            var f = facesInPhoto[i];
+            if ((f.NameSrc & NameSource.ManualOrCorrected) != 0) continue;
+            matchFace (f, targetFaces);
+         }
+
+         //Prevent duplicate faces in 1 photo
+         if (facesInPhoto.Count > 0) {
+            facesInPhoto.Sort (cbSortScoreAndId);
+            for (int i = 1; i < facesInPhoto.Count; i++) {
+               if ((facesInPhoto[i].NameSrc & NameSource.ManualOrCorrected) != 0) continue;
+               removeAlreadyAssignedIds (facesInPhoto, i);
+            }
+            //PW Must be activated later
+            //removeMatchesBelowThreshold (dst); (nog niet af!)
+         }
+
+         //Export the faces
+         for (int i = 0; i < facesInPhoto.Count; i++) {
+            var f = facesInPhoto[i];
+            if ((f.NameSrc & NameSource.ManualOrCorrected) == 0)
+               f.AssignMatchesToNamesAndClearMatches ();
+            f.UpdateNames (faceNames);
+            if (f.CopyNeeded) {
+               f.Export (ep.Record);
+               if (!sameIndex && f.FaceStorageId >= 0) {
+                  var key = f.FaceStorageId.ToString();
+                  storages.CopyOldToCur (key, key);
+               }
+               ctx.Pipeline.HandleValue (ctx, "record/face", ep.Record);
+            } else
+               ctx.Skipped++;
+         }
+
+         EXIT_RTN:
+         return null;
+      }
+
+      /// <summary>
+      /// Fills the matches list in face with the N best matches if above threshold
+      /// </summary>
       private void matchFace (DbFace face, TargetFaces targetFaces) {
          face.Matches = null;
-         if (!face.NameSrc.IsManualDefined ()) {
+         if ((face.NameSrc & NameSource.ManualOrCorrected) == 0) {
             if (face.Embeddings == null || face.Embeddings.Length == 0)
                throw new BMException ("Normal face [{0}] has no embeddings.", face.Id);
 
             var m = targetFaces.FindFaces (face, faceScorer);
             if (m != null) {
-               face.Explain = faceScorer.Explain (face, m[0].MatchedFace);
                if (m[0].Score >= threshold) face.Matches = m;
             }
          }
       }
 
-      private List<DbFace> loadAndMatchFacesForOnePhoto (TargetFaces targetFaces, List<DbFace> dst, List<DbFace> src, ref int pos) {
-         if (pos >= src.Count) return null;
-         DbFace face = src[pos];
-         dst.Clear ();
-         dst.Add (face);
-         int faceCount = face.FaceCount;
-         if (faceCount == 0) { pos++; return dst; }
-
-         //Handle faces. The src list are sorted on mainID. So the #faceCount faces
-         //are starting at pos and ending at pos+faceCount
-         matchFace (face, targetFaces); //Handle 1st face
-         int i = pos + 1;
-         int end = pos + faceCount;
-         for (; i < end; i++) {
-            face = src[i];
-            matchFace (face, targetFaces);
-            dst.Add (face);
-         }
-         pos = end;
-
-         if (faceCount > 1) {
-            dst.Sort (cbSortScoreAndId);
-            for (i = 1; i < dst.Count; i++) {
-               removeAlreadyAssignedIds (dst, i);
-            }
-            //PW Must be activated later
-            //removeMatchesBelowThreshold (dst); (nog niet af!)
-         }
-         return dst;
-      }
 
       private static void removeAlreadyAssignedIds (List<DbFace> list, int pos) {
          DbFace face = list[pos];
-         if (face.NameSrc.IsManualDefined ()) goto EXIT_RTN; 
 
          //The loop is needed, since we might remove the top match and will retry after that
          while (true) {
@@ -239,7 +231,6 @@ namespace AlbumImporter {
             for (int i = pos - 1; i >= 0; i--) {
                if (list[i].GetMatchedNameId () == nameId) goto REMOVE;
             }
-
             //Nothing to remove: exit loop
             break;
 
@@ -257,8 +248,7 @@ namespace AlbumImporter {
       }
 
       private static int cbSortScoreAndId (DbFace a, DbFace b) {
-         float scoreA = a.GetMatchedScore (), scoreB = b.GetMatchedScore ();
-         int rc = Comparer<float>.Default.Compare (scoreB, scoreA);
+         int rc = Comparer<float>.Default.Compare (b.GetMatchedScore (), a.GetMatchedScore ());
          return (rc != 0) ? rc : string.CompareOrdinal (a.Id, b.Id);
       }
 
@@ -274,7 +264,7 @@ namespace AlbumImporter {
          }
       }
 
-      private TargetFaces loadTargetFaces (PipelineContext ctx, List<DbFace> faces, out List<DbFace> updatedFaces) {
+      private TargetFaces loadTargetFaces (PipelineContext ctx, List<DbFace> faces) {
          var targetFaces = new List<DbFace> ();
          var node = ctx.DatasourceAdmin.ContextNode;
          bool includeNonOK = node.ReadBool ("manual/@include_non_ok", false);
@@ -288,13 +278,13 @@ namespace AlbumImporter {
          int correctedUnknown = 0;
          foreach (var f in faces) {
             if (!f.HasEmbeddings) {
-               if (f.FaceCount>0) {
+               if (f.FaceCount > 0) {
                   string msg = Invariant.Format ("Error: known face [{0}] has no embeddings.", f.Id);
                   Logs.ErrorLog.Log (msg);
                }
                continue;
             }
-            switch (f.NameSrc & (NameSource.Manual | NameSource.Corrected)) {
+            switch (f.NameSrc & NameSource.ManualOrCorrected) {
                default: continue;
                case NameSource.Manual:
                   if ((f.NameSrc & NameSource.Known) != 0) {
@@ -325,20 +315,33 @@ namespace AlbumImporter {
             }
          }
 
-         var upd = new List<DbFace> ();
+         //Update ID's for unknown faces.
+         //-1 means its a simple corrected unknown face
+         //For manual-unknown faces we assign a negative ID < -1. 
+         int updated = 0;
          if (allUnknown.Count > 0) {
-            allUnknown.Sort (cbSortUnknownFaces);
-            int lowestID = getFaceId (allUnknown[0]);
-            if (lowestID >= 0) lowestID = -1;
+            int lowestID = -1;
+            foreach (var f in allUnknown) {
+               if ((f.NameSrc & NameSource.Manual) == 0) continue;
+               int faceId = getFaceId (f);
+               if (faceId < lowestID) lowestID = faceId;
+            }
+            ctx.ImportLog.Log ("LoadTargetFaces: collected lowest unknown ID={0}.", lowestID);
             foreach (var f in allUnknown) {
                int id = getFaceId (f);
-               if (id != -1) continue;
-
-               upd.Add (f);
-               id = --lowestID;
-               f.Names.Clear ();
-               f.Names.Add (new DbFaceName (id, 1.0f, null, faceNames.NameById (id)));
+               if ((f.NameSrc & NameSource.Manual) != 0) {
+                  if (id != -1) continue;
+                  id = --lowestID;
+                  f.Names.Clear ();
+                  f.Names.Add (new DbFaceName (id, 1.0f, null, faceNames.NameById (id)));
+               } else {
+                  if (f.Names.Count == 0) continue;
+                  f.Names.Clear ();
+               }
+               f.CopyNeeded = true;
+               ++updated;
             }
+            ctx.ImportLog.Log ("LoadTargetFaces: assigned lowest unknown ID={0}.", lowestID);
          }
 
          ctx.ImportLog.Log ("LoadTargetFaces: faces={0}, include_non_ok={1} ratio={2} .. {3}",
@@ -349,48 +352,35 @@ namespace AlbumImporter {
                              correctedKnown,
                              correctedUnknown,
                              faces.Count);
-         ctx.ImportLog.Log ("Result: {0} target faces, {1} updated faces.", targetFaces.Count, upd.Count);
+         ctx.ImportLog.Log ("Result: {0} target faces, {1} updated ID's for unknown faces.", targetFaces.Count, updated);
 
-         updatedFaces = upd;
          return new TargetFaces (targetFaces);
       }
 
-      private static int getFaceId(DbFace f) {
+      private static int getFaceId (DbFace f) {
          return f.Names?.Count == 0 ? -1 : f.Names[0].Id;
       }
 
-      /// <summary>
-      /// Sort unknown faces ascending on face-id. Since these ID's are negative, the first item will be the lowest assigned ID
-      /// </summary>
-      private static int cbSortUnknownFaces(DbFace a, DbFace b) {
-         return Comparer<int>.Default.Compare (getFaceId (a), getFaceId (b));
-      }
 
-      private HashSet<string> fetchAllIds () {
-         var idReq = esConnection.CreateSearchRequest ("album-ids");
-         idReq.SetSource ("id", null);
-         var set = new HashSet<string> ();
-         using (var idEnum = new ESRecordEnum (idReq)) {
-            foreach (var doc in idEnum) set.Add (doc.ReadStr ("id"));
-         }
-         return set;
-      }
-
-      private void checkDuplicates (List<int> nameIds, List<string> ids) {
-         if (nameIds.Count <= 1) return;
+      private static int checkDuplicates (Logger logger, List<int> nameIds, List<string> ids) {
+         if (nameIds.Count <= 1) return 0;
+         int dups = 0;
          for (int i = 1; i < nameIds.Count; i++) {
             int id = nameIds[i];
             if (id < 0) continue;
             for (int j = i - 1; j >= 0; j--) {
                if (id == nameIds[j]) {
+                  ++dups;
                   logger.Log ("-- id {0} found in [{1}] and in [{2}].", id, ids[i], ids[j]);
                }
             }
          }
+         return dups;
       }
-      private void dumpDuplicateNames() {
-         var req = esConnection.CreateSearchRequest (newIndex);
+      public static void DumpDuplicateNames (Logger logger, IndexInfo index) {
+         var req = index.CreateESRequest();
          req.Sort.Add (new ESSortField ("id", ESSortDirection.asc));
+         int totalDups = 0;
          using (var e = new ESRecordEnum (req)) {
             var nameIds = new List<int> ();
             var ids = new List<string> ();
@@ -401,7 +391,7 @@ namespace AlbumImporter {
                var mainId = id.Substring (0, idx);
                if (mainId != prev) {
                   prev = mainId;
-                  checkDuplicates (nameIds, ids);
+                  totalDups += checkDuplicates (logger, nameIds, ids);
                   nameIds.Clear ();
                   ids.Clear ();
                }
@@ -411,34 +401,12 @@ namespace AlbumImporter {
                ids.Add (id);
                nameIds.Add (((JsonObjectValue)names[0]).ReadInt ("id"));
             }
-            checkDuplicates (nameIds, ids);
+            totalDups += checkDuplicates (logger, nameIds, ids);
          }
-
-      }
-
-      private void dumpNameUsage () {
-         var req = esConnection.CreateSearchRequest (newIndex);
-         req.TrackTotalHits = true;
-         req.Query = new ESTermQuery ("src", "mk");
-         var termsAgg = new ESTermsAggregation ("nameid", "names.id", faceNames.Count);
-         var nestedAgg = new ESNestedAggregation ("nameid", "names", termsAgg);
-         req.Size = 0;
-         req.Aggregations.Add (nestedAgg);
-         var resp = req.Search ();
-         resp.ThrowIfError ();
-
-         var terms = (ESTermsAggregationResult)resp.Aggregations.FindByName (true, "nameid", "nameid");
-         var touched = new bool[faceNames.Count];
-         logger.Log ("Dumping counters for {0} known faces", resp.TotalHits);
-         foreach (var item in terms.GetSortedItems ()) {
-            int id = Invariant.ToInt32 (item.GetKey ());
-            logger.Log ("-- '{0}': {1}", faceNames.NameById (id), item.Count);
-            if (id >= 0) touched[id] = true;
-         }
-
-         for (int i = 0; i < touched.Length; i++) {
-            if (touched[i]) continue;
-            logger.Log ("-- '{0}': 0", faceNames.NameById (i));
+         if (totalDups==0) {
+            logger.Log (_LogType.ltInfo, "No records with duplicate names detected.");
+         } else {
+            logger.Log (_LogType.ltWarning, "{0} records had duplicate names.");
          }
       }
    }

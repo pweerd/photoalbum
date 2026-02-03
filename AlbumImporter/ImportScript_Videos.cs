@@ -43,7 +43,7 @@ namespace AlbumImporter {
 
       public override void Dispose () {
          base.Dispose ();
-         mdProcessor?.Dispose();
+         mdProcessor?.Dispose ();
          if (closeNormal) videoFramesGeneration.CreateOrUpdateLink (deleteStorage);
       }
 
@@ -57,7 +57,7 @@ namespace AlbumImporter {
          return ext[0] == '.' ? ext : "." + ext;
       }
       private static string createKey (string ext, string codec) {
-         return (ext + "|" + codec).ToLowerInvariant();
+         return (ext + "|" + codec).ToLowerInvariant ();
       }
       public object OnDatasourceStart (PipelineContext ctx, object value) {
          Init (ctx, false, 50, false);
@@ -86,7 +86,7 @@ namespace AlbumImporter {
                target = videoFramesGeneration.CreateTargetName ();
             }
          }
-         videoFrames = new FileStorage (target, isNewGeneration ? FileOpenMode.Create: FileOpenMode.ReadWrite);
+         videoFrames = new FileStorage (target, isNewGeneration ? FileOpenMode.Create : FileOpenMode.ReadWrite);
          FFMpeg.Logger = Logs.CreateLogger ("ffmpeg", "ffmpeg");
 
          convertCmd = readFFMpegCmd (ctx.DatasourceAdmin.ContextNode, "commands/convert", out convertTimeout);
@@ -101,13 +101,13 @@ namespace AlbumImporter {
             throw new BMNodeException (node, "Command should start with 'ffmpeg '");
          }
          timeout = sub.ReadInterval ("@timeout", TimeUnit.Minutes, "5");
-         return cmd.Substring (7).Trim(); 
+         return cmd.Substring (7).Trim ();
       }
 
       public object OnDatasourceEnd (PipelineContext ctx, object value) {
          ctx.ImportLog.Log ("Errorstate={0}", ctx.ErrorState);
          closeNormal = ctx.ErrorState == _ErrorState.OK && isNewGeneration;
-         
+
          IOUtils.DeleteFile (tempFrameFile, DeleteFlags.NoExcept | DeleteFlags.AllowNonExist);
          IOUtils.DeleteFile (tempConvertFile, DeleteFlags.NoExcept | DeleteFlags.AllowNonExist);
          return value;
@@ -118,7 +118,7 @@ namespace AlbumImporter {
          var idInfo = (IdInfo)value;
          var mimeFromExt = MimeType.GetMimeTypeFromFileName (idInfo.FileName);
          Metadata md = null;
-         if (mimeFromExt.StartsWith("image")) goto EXIT_SKIP;
+         if (mimeFromExt.StartsWith ("image")) goto EXIT_SKIP;
          if (!File.Exists (idInfo.FileName)) {
             ctx.ImportLog.Log (_LogType.ltWarning, "Missing file: " + idInfo.FileName);
             goto EXIT_SKIP;
@@ -137,7 +137,7 @@ namespace AlbumImporter {
 
          if (autoConvert) {
             md ??= mdProcessor.GetMetadata (idInfo.FileName);
-            if (!supportedExtAndCodec.Contains (createKey (Path.GetExtension(idInfo.FileName), md.CompressorId))) {
+            if (!supportedExtAndCodec.Contains (createKey (Path.GetExtension (idInfo.FileName), md.CompressorId))) {
                ctx.ImportLog.Log ("converting");
                idInfo = convertVideo (ctx, idInfo, md);
                fa = File.GetAttributes (idInfo.FileName);
@@ -153,11 +153,9 @@ namespace AlbumImporter {
          ctx.IncrementAdded ();
          return value;
 
-      EXIT_SKIP:
+         EXIT_SKIP:
          ctx.ActionFlags |= _ActionFlags.Skip;
          return value;
-
-
       }
 
       public object OnRestore (PipelineContext ctx, object value) {
@@ -182,10 +180,10 @@ namespace AlbumImporter {
          ctx.IncrementAdded ();
          goto EXIT_RTN;
 
-      EXIT_SKIP:
+         EXIT_SKIP:
          ctx.ActionFlags |= _ActionFlags.Skip;
 
-      EXIT_RTN:
+         EXIT_RTN:
          return value;
       }
 
@@ -219,13 +217,13 @@ namespace AlbumImporter {
             throw new BMException (sb.ToString ());
          }
       }
-      
-      private IdInfo convertVideo(PipelineContext ctx, IdInfo idInfo, Metadata md) {
+
+      private IdInfo convertVideo (PipelineContext ctx, IdInfo idInfo, Metadata md) {
          ctx.ImportLog.Log ("Converting " + idInfo.FileName);
 
-         executeFFMpeg ("converting video", 
-                        convertCmd, 
-                        idInfo.FileName, 
+         executeFFMpeg ("converting video",
+                        convertCmd,
+                        idInfo.FileName,
                         tempConvertFile,
                         convertTimeout);
 
@@ -241,12 +239,12 @@ namespace AlbumImporter {
          return new IdInfo (Path.ChangeExtension (idInfo.Id, ".mp4"), idInfo.User, newFn);
       }
 
-      private int getRotate (string fn) {
-         fn = Path.ChangeExtension (fn, ".thm");
-         if (!File.Exists (fn)) return 0;
-         var md = mdProcessor.GetMetadata (fn);
-         return md == null ? 0 : md.Orientation.AsInt ();
-      }
+      //private int getRotate (string fn) {
+      //   fn = Path.ChangeExtension (fn, ".thm");
+      //   if (!File.Exists (fn)) return 0;
+      //   var md = mdProcessor.GetMetadata (fn);
+      //   return md == null ? 0 : md.Orientation.AsInt ();
+      //}
 
    }
 }

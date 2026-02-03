@@ -12,6 +12,7 @@
          "ts": {"type": "date"},
          "text_en": {"type": "text"},
          "text_nl": { "type": "text" },
+         "failed": { "type": "boolean" },
          "prompt": { "type": "keyword" },
          "temperature": { "type": "integer" }
       }
