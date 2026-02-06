@@ -17,6 +17,7 @@
 using Bitmanager.Json;
 using Bitmanager.Web;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
 
 namespace BMAlbum.Controllers {
    public class CacheController : BaseController {
@@ -85,6 +86,18 @@ namespace BMAlbum.Controllers {
          settings.Refresher.StopRefresh ();
          Thread.Sleep (500);
          return getStats ();
+      }
+
+      public IActionResult Check () {
+         if (!isInternalOrAuthenticated ()) return new ActionResult404 ();
+         var settings = (Settings)base.Settings;
+         var list = settings.Refresher.CheckNonExistingFiles (10000);
+         int needed = 64;
+         for (int i=0; i<list.Count; i++) needed += list[i].Length+2;
+         var sb = new StringBuilder(needed);
+         sb.Append (list.Count).AppendLine (" missing IDs:");
+         for (int i = 0; i < list.Count; i++) sb.AppendLine (list[i]);
+         return Content (sb.ToString ());
       }
 
       private bool isInternalOrAuthenticated() {

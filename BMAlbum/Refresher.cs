@@ -155,6 +155,31 @@ namespace BMAlbum {
          triggerEvent.Set ();
       }
 
+      public List<string> CheckNonExistingFiles (int max) {
+         var c = settings.ESClient;
+         var req = c.CreateSearchRequest (settings.MainIndex);
+         req.SetSource (null, "*");
+
+         var ret = new List<string>(1000);
+         var roots = settings.Roots;
+         int total = 0;
+         using (var records = new ESRecordEnum (req)) {
+            foreach (var doc in records) {
+               string id = doc.Id;
+               ++total;
+               if (roots.TryGetRealFileName (id, out var fn)) {
+                  if (File.Exists (fn)) continue;
+               }
+
+               ret.Add (id);
+               if (max > 0 && ret.Count >= max) break;
+            }
+         }
+         logger.Log ("Checked: {0} ID's: {1} missing. Max={2}", total, ret.Count, max);
+         return ret;
+      }
+
+
       private void runRefresh(RefreshParams refreshParms) {
          var photoCtr = new PhotoController ();
          photoCtr.setSettings(settings);
