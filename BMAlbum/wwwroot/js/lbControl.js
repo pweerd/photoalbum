@@ -673,6 +673,7 @@ function createLightboxControl(app) {
          //exThumbImage: 'thumb', //Where did we put the thumb in the html. Currently not needed
          slideShowInterval: 2500,
          closeOnTap: false,
+         resetScrollPosition: false,
          plugins: [lgVideo, lgAutoplay, lgFullscreen],   //, lgThumbnail lgZoom,, lgHash
          //videojs: true,
          gotoNextSlideOnVideoEnd: false,
@@ -777,7 +778,6 @@ function createLightboxControl(app) {
          }
 
          _setSort(newState);
-
          //Propagate the new state back into the UI (if set)
          if (newState.per_album !== undefined) $("#per_album").prop("checked", newState.per_album);
          $("#searchq").val(newState.q || '');
@@ -785,16 +785,22 @@ function createLightboxControl(app) {
          console.log('NEED HIST:', needHistory, from, _state.isChanged());
          if (needHistory) _pushHistoryCmd();
          if (!_faceMode && slide) _positionToSlide(slide);
+
+         //Reset scrollTop if not from history
+         if (from !== "history") {
+            app.scrollTo(0);
+         }
       });
    }
 
    function _onGalleryOpen(e) {
+      document.documentElement.style.overflowY = "hidden";
       _zoomer.setPhotos(_data.files);
    }
    function _onGalleryClose(e) {
       console.log('After CLOSE. needBack=', _lg.needBack, history.state);
       if (history.state && history.state.from === "slide") history.back();
-      //pw if (_lg.needBack) history.back();
+      document.documentElement.style.overflowY = "scroll";
    }
    function _onGallerySlide(ev) {
       _resetAll();

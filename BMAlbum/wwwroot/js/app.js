@@ -386,20 +386,36 @@ function createApplication(state, fnInit) {
    _overlay.setDefaultBehaviorProp('maxHStrategy', '100%');
    _overlay.setDefaultBehaviorProp('debug', dbg_overlay);
 
-
+   let _savedScrollTop = -1;
    function _enableOrDisableMap(enable) {
+      //We made the scroll directly appearing in the window (for IPhone: otherwise scroll issues)
+      //So now we have to keep track of the scroll position when we swap from map-view to photo-view.
+      //also the map needs the body to have a height
       let $map = $("#map");
-      let $main = $("#main");
+      let $photos = $("#photos");
       let $lg = $(".lg-container");
       if (enable) {
+         _savedScrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+         document.body.style.height = "100dvh";
+         document.documentElement.style.overflowY = "hidden";
+         _scrollTo(0);
          $lg.addClass("hidden");
-         $main.addClass("hidden");
+         $photos.addClass("hidden");
          $map.removeClass("hidden");
       } else {
+         document.documentElement.style.overflowY = "scroll";
+         if (_savedScrollTop>=0) _scrollTo(_savedScrollTop);
+         _savedScrollTop = -1;
+         document.body.style.height = "";
          $map.addClass("hidden");
-         $main.removeClass("hidden");
+         $photos.removeClass("hidden");
          $lg.removeClass("hidden");
       }
+   }
+
+   function _scrollTo(y, behavior) {
+      //console.trace("SCROLLTO", y, behavior);
+      window.scrollTo({ top: y, behavior: (behavior ?? 'instant') });
    }
 
 
@@ -415,6 +431,7 @@ function createApplication(state, fnInit) {
       start: _start,
       sensors: function () { if (!_sensors) _sensors = createSensorsApi(); return _sensors; },
       initDummySensors: function () { _sensors = createDummySensorsApi(); },
+      scrollTo: _scrollTo,
    };
 
    function getDeviceType() {

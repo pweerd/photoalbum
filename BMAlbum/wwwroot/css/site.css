@@ -19,10 +19,14 @@
 }
 
 html {
+   scroll-behavior:auto;
    position: relative;
-   height: 100dvh;
-   width: 100dvw;
    font-size: 16px;
+   overflow-y: scroll;
+   margin: 0px;
+   padding: 0px;
+   width: 100dvw;
+   height: 100dvh;
 }
 
 @media (min-width: 768px) {
@@ -35,12 +39,27 @@ html {
 }
 
 body {
-   width: 100dvw;
-   height: 100dvh;
-   overflow: clip;
    margin: 0px;
 }
 
+#sv {
+   width: 100svw;
+   height: 100svh;
+   position: fixed;
+   background: transparent;
+   top: 0px;
+   left: 0px;
+   z-index: -1;
+}
+#lv {
+   width: 100lvw;
+   height: 100lvh;
+   position: fixed;
+   background: transparent;
+   top: 0px;
+   left: 0px;
+   z-index: -1;
+}
 
 .full-width {
    margin-left: 0px;
@@ -255,6 +274,11 @@ body {
    height: 100%;
    overflow: clip;
    overflow-y: scroll;
+}
+
+.lg-toolbar {
+   padding-right: .5em;
+   padding-left: .5em;
 }
 
 .lg-toolbar .lg-icon {

@@ -4,8 +4,7 @@
     ViewData["Title"] = "Foto-albums";
 }
 
-<div id="main" class="scroll_container bordered-slimbar">
-<header class="full-width">
+<div id="photos" class="full-width"><header class="full-width">
    <nav class="full-width">
       <div id="searchbar">
          <div class="labeled-input">
@@ -57,9 +56,8 @@
    } else {
       <div id="lightbox" class="full-width"></div>
    }
-</div>
+</div></div>
 
-</div>
 @if (Model.State.AppMode != AppMode.Faces) {
    <div id="map" style="height:100%; width:100%;" class="hidden"></div>
 }
@@ -93,6 +91,7 @@
 <div id="drag_proxy" style="z-index:9999; position:absolute; visibility:hidden"></div>
 
 
+
 @section Scripts {
    <script type="text/javascript">
 
@@ -105,6 +104,14 @@
             if (app.config.map_settings.show_goto_map) $("#btn_show_map").removeClass("hidden");
          } else {
             app.initDummySensors();
+         }
+
+         //Workaround horizontal scrollbar appears because we use dvh/dvw
+         //Typically chromium browsers
+         const html = document.documentElement;
+         if (html.scrollWidth > html.clientWidth) {
+            html.style.setProperty("width", "100%");
+            html.style.setProperty("height", "100%");
          }
 
          app.start(history.state ? "history" : "main"); 
