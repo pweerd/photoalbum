@@ -385,6 +385,8 @@ function createApplication(state, fnInit) {
    _overlay.setDefaultBehaviorProp('maxWStrategy', '100%');
    _overlay.setDefaultBehaviorProp('maxHStrategy', '100%');
    _overlay.setDefaultBehaviorProp('debug', dbg_overlay);
+   _overlay.setDefaultBehaviorProp('closeOnClick', true);
+   _overlay.setDefaultBehaviorProp('propagateClick', false);
 
    let _savedScrollTop = -1;
    function _enableOrDisableMap(enable) {
