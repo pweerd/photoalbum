@@ -932,7 +932,11 @@ function createLightboxControl(app) {
    $('#albums').on('change', function () {
       let ix = parseInt(this.value);
       _state.slide = undefined;
-      _state.album = ix < 0 ? undefined : _data.albums[ix].v;
+      if (ix >= 0) _state.album = _data.albums[ix].v;
+      else {
+         _state.album = undefined;
+         _state.per_album = false;
+      }
       _updateLightBox();
    });
    $('#years').on('change', function () {
