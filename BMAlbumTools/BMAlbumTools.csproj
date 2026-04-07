@@ -7,6 +7,8 @@
       <Nullable>enable</Nullable>
       <RootNamespace>Bitmanager.AlbumTools</RootNamespace>
       <bmversion>220</bmversion>
+      <RollForward>Major</RollForward>
+      <NoWarn>$(NoWarn);CS8600</NoWarn>
    </PropertyGroup>
    <ItemGroup>
       <Reference Include="bmcore$(bmversion)">
