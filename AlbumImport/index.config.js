@@ -32,9 +32,15 @@
                "token_separator": ""
             },
             "stem_nl": {
-              "type": "snowball",
-              "language": "dutch",
-              "emit_original": "false"
+                "type": "bm_snowball",
+                "language": "dutch_kp",
+                "repeat": 2,
+                "emit_original": "false"
+            },
+            "stem_nl_hunspell": {
+                "type" : "hunspell",
+                "locale" : "nl_NL",
+                "dedup" : true
             },
             "index_delimiter": {
               "type": "word_delimiter",
@@ -67,6 +73,7 @@
             "syn_add": {
                "type": "synonym",
                "synonyms": [
+                   "powerplantim=>powerplantim,powerplant",
                ]
             }
           },
