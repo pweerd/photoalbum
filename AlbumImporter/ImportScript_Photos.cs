@@ -46,6 +46,7 @@ namespace AlbumImporter {
       private LocationByPoint locationByPointSrv;
       private MetadataProcessor mdProcessor;
       private CaptionReplacers enCaptionReplacer, trCaptionReplacer;
+      private IJsonWebserviceCache geoCache;
 
       private Taggers taggers;
       private Lexicon lexicon;
@@ -78,8 +79,15 @@ namespace AlbumImporter {
          var defSettings = DirectorySettings.Default;
          if (settingsNode != null) defSettings = new DirectorySettings(settingsNode, defSettings);
          settingsCache = new DirectorySettingsCache (defSettings);
-         var cache = new JsonWebserviceCacheES (new ESConnection("http://bm2:9200"), "srv_locbypos");
-         locationByPointSrv = new LocationByPoint (ErrorHandling.Throw, cache, false, null);
+
+         var dsNode = ds.ContextNode;
+         var geoCacheNode = dsNode.SelectSingleNode("geo_name_by_point/cache");
+         var geoCacheFile = geoCacheNode.ReadPath("@file", null);
+         var geoCacheUrl = geoCacheNode.ReadStr("@url", null);
+         if (geoCacheFile != null && geoCacheUrl != null)
+            throw new BMNodeException (geoCacheNode, "Cannot specify both file and url.");
+         geoCache = JsonWebserviceCache.Create ((geoCacheFile ?? geoCacheUrl) ?? "geo-cache-file.txt.gz");
+         locationByPointSrv = new LocationByPoint (ErrorHandling.Throw, geoCache, false, null);
 
 
          tokenizer = new RegexTokenizer ();
@@ -87,7 +95,6 @@ namespace AlbumImporter {
          hypernyms = new Hypernyms (ctx.ImportEngine.Xml.CombinePath ("hypernyms.txt"), true);
          hypernymCollector = new HypernymCollector (tokenizer, hypernyms, lexicon);
 
-         var dsNode = ds.ContextNode;
          phashes = new PHashCollection(ctx.ImportLog, IndexInfo.Create(dsNode.ReadStrRaw("hashes/@url", optional), false), false);
          captions = new CaptionCollection (ctx.ImportLog, IndexInfo.Create(dsNode.ReadStrRaw ("captions/@url", mandatory), false), false);
          ocrTexts = new OcrCollection (ctx.ImportLog, IndexInfo.Create(dsNode.ReadStrRaw ("ocr/@url", mandatory), false), false, false);
@@ -141,6 +148,14 @@ namespace AlbumImporter {
       public object OnDatasourceEnd (PipelineContext ctx, object value) {
          handleExceptions = true;
          mdProcessor.Dispose ();
+
+         //Save geo cache
+         try {
+            geoCache?.Close ();
+         } finally {
+            geoCache = null;
+         }
+
          var ds = (DatasourceAdmin)value;
          ctx.ImportLog.Log ("Number of en captions: {0}, portrait={1}", num_en, num_portrait);
 
