@@ -25,23 +25,34 @@ namespace BMAlbum.Controllers {
    public class HomeController : BaseController {
 
       public IActionResult Index () {
+         //Early out for spiders that got a link from the tracks website
+         if (Request.Path == "/tracks/" || Request.Path == "/tracks") {
+            if (!Request.QueryString.HasValue) goto RET_404;
+            var s = Encoders.UrlDecode(Request.QueryString.Value);
+            if (Encoders.UrlDecode (Request.QueryString.Value) == "?q=pin:") goto RET_404;
+         }
+
          var settings = (Settings)base.Settings;
+
          var clientState = new ClientState (RequestCtx, settings);
          if (clientState.AppMode == AppMode.Faces) {
-            if (!clientState.InternalIp) return new ActionResult404 ();
+            if (!clientState.InternalIp) goto RET_404;
          }
-         if (clientState.User==null) return new ActionResult404 ();
+         if (clientState.User==null) goto RET_404;
          if (clientState.PerAlbum == TriStateBool.Unspecified && clientState.User.InitialPerAlbum != TriStateBool.Unspecified)
             clientState.PerAlbum = clientState.User.InitialPerAlbum;
          if (clientState.SortName == null && clientState.User.InitialSortMode != null)
             clientState.SetSortMode (clientState.User.InitialSortMode);
 
          switch (BMAlbum.User.CheckAccess(clientState.User, RequestCtx.RemoteIPClass, isAuthenticated())) {
-            case _Access.NotExposed: return new ActionResult404 ();
+            case _Access.NotExposed: goto RET_404;
             case _Access.MustAuthenticate: return new RequestAthenticationResult (Request);
          }
 
          return View (new HomeModel (this, clientState));
+
+      RET_404: 
+         return new ActionResult404 ();
       }
 
 
