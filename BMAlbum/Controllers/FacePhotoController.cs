@@ -147,16 +147,19 @@ namespace BMAlbum.Controllers {
          rec = rec.ReadObj ("_source");
          SiteLog.Log ("Update id=" + id);
          SiteLog.Log ("-- Old record=" + rec.ToJsonString ());
+         string resultName;
          switch (faceId) {
             case ID_CLEAR: 
                rec.Remove ("names");
                rec.Remove ("explain");
                rec["src"] = "N";
+               resultName = string.Empty;
                break;
             case ID_UNKNOWN: 
                rec.Remove ("names");
                rec.Remove ("explain");
                rec["src"] = correct ? "CU" : "MU";
+               resultName = "Unknown";
                break;
             default: //Update
                rec.Remove ("explain");
@@ -165,13 +168,13 @@ namespace BMAlbum.Controllers {
                rec["names"] = new JsonArrayValue ((JsonValue)nameObj);
                nameObj["id"] = faceId;
                nameObj["match_score"] = 1;
-               nameObj["name"] = names.NameById (faceId);
+               nameObj["name"] = resultName = names.NameById (faceId);
                break;
          }
          rec["updated"] = DateTime.UtcNow;
          SiteLog.Log ("-- New record=" + rec.ToJsonString ());
          c.Send (HttpMethod.Put, idUrl, HttpPayload.Create (rec)).ThrowIfError ();
-         return new JsonActionResult ();
+         return new JsonActionResult (new JsonObjectValue("id", faceId, "name", resultName));
       }
 
       public IActionResult ClearAutoFaces () {
