@@ -68,9 +68,59 @@ function createLightboxControl(app) {
       _t0 = t1;
    }
 
+   let _globalKeyTimerId;
+   let _lastCharReceived = Date.now();
+   function _processGlobalKey(ev) {
+      if (!_faceMode || "input" === ev.target.localNme) return;
+      console.log("KEYPRESS ", ev.key, " for ", ev.target.localNme);
+
+      const $ff = $("#face_filter");
+      let v = $ff.val();
+      if (ev.key.length === 1) {
+         const dt = Date.now();
+         if (dt - _lastCharReceived > 2000) v = "";
+         _lastCharReceived = dt;
+         v = v + ev.key;
+      } else if ("Escape" === ev.key) v = "";
+      else if ("Backspace" === ev.key && v.length > 0) v = v.substring(0, v.length - 1);
+      else return;
+      $ff.val(v);
+      _buildFilteredFaceNames(v);
+
+      if (_globalKeyTimerId) clearTimeout(_globalKeyTimerId);
+      _globalKeyTimerId = setTimeout(function () {
+         _globalKeyTimerId = undefined;
+         if (_draggedFaceId <= NO_DRAG_ID) return;
+         const $proxy = $("#drag_proxy");
+
+         const ac = new Autocomplete(v, true);
+         const names = _faceNames.sortedNames;
+         let best = -1;
+         let bestScore = -1;
+         for (let i = 0; i < names.length; i++) {
+            let score = ac.score(names[i].name);
+            if (names[i].id < 0) score *= .8;
+            console.log(score.toFixed(4), " ", names[i].name.length, names[i].name);
+            if (score <= bestScore) continue;
+            bestScore = score;
+            best = i;
+         }
+         console.log("best=", best);
+         if (best < 0) return;
+         console.log("best=", names[best]);
+
+         $proxy.text(names[best].name);
+         _draggedFaceId = names[best].id;
+      }, 750);
+
+   }
+
    //Register keydown as first thing: we need to be able to cancel processing from lg...
    $(window).on('keydown', function (ev) {
+      if (_faceMode && ev.key.length !== 1) _processGlobalKey(ev);
       if (_zoomer) return _zoomer.onKeyDown(ev);
+   }).on('keypress', function (ev) {
+      if (_faceMode && ev.key.length === 1) _processGlobalKey(ev);
    });
 
    function _resetAll() {
@@ -1285,7 +1335,7 @@ function createLightboxControl(app) {
                let payload = { id: file.id, faceid: _draggedFaceId, correct: ev.altKey };
                _state.postJSON("facephoto/setface", payload, function (data) {
                   console.log("SetFace result: ", data);
-                  $elt.find(".face_name").text(faceName);
+                  $elt.find(".face_name").text(data.name);
                });
             }
          }
