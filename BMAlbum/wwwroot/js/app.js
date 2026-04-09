@@ -244,7 +244,7 @@ function createApplication(state, fnInit) {
          if (!relPath.endsWith('/')) parts.push('/');
       }
       parts.push('?');
-      if (this.home_url_params) parts.push(this.home_url_params);
+      if (_state.home_url_params) parts.push(_state.home_url_params + "&");
 
       if (parms instanceof Array) {
          parts = parts.concat(parms);
