@@ -71,8 +71,8 @@ function createLightboxControl(app) {
    let _globalKeyTimerId;
    let _lastCharReceived = Date.now();
    function _processGlobalKey(ev) {
-      if (!_faceMode || "input" === ev.target.localNme) return;
-      console.log("KEYPRESS ", ev.key, " for ", ev.target.localNme);
+      if (!_faceMode || "input" === ev.target.localName) return;
+      console.log("KEYPRESS ", ev.key, " for ", ev.target.localName);
 
       const $ff = $("#face_filter");
       let v = $ff.val();
@@ -969,6 +969,16 @@ function createLightboxControl(app) {
       });
    }
 
+   document.getElementById("help_link").addEventListener('click', function (e) {
+      e.preventDefault();
+      location.href = _state.home_url + (_state.mode === "faces" ? "help_faces_nl.html" : "help_nl.html");
+   });
+   document.getElementById("clear_link").addEventListener('click', function (e) {
+      e.preventDefault();
+      document.getElementById("searchq").value = '';
+      _state.clear();
+      _updateLightBox();
+   });
 
    function _search() {
       //Don't honor the album and year facet: its really confusing somethimes
@@ -1002,13 +1012,24 @@ function createLightboxControl(app) {
       _updateLightBox();
    });
    $('#icon_search').on('click', _search);
-   $('#searchq').on('keyup', function (e) {
+   $('#searchq').on('keydown', function (e) {
       if (e.key === 'Enter') {
-         _search();
+         e.bubbles = false; //Prevent form submit (form is needed for IPhone)
          e.preventDefault();
+         e.target.blur(); //close the virtual keyboard on mobile
+         _search();
+      } else if (e.key === 'Escape') {
+         e.bubbles = false;
+         e.preventDefault();
+         $("#searchq").val('');
+         _search();
       }
    }).on('input', function (e) {
       if (!e.originalEvent.inputType && $("#searchq").val() === '') _search(); //Force search when clearing input
+   }).on('click', function (e) {
+      const $elt = $("#searchq");
+      const x = e.clientX - $elt[0].getBoundingClientRect().left;
+      if (x > $elt.width() * .9) $elt.val('');
    });
    $('#btn_show_map').on('click', function () {
       _state.mode = 'map';
@@ -1279,6 +1300,7 @@ function createLightboxControl(app) {
       }
       ev.preventDefault();
       ev.stopPropagation();
+      document.activeElement.blur(); //Remove focus from the filter textbox
       let $proxy = $("#drag_proxy");
       let proxy = $proxy[0];
 

@@ -29,17 +29,15 @@ html {
    height: 100dvh;
 }
 
-@media (min-width: 768px) {
-   html {
-     font-size: 16px;
-   }
-   #searchq {
-      width: 20em;
-   }
-}
 
 body {
    margin: 0px;
+}
+
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+   -webkit-appearance: none;
+   appearance: none;
 }
 
 #sv {
@@ -118,18 +116,46 @@ body {
 }
 
 #searchq {
-   /*margin-left: .25em;*/
    width: 17.5em;
-   margin-right: .25em;
+   margin-right: 0px;
    outline-offset: 0px;
 }
 
-#help_link {
+.input-wrapper {
+   position: relative;
+   display: inline-block;
+}
+
+.input-wrapper input {
+   padding-right: 1em;
+}
+
+.input-wrapper button {
+   top:0;
+   right: 0;
+}
+
+.link {
    font-weight: bold;
    font-size: large;
-   top: 2px;
-   position: relative;
-   right: 2px;
+   margin: 0px;
+   height: min-content;
+   color: blue;
+   cursor: pointer;
+   background-color: transparent;
+   border: none;
+   text-decoration:underline;
+}
+#clear_link {
+   position: absolute;
+   margin-left: -1.1em;
+   z-index: 2;
+}
+#help_link {
+   position:relative;
+   margin-left: .1em;
+   padding: 0px .2em 0px .2em;
+   bottom: -1px;
 }
 
 #lightbox {
@@ -351,7 +377,10 @@ body {
 }
 
 #face_names {
-   overflow-y:scroll;
+   overflow-y: scroll;
+}
+#face_names input {
+   margin-left:1px;
 }
 
 #drag_proxy {
@@ -368,4 +397,14 @@ body {
 
 .cursor_pointer {
    cursor: pointer;
+}
+
+@media (min-width: 768px) {
+   html {
+      font-size: 16px;
+   }
+
+   #searchq {
+      width: 20em;
+   }
 }

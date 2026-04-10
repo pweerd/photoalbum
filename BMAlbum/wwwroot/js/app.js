@@ -340,20 +340,6 @@ function createApplication(state, fnInit) {
       console.log("Start: from=", from, ", history=", history.state);
       _overlay.hideNow();
 
-      //Set the correct help link
-      const helpUrl = _state.mode === "faces" ? "help_faces_nl.html" : "help_nl.html";
-      $("#help_link").attr("href", _state.home_url + helpUrl);
-
-      //if (device.isIPhone || device.isIPad) {
-      //   if (_state.mode === "map") {
-      //      _disableViewportScaling();
-      //   } else {
-      //      _disableViewportScaling(function () {
-      //         _enableViewportScaling();
-      //      });
-      //   }
-      //}
-
       //document.body.style.transform = "";
       //document.body.style.WebkitTransform = "";
       //document.body.style.zIndex = "";

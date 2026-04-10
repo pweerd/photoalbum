@@ -1,7 +1,7 @@
 ﻿@using Bitmanager.Web
 @model HomeModel
 @{
-    ViewData["Title"] = "Foto-albums";
+   ViewData["Title"] = "Foto-albums";
 }
 
 <div id="photos" class="full-width"><header class="full-width">
@@ -10,8 +10,11 @@
          <div class="labeled-input">
             <label class="lcell" for="searchq">Zoek:</label>
             <div class="rcell">
-                  <input type="search" id="searchq" class="input-cell" autocomplete="off" placeholder="Type hier uw zoekterm...">
-                  <a id="help_link" href="#">?</a>
+               <form action="." class="input-wrapper">
+               <input type="search" id="searchq" class="input-cell" autocomplete="off" placeholder="Type hier uw zoekterm...">
+               <button id="clear_link" class="link" title="Maak schoon">x</button>
+               </form>
+               <button id="help_link" class="link" title="Toon help">?</button>
             </div>
          </div>
          <div id="row_album" class="labeled-input">
@@ -39,7 +42,7 @@
             </div>
          </div>
          @if ((Model.State.DebugFlags & DebugFlags.TRUE) != 0) {
-               <span id="dbg_timings" class="txtbadge dbg-badge">T</span> <span id="dbg_esrequest" class="txtbadge  dbg-badge">Q</span>
+            <span id="dbg_timings" class="txtbadge dbg-badge">T</span> <span id="dbg_esrequest" class="txtbadge  dbg-badge">Q</span>
          }
       </div>
    </nav>
@@ -47,7 +50,7 @@
 <div id="content" class="full-width">
    @if (Model.State.AppMode == AppMode.Faces) {
       <div id="face_names" class="scroll_container_Y bordered-slimbar">
-         <div id="face_header"><input id="face_filter" type="text" /></div>
+         <div id="face_header"><input id="face_filter" type="text" autocomplete="off" placeholder="Filter namen..."/></div>
          <div id="face_list"></div>
       </div>
       <div id="faces_scroller" class="scroll_container slimbar">
