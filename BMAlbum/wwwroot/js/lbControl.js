@@ -163,7 +163,7 @@ function createLightboxControl(app) {
          let d = new Date(dateStr);
          return d.getFullYear() + '-'
             + pad(d.getMonth() + 1) + '-'
-            + pad(d.getDate()) + ' T '
+            + pad(d.getDate()) + ' '
             + pad(d.getHours()) + ':'
             + pad(d.getMinutes()) + ':'
             + pad(d.getSeconds());
@@ -180,6 +180,9 @@ function createLightboxControl(app) {
          if (e.startsWith("score=")) {
             let ix = e.indexOf(',');
             if (ix > 0) e = e.substring(ix + 2);
+         } else if (e.startsWith("s=")) {
+            let ix = e.indexOf(' ');
+            if (ix > 0) e = e.substring(ix + 1);
          }
          return e;
       } 
@@ -194,19 +197,20 @@ function createLightboxControl(app) {
       if (photo.names) {
          for (let nameObj of photo.names) {
             let name = nameObj.name || 'unknown';
-            sb.push(name + '<br />[' + round2(nameObj.match_score) + ']<br />');
+            sb.push('<b>' + name + '<br />[' + round2(nameObj.match_score) + ']</b> ' + photo.src + ", " + toDateString(photo.updated) + '<br />');
             if (nameObj.explain) {
                sb.push(stripExplain(nameObj.explain) + '<br />');
             }
          }
       } else {
-         if (photo.explain) sb.push(", " + photo.explain + "<br />");
+         sb.push(photo.src + ", " + toDateString(photo.updated));
+         if (photo.explain) sb.push(", " + stripExplain(nameObj.explain));
+         sb.push("<br />");
       }
-      sb.push(photo.src + ", " + photo.id.substring(1+photo.id.lastIndexOf('~')) + "/" + photo.count);
+      sb.push(photo.id.substring(1+photo.id.lastIndexOf('~')) + "/" + photo.count);
       sb.push(", h=" + photo.h0);
       sb.push(", rto=" + round2(photo.face_ratio));
-      sb.push(", " + (photo.face_ok ? 'ok' : 'not ok') + "<br />");
-      sb.push(photo.storage_id + ", " + toDateString(photo.updated));
+      sb.push(", " + (photo.face_ok ? 'ok' : '!ok') + ", " + photo.storage_id);
       sb.push('</div>');
 
       //<div class="txtbadge info-badge bottom-right-4"></div>
@@ -977,6 +981,18 @@ function createLightboxControl(app) {
       e.preventDefault();
       document.getElementById("searchq").value = '';
       _state.clear();
+      _updateLightBox();
+   });
+   document.getElementById("btn_recent_uncertain").addEventListener('click', function () {
+      _state.clear();
+      _state.q = "score:[0.25..0.4] src:A NOT src:U";
+      _state.sort = "updated";
+      _updateLightBox();
+   });
+   document.getElementById("btn_recent_unassigned").addEventListener('click', function () {
+      _state.clear();
+      _state.q = "src:N";
+      _state.sort = "updated";
       _updateLightBox();
    });
 

@@ -41,6 +41,10 @@
                <img id="btn_show_map" class="hidden" src="~/images/goto_curpos.svg" title="Toon kaart"/>
             </div>
          </div>
+         <div id="row_face_buttons" class="labeled-input">
+            <button id="btn_recent_uncertain" title="Zoek recent, onzeker, automatisch toegekende namen">Recent onzeker</button>
+            <button id="btn_recent_unassigned" title="Zoek recente gezichten zonder naam">Recent naamloos</button>
+         </div>
          @if ((Model.State.DebugFlags & DebugFlags.TRUE) != 0) {
             <span id="dbg_timings" class="txtbadge dbg-badge">T</span> <span id="dbg_esrequest" class="txtbadge  dbg-badge">Q</span>
          }

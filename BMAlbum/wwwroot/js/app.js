@@ -363,6 +363,8 @@ function createApplication(state, fnInit) {
          $("#row_album").addClass("hidden");
          $("#row_year").addClass("hidden");
          $("#row_per_album").addClass("hidden");
+      } else {
+         $("#row_face_buttons").addClass("hidden");
       }
    }
 
