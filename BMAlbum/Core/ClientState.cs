@@ -75,8 +75,6 @@ namespace BMAlbum {
          parseRequestParms (ctx.HttpContext.Request);
          ActualPageSize = (DebugFlags & Bitmanager.Web.DebugFlags.ONE) != 0 ? 1 : PageSize;
 
-         SearchSettings = (AppMode== AppMode.Faces) ? settings.FaceSearchSettings : settings.MainSearchSettings;
-         SetSortMode (SortName);
          if (!InternalIp) Unhide = false;
          if (AppMode==0) {
             req.RouteValues.TryGetValue ("mode", out var appModeId);
@@ -87,6 +85,8 @@ namespace BMAlbum {
             else
                AppMode = Slide != null ? AppMode.Photo : AppMode.Photos;
          }
+         SearchSettings = (AppMode == AppMode.Faces) ? settings.FaceSearchSettings : settings.MainSearchSettings;
+         SetSortMode (SortName);
       }
 
       public void SetSortMode (string sortModeName) {
