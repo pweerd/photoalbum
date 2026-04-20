@@ -363,7 +363,7 @@ function createLightboxControl(app) {
          if ($target.length === 0) {
             if (!_openedInfoViaClick) {
                console.log("INFO: Closing panel by mouseout");
-               app.overlay.hideNow();
+               app.overlay.hide();
             }
          }
          return;
@@ -373,25 +373,31 @@ function createLightboxControl(app) {
       openCurrentInfo($target);
    }
 
+
+   const _infoBehavior = app.overlay.createBehavior({
+      delay: 1000,
+      closeOnClick: true,
+      propagateClick: false,
+      mode: "scroll",
+      initialState: 'fixed',
+      applyExtraStyles: function ($div) {
+         $div.css("font-size", "inherit");
+      },
+      needShow: function () {
+         return true;
+      },
+      copyContent: function ($dst) {
+         let data = _getMetaTable(this.ix);
+         $dst.html(data);
+         return data;
+      }
+   });
    function _showInfo(ix, isClick, $target) {
       if ($target === undefined) $target = $($('.lb-item').get(ix)).find('.info-badge');
       console.log('_showInfo', $target);
-      
-      app.overlay.activate($target, { //.closest('.lb-wrapper')
-         delay: 1000,
-         closeOnClick: true,
-         propagateClick: false,
-         mode: "scroll",
-         initialState: 'fixed',
-         applyExtraStyles: function ($div) {
-            $div.css("font-size", "inherit");
-         },
-         copyContent: function ($dst) {
-            let data = _getMetaTable(ix);
-            $dst.html(data);
-            return data;
-         }
-      }, isClick ? 0 : undefined);
+
+      _infoBehavior.ix = ix;
+      app.overlay.activate($target, _infoBehavior, isClick ? 0 : undefined);
    }
 
    function _selectOptionByText($elt, valueToSelect) {
@@ -574,7 +580,7 @@ function createLightboxControl(app) {
             if (_draggedFaceId > NO_DRAG_ID) return; //Not a click for us
          }
          let url = $(ev.target).closest('.lb-item').attr('data-photo');
-         if (url) window.open(url, 'photowindow');
+         if (url) window.open(url, 'photowindow').focus();
       });
    }
 
@@ -587,16 +593,11 @@ function createLightboxControl(app) {
       if (data && data.files && data.files.length>0) _indicateLoading($elt);
 
       //Handle tooltip for the searchbox
-      let $searchBox = $('#searchq');
       let tt = data.all_terms;
       if (tt) tt = "Gevonden:\n\t" + tt;
-      else if (data.query_error) tt = "Query kon niet goed geinterpreteerd worden.\nRaadpleeg even de help...\n(?-icon in leeg query veld.)";
+      else if (data.query_error) tt = "Query kon niet goed geinterpreteerd worden.\nRaadpleeg even de help...\n(?-icon)";
       else tt = ''
-      $searchBox.attr('data-title', tt);
-      if (tt) {
-         var mouseAt = $(':hover').last();
-         if (mouseAt && mouseAt[0] === $searchBox[0]) _triggerSearchTooltip();
-      }
+      $('#searchq').attr('data-title', tt);
 
       if (_faceMode) _updateLightboxFaces($elt, data); else _updateLightboxPhotos($elt, data);
 
@@ -1230,22 +1231,26 @@ function createLightboxControl(app) {
 
    console.log('INIT done. State=', history.state);
 
+   const _badgeBehavior = app.overlay.createBehavior({
+      mode: "tooltip",
+      maxHStrategy: 'window',
+      skipHideIfMouse: true,
+      initialState: 'fixed',
+      applyExtraStyles: "emulate_pre_proportional",
+      copyContent: function ($dst) {
+         this.showState('html');
+         let data = this.func();
+         $dst.html(data);
+         $dst.find(".clip_button").on("click", createClipboard().oncopy);
+         return data;
+      }
+   });
    function _hookDbgBadge(idSelection, func) {
       $(idSelection).on("mouseenter", function (ev) {
          ev.stopPropagation();
 
-         app.overlay.activate($(ev.target), { 
-            mode: "scroll",
-            initialState: 'fixed',
-            applyExtraStyles: "emulate_pre_proportional",
-            copyContent: function ($dst) {
-               this.showState('html');
-               let data = func();
-               $dst.html(data);
-               $dst.find(".clip_button").on("click", createClipboard().oncopy);
-               return data;
-            }
-         });
+         _badgeBehavior.func = func;
+         app.overlay.activate($(ev.target), _badgeBehavior);
       });
    }
    _hookDbgBadge("#dbg_timings", function () {
@@ -1268,19 +1273,14 @@ function createLightboxControl(app) {
       return sb.join('');
    });
 
-   function _triggerSearchTooltip(ev) {
-      let title = $("#searchq").attr('data-title');
-      if (!title) return;
-      if (ev) ev.stopPropagation();
-      app.overlay.activate($("#searchq"), {
-         mode: 'tooltip',
-         applyExtraStyles: 'emulate_pre'
-      });
-   }
-   $("#searchq").on('mouseenter', _triggerSearchTooltip
-   ).on('mouseout', function (ev) {
-      //app.overlay.hideNow();
+
+   const _searchTtBehavior = app.overlay.createBehavior({
+      mode: 'tooltip',
+      applyExtraStyles: 'emulate_pre'
    });
+
+   app.overlay.hook($("#searchq"), _searchTtBehavior);
+
 
    let _onChangeTimer = 0;
    if ($("#face_names").length > 0) {

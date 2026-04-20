@@ -24,10 +24,6 @@
    box-sizing: border-box;
    visibility: visible;
    opacity: 1;
-   -webkit-transition: opacity 2s, visibility 2s;
-   -moz-transition: opacity 2s, visibility 2s;
-   -o-transition: opacity 2s, visibility 2s;
-   transition: opacity 2s, visibility 2s;
 }
 
 .ovl.ovl-hidden {
@@ -38,5 +34,19 @@
 .ovl.ovl-scroll {
    overflow: auto;
    padding: 5px;
-   word-wrap: break-word;
 }
+
+.ovl-word-wrap {
+   overflow-wrap: anywhere;
+   word-break: break-all;
+   position: static;
+}
+
+.ovl.ovl-smooth {
+   transition: opacity 1s ease-in;
+}
+
+.ovl div:focus-visible {
+   outline: none;
+}
+
