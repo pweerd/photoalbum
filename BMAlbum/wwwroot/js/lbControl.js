@@ -551,6 +551,7 @@ function createLightboxControl(app) {
       }
    }
 
+   let _photoWindow=undefined;
    function _updateLightboxFaces($elt, data) {
       let sb = [];
       let imgUrl = app.createUrl('facephoto/get') + "&storid=";
@@ -579,8 +580,21 @@ function createLightboxControl(app) {
          } else {
             if (_draggedFaceId > NO_DRAG_ID) return; //Not a click for us
          }
-         let url = $(ev.target).closest('.lb-item').attr('data-photo');
-         if (url) window.open(url, 'photowindow').focus();
+
+         const idx = $(ev.target).closest('.lb-item').index();
+         const photo = _data.files[idx];
+         console.log(photo);
+         if (!photo) return;
+
+         if (_photoWindow !== undefined && !_photoWindow.closed) {
+            _photoWindow.requestPhoto(photo.photoUrl, photo.relpos);
+         } else {
+            _photoWindow = window.open(app.createUrl("home/facesPhoto"), 'photowindow');
+            setTimeout(function () {
+               _photoWindow.requestPhoto(photo.photoUrl, photo.relpos);
+            }, 50);
+         }
+         _photoWindow.focus();
       });
    }
 

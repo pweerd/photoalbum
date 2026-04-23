@@ -56,6 +56,21 @@ namespace BMAlbum.Controllers {
       }
 
 
+      public IActionResult FacesPhoto (string id) {
+         var settings = (Settings)base.Settings;
+
+         var clientState = new ClientState (RequestCtx, settings);
+         if (!clientState.InternalIp) goto RET_404;
+         if (clientState.User == null) goto RET_404;
+
+         SiteLog.Log ("FacesPhoto id={0}", id);
+         return View (new HomeModel (this, clientState, id));
+
+      RET_404:
+         return new ActionResult404 ();
+      }
+
+
       public IActionResult Config (string dvt) {
          var settings = (Settings)base.Settings;
 

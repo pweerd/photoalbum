@@ -328,6 +328,9 @@ function createApplication(state, fnInit) {
             app.mapControl.onPopHistory(ev);
             _enableOrDisableMap(true);
             break;
+         case "facephoto":
+            app.facePhotoControl.onPopHistory(ev);
+            break;
          default:
             console.log('INVALID mode: [', histState.mode, ']', histState);
             break;

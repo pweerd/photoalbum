@@ -1,0 +1,26 @@
+﻿@using Bitmanager.Web
+@model HomeModel
+@{
+   ViewData["Title"] = "Gezichtsfoto | albums";
+}
+
+<div id="facesphoto" tabindex="-1"><img /><div id="facerect" class="hidden"></div></div>
+<div id="faceshdr"></div>
+
+
+@section Scripts {
+   <script type="text/javascript">
+
+      $(document.documentElement).css("overflow", "hidden");
+      function requestPhoto(url,rect) {
+         return control.setPhoto(url,rect);
+      }
+      let control;
+      const app = createApplication(@Model.GetStateAsHtmlString(),function(app) {
+         console.log ("ON_INIT", app);
+         control = createFacePhotoControl(app);
+         app.facePhotoControl = control;
+      });
+
+   </script>
+}   

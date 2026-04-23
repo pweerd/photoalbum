@@ -408,3 +408,50 @@ input[type="search"]::-webkit-search-decoration {
       width: 20em;
    }
 }
+
+
+#facesphoto {
+   position: relative;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   height: 100vh;
+   width: 100vw;
+   padding: 4px;
+   background-color: black;
+   user-select: none;
+   outline: 0;
+}
+
+#facesphoto img {
+   border: 2px solid #484848;
+   border-radius: 2rem;
+   max-width: calc(100% - 8px);
+   max-height: calc(100% - 8px);
+   object-fit: contain;
+}
+
+#facerect {
+   border-radius: .5rem;
+   position: absolute;
+   box-shadow: 0 0 0 4px red;
+   outline: dashed 4px yellow;
+}
+
+#faceshdr {
+   left: 50%;
+   transform: translate(-50%, 0);
+   top: 6px;
+   position: absolute;
+   z-index: 99;
+
+   color: white;
+   position: absolute;
+   vertical-align: middle;
+   font-size: 18px;
+   caret-color: transparent;
+   white-space: nowrap;
+   overflow: hidden;
+   padding: 0px 8px 2px 8px;
+   background: rgba(0, 0, 0, .4);
+}

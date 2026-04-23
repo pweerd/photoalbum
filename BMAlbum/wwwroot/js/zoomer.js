@@ -26,7 +26,7 @@ function createZoomer($elt) {
    function _bounded(v) {
       if (v < -100) v = -100;
       else if (v > 100) v = 100;
-      return v; 
+      return v;
    }
 
    function _setLogScale(s) {
@@ -43,7 +43,7 @@ function createZoomer($elt) {
       if ((ev.key === '+' || ev.key === '-') && ev.ctrlKey) {
          let $cur = $elt.find('.lg-current');
          if (_initScrol($cur.find('.lg-image'))) {
-            _setLogScale (_logScale + (ev.key === '+' ? 1 : -1));
+            _setLogScale(_logScale + (ev.key === '+' ? 1 : -1));
             ev.originalEvent.stopImmediatePropagation();
             ev.preventDefault();
             _applyScaleAndOffset();
@@ -73,16 +73,16 @@ function createZoomer($elt) {
             case 'ArrowDown':
                _offsetY = _bounded(_offsetY + 10);
                break;
-         } 
+         }
          ev.originalEvent.stopImmediatePropagation();
          ev.preventDefault();
          _applyScaleAndOffset();
-      } 
+      }
    }
 
    function _applyScaleAndOffset() {
       console.log('logScale=', _logScale, 1.4 ** _logScale, _index);
-      if (_index < 0 ) return;
+      if (_index < 0) return;
 
       let scale = Math.min(1.4 ** _logScale, _maxScale);
       console.log('Scale=', scale, 1.4 ** _logScale, _maxScale);
@@ -169,5 +169,158 @@ function createZoomer($elt) {
       reset: _reset,
       setPhotos: _setPhotos,
       onKeyDown: _onKeyDown
+   }
+}
+
+function createSingleZoomer($elt) {
+   let _logScale;
+   let _maxScale;
+   let _scale;
+   let _centerX;
+   let _centerY;
+
+   function _setLogScale(s) {
+      s = Math.round(s);
+      if (s <= 0) return _reset();
+      if (s > 7) s = 7;    //leads to scale ~ 10
+
+      let scale = 1.4 ** s;
+      if (_maxScale && scale > _maxScale) return;
+
+      _logScale = s;
+      _scale = scale;
+   }
+
+   function _onKeyDown(ev) {
+      if (ev.ctrlKey) {
+         if ((ev.key === '+' || ev.key === '-')) {
+            _setLogScale(_logScale + (ev.key === '+' ? 1 : -1));
+            _applyScaleAndOffset();
+            ev.stopImmediatePropagation();
+            ev.preventDefault();
+         }
+         return;
+      }
+
+      let dx = 0, dy = 0;
+      switch (ev.code) {
+         default: return;
+         case 'Escape':
+            if (_logScale !== 0) _reset();
+            break;
+         case 'ArrowLeft': dx = -10; break;
+         case 'ArrowRight': dx = 10; break;
+         case 'ArrowUp': dy = -10; break;
+         case 'ArrowDown': dy = 10; break;
+      }
+      if (_logScale !== 0) {
+         _centerX += dx;
+         _centerY += dy;
+         _applyScaleAndOffset();
+      }
+      ev.stopImmediatePropagation();
+      ev.preventDefault();
+   }
+
+   function _bounded(v, lower, upper) {
+      if (v < lower) return lower;
+      if (v > upper) return upper;
+      return v;
+   }
+   function _applyScaleAndOffset() {
+     // console.log('logScale=', _logScale, 1.4 ** _logScale);
+
+      const halfW = $elt.width() /2;
+      const halfH = $elt.height() / 2;
+      let maxDelta;
+
+      maxDelta = halfW * (1 - 1/ _scale);
+      _centerX = _bounded(_centerX, halfW-maxDelta, halfW+maxDelta);
+      maxDelta = halfH * (1 - 1 / _scale);
+      _centerY = _bounded(_centerY, halfH-maxDelta, halfH+maxDelta);
+
+      let sb = ['scale('];
+      sb.push(_scale);
+      sb.push(') translate(');
+      sb.push(_centerX - halfW);
+      sb.push('px, ');
+      sb.push(_centerY - halfH);
+      sb.push('px)');
+      console.log('transform', sb.join(''));
+      $elt.css('transform', sb.join(''));
+   }
+
+
+   function _onMouseDown(ev) {
+      if (ev.buttons !== 1 || _logScale === 0) return; //Not for us
+
+      const cx0 = _centerX;
+      const cy0 = _centerY;
+      const elt = $elt[0];
+
+      function onDragStart(e2) {
+         e2.preventDefault();
+      }
+      function onMouseMove(e2) {
+         e2.preventDefault();
+         e2.stopImmediatePropagation();
+         if ((e2.buttons & 1) === 0) {
+            elt.removeEventListener('mousemove', onMouseMove, true);
+            elt.removeEventListener('dragstart', onDragStart);
+            return;
+         }
+
+         _centerX = cx0 + (e2.clientX - ev.clientX) / _scale;
+         _centerY = cy0 + (e2.clientY - ev.clientY) / _scale;
+         _applyScaleAndOffset();
+      }
+
+      elt.addEventListener('dragstart', onDragStart);
+      elt.addEventListener('mousemove', onMouseMove, true);
+   }
+
+   function _onMouseWheel(ev) {
+      ev.preventDefault();
+
+      //Handle ctrl-wheel -> zoom
+      if (ev.ctrlKey) {
+         if (ev.deltaY > 0) _setLogScale(_logScale - 1);
+         else if (ev.deltaY < 0) _setLogScale(_logScale + 1);
+         else return;
+         _applyScaleAndOffset();
+         return;
+      }
+
+      //Handle wheel -> scroll
+      if (_logScale > 0) {
+         if (ev.deltaY > 0) _centerY -= 10;
+         else if (ev.deltaY < 0) _centerY += 10;
+         else if (ev.deltaX > 0) _centerX -= 10;
+         else if (ev.deltaX < 0) _centerX += 10;
+         else return;
+         ev.preventDefault();
+         _applyScaleAndOffset();
+      }
+   }
+
+   function _reset() {
+      _logScale = 0;
+      _scale = 1;
+      _centerX = $elt.width() / 2;
+      _centerY = $elt.height() / 2;
+      $elt.css('transform', '');
+   }
+
+   $elt[0].addEventListener('wheel', _onMouseWheel);
+   $elt[0].addEventListener('mousedown', _onMouseDown);
+   $elt[0].addEventListener('keydown', _onKeyDown);
+   _reset();
+
+   return {
+      reset: _reset,
+      onKeyDown: _onKeyDown,
+      setMaxScale: function (m) {
+         _maxScale = m;
+      }
    }
 }

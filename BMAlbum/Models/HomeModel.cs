@@ -23,13 +23,15 @@ namespace BMAlbum.Models {
       public readonly ClientState State;
       public readonly MapSettings MapSettings;
       public readonly RequestContext RequestCtx;
+      public readonly string Id;
       public readonly bool AllowSensors;
 
-      public HomeModel (BaseController c, ClientState state) {
+      public HomeModel (BaseController c, ClientState state, string id=null) {
          RequestCtx = c.RequestCtx;
          State = state;
          MapSettings = state.Settings.MapSettings;
          AllowSensors = state.AllowSensors;
+         Id = id;
       }
 
       public HtmlString AllowSensorsStr => new HtmlString (AllowSensors ? "true" : "false");
@@ -40,5 +42,12 @@ namespace BMAlbum.Models {
          //return s;
          return State.ToJsonAsHtmlString ();
       }
+      public HtmlString Quote (Func<object> fn) {
+         var obj = fn();
+         var str = obj==null ? string.Empty : Encoders.EscapeJavascript(obj.ToString ());
+         return new HtmlString('"' + str + '"');
+      }
+
+
    }
 }
