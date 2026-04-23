@@ -853,7 +853,7 @@ function createLightboxControl(app) {
 
          console.log('NEED HIST:', needHistory, from, _state.isChanged());
          if (needHistory) _pushHistoryCmd();
-         if (!_faceMode && slide) _positionToSlide(slide);
+         if (!_faceMode) _positionToSlide(slide);
 
          //Reset scrollTop if not from history
          if (from !== "history") {
@@ -920,17 +920,20 @@ function createLightboxControl(app) {
    }
 
    function _positionToSlide(slide) {
-      if (typeof slide !== 'number') slide = _getSlideIndex(slide);
-      if (slide >= 0) {
-         let $items = $("#lightbox").find(".lb-item");
-         $(document.body).addClass('lg-from-hash');  //Prevent animation. See hash-plugin
-         //_lg.zoomFromOrigin = false;
-         _lg.openGallery(slide, $items[slide]);
-      } else {
-         console.log('No slide, closing gallery');
-         $(document.body).removeClass('lg-from-hash');  //re-enable animation. See hash-plugin
-         _lg.closeGallery();
+      if (slide !== undefined) {
+         if (typeof slide !== 'number') slide = _getSlideIndex(slide);
+         if (slide >= 0) {
+            let $items = $("#lightbox").find(".lb-item");
+            $(document.body).addClass('lg-from-hash');  //Prevent animation. See hash-plugin
+            //_lg.zoomFromOrigin = false;
+            _lg.openGallery(slide, $items[slide]);
+            return;
+         } 
       }
+
+      console.log('No slide, closing gallery');
+      $(document.body).removeClass('lg-from-hash');  //re-enable animation. See hash-plugin
+      _lg.closeGallery();
    }
 
    function _pushHistoryCmd() {

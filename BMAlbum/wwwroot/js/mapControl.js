@@ -141,7 +141,7 @@ function createMapControl(app) {
          _state.q = undefined;
          _state.album = undefined;
          _state.sort = undefined;
-         _state.per_album = undefined;
+         _state.per_album = false;
          app.start('map');
       });
    }
