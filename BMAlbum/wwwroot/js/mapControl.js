@@ -283,13 +283,7 @@ function createMapControl(app) {
    }
 
    let _lastColors = undefined;
-   let _skipFetchMarkers;
    function _fetchMarkers() {
-      if (_skipFetchMarkers) {
-         _skipFetchMarkers = false;
-         console.log("skipping _fetchMarkers because advised bounds");
-         return;
-      }
       let bounds = _map.getBounds();
       let zoom = _map.getZoom();
       console.log('_fetchMarkers: zoom', zoom, 'bounds', bounds);
@@ -386,7 +380,6 @@ function createMapControl(app) {
          _markersOnMap.photos = _removeUntouchedMarkers(markers);
 
          if (json.advised_bounds) {
-            _skipFetchMarkers = true;
             console.log("ADVISED: ", json.advised_bounds);
             var newBounds = new google.maps.LatLngBounds();
             newBounds.extend(new google.maps.LatLng(json.advised_bounds[0], json.advised_bounds[1]));
@@ -578,7 +571,7 @@ function createMapControl(app) {
             div.appendChild(img);
             div.id = 'btn_goto_curpos';
             _gotoCurposDiv = div;
-            google.maps.event.addDomListener(div, 'click', _gotoCurpos);
+            div.addEventListener('click', _gotoCurpos);
             _map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(div);
          }
          console.log('map created');
