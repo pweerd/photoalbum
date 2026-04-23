@@ -66,7 +66,8 @@
                  "paddestoel,paddenstoelen,paddestoelen=>paddenstoel",
                  "boomerang=>frisbee",
                  "boemerang=>frisbee",
-                 "tessel=>texel"
+                 "tessel=>texel",
+                 "jeannette=>jeannet"
               ]
             },
 
