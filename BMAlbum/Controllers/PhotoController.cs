@@ -442,16 +442,19 @@ namespace BMAlbum.Controllers {
          return (ESTermsAggregationResult)agg;
       }
 
-      static readonly Regex termExtracter = new Regex (@"weight\(([^:]+):(.+?) in \d+\)|extra_location\:([^\)]+)\)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+      static readonly Regex termExtracter = new Regex (@"weight\(([^:]+):(.+?) in \d+\)|extra_location\:([^\)]+)\)|ConstantScore\([^:]+:([^\)]+)\)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
       private static void extractExplainTerms (HashSet<string> globalTerms, HashSet<string> terms, JsonObjectValue v) {
          string desc = v.ReadStr ("description", null);
          if (desc != null) {
             var match = termExtracter.Match (desc);
             if (match.Success) {
-               string term = match.Groups[2].Value;
-               if (string.IsNullOrEmpty (term)) term = match.Groups[3].Value;
-               terms.Add (term);
-               if (globalTerms != null) globalTerms.Add (term);
+               for (int i=2; i<5; i++) {
+                  if (match.Groups[i].Length == 0) continue;
+                  var term = match.Groups[i].Value;
+                  terms.Add (term);
+                  if (globalTerms != null) globalTerms.Add (term);
+                  break;
+               }
                return;
             }
          }
