@@ -693,15 +693,17 @@ namespace BMAlbum.Controllers {
          if (strm != null) return createJpegActionResult (strm, orgFn);
 
          //Apparently we did not shrink the result, so return the original image
-         string mime = MimeType.GetMimeTypeFromFileName (orgFn);
-         if (mime != null && mime.StartsWith ("video/")) {
-            byte[] bytes = settings.VideoFrames.GetFrame (id, true);
-            return createJpegActionResult(new MemoryStream (bytes), orgFn);
-         }
-         return PhysicalFile (orgFn, WebGlobals._GetMimeTypeForFile (orgFn), true);
+         var mime = MimeType.GetMimeTypeFromFileName (orgFn);
+         return (mime != null && mime.StartsWith ("video/")) ? getVideoFrame (id, orgFn) 
+                                                             : PhysicalFile (orgFn, WebGlobals._GetMimeTypeForFile (orgFn), true);
 
       NOT_FOUND:
          return new ActionResult404 ();
+      }
+
+      private IActionResult getVideoFrame (string id, string orgFn) {
+         byte[] bytes = settings.VideoFrames.GetFrame (id, true);
+         return createJpegActionResult (new MemoryStream (bytes), orgFn);
       }
 
       public IActionResult Get (string id) {
@@ -723,7 +725,13 @@ namespace BMAlbum.Controllers {
 
          //Logs.DebugLog.Log ("Requesting img {0}", orgFn);
          if (w <= 0 && h <= 0 && mindim <=0) {
-            return PhysicalFile (orgFn, WebGlobals._GetMimeTypeForFile (orgFn), true);
+            //Check for video: for videos we might need to return the frame
+            var mimeType = WebGlobals._GetMimeTypeForFile (orgFn);
+            if (mimeType != null && mimeType.StartsWith("video")) {
+               if (Request.ReadStr ("format", null) == "image")
+                  return getVideoFrame (id, orgFn);
+            }
+            return PhysicalFile (orgFn, mimeType, true);
          }
 
          return w < 0 ? getSmallImage (id, h, orgFn) : getLargeImage (id, w, h, orgFn);

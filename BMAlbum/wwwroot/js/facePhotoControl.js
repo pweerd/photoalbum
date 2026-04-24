@@ -56,10 +56,10 @@ function createFacePhotoControl(app) {
       $("#facerect").addClass("hidden");
       _faceRect = rect;
       let idx1 = url.indexOf('&id=')+4;
-      let idx2 = url.lastIndexOf('.');
-      let id = decodeURIComponent(url.substring(idx1, idx2));
+      //let idx2 = url.lastIndexOf('.');
+      let id = decodeURIComponent(url.substring(idx1));
       $("#faceshdr").text(id);
-      $img.attr("src", url);
+      $img.attr("src", url + "&format=image");
 
       document.title = id + " | Gezichten"; 
 
