@@ -91,7 +91,6 @@ function createLightboxControl(app) {
       _globalKeyTimerId = setTimeout(function () {
          _globalKeyTimerId = undefined;
          if (_draggedFaceId <= NO_DRAG_ID) return;
-         const $proxy = $("#drag_proxy");
 
          const ac = new Autocomplete(v, true);
          const names = _faceNames.sortedNames;
@@ -109,11 +108,16 @@ function createLightboxControl(app) {
          if (best < 0) return;
          console.log("best=", names[best]);
 
-         $proxy.text(names[best].name);
          _draggedFaceId = names[best].id;
+         _setFaceCursorName({});
       }, 750);
 
    }
+
+   function _onFocus() {
+      if (_draggedFaceId !== NO_DRAG_ID) _setFaceCursorName({});
+   }
+
 
    //Register keydown as first thing: we need to be able to cancel processing from lg...
    $(window).on('keydown', function (ev) {
@@ -121,7 +125,7 @@ function createLightboxControl(app) {
       if (_zoomer) return _zoomer.onKeyDown(ev);
    }).on('keypress', function (ev) {
       if (_faceMode && ev.key.length === 1) _processGlobalKey(ev);
-   });
+   }).on('focus', _onFocus);
 
    function _resetAll() {
       app.overlay.hideNow();
@@ -490,6 +494,21 @@ function createLightboxControl(app) {
          _buildFilteredFaceNames()
       });
    }
+
+   function _getFaceNameById(id) {
+      return _faceNames.names[id].name;
+   }
+
+   function _setFaceCursorName(ev) {
+      let txt;
+      if (ev.ctrlKey) txt = "Ga naar foto";
+      else {
+         txt = _getFaceNameById(_draggedFaceId);
+         if (ev.altKey) txt += "<br />(correct-mode)";
+      }
+      $("#drag_proxy").html(txt);
+   }
+
 
    //sb is an array of html parts
    function _setLightboxHtml($elt, sb) {
@@ -1326,6 +1345,8 @@ function createLightboxControl(app) {
          //$(".lb-image").css("cursor");
          document.onmousemove = null;
          document.onmousedown = null;
+         window.removeEventListener('keydown', _altHandler);
+         window.removeEventListener('keyup', _altHandler);
          _draggedFaceId = NO_DRAG_ID;
          proxy.style.visibility = "hidden";
          $allLI.removeClass("dragged_name");
@@ -1358,10 +1379,19 @@ function createLightboxControl(app) {
       _draggedFaceId = idx;
       $(".lb-image").css("cursor", "pointer");
       $target.addClass("dragged_name");
-      let faceName = ev.target.textContent
-      $proxy.text(faceName);
+      _setFaceCursorName(ev);
       proxy.style.visibility = "visible";
       moveAt(ev.pageX, ev.pageY);
+
+
+      function _altHandler(ev) {
+         _setFaceCursorName(ev);
+         if (ev.altKey || ev.ctrlKey) {
+            ev.preventDefault();
+         }
+      }
+      window.addEventListener('keydown', _altHandler);
+      window.addEventListener('keyup', _altHandler);
 
       document.onmousemove = function (ev) {
          moveAt(ev.pageX, ev.pageY);

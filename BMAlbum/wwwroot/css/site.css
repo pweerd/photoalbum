@@ -388,11 +388,13 @@ input[type="search"]::-webkit-search-decoration {
    position: absolute;
    z-index: 9999;
    background-color: dodgerblue;
-   padding: 2px;
-
+   padding: 2px 4px 2px 4px;
+   color: white;
+   text-align: center;
 }
 .dragged_name {
    background-color: dodgerblue;
+   color: white;
 }
 
 .cursor_pointer {
