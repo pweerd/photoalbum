@@ -726,7 +726,7 @@ function createLightboxControl(app) {
    }
 
    function _handleSlideChange(idx) {
-      _zoomer.setPhoto(_data.files[_lg.index]);
+      //Maybe set the maxScale for the img based on naturalHeight/naturalWidth the space we can use.
    }
    function _createGallery() {
       _lg = lightGallery(document.getElementById('lightbox'), {
@@ -764,7 +764,7 @@ function createLightboxControl(app) {
       $ctr.before('<div class="txtbadge info-badge info-badge-detail"></div><div class="photo_title "></div>');
 
       let $inner = $(_lg.$inner.firstElement);
-      _zoomer = createZoomer($inner);
+      _zoomer = createSingleZoomer($inner);
       $inner
          .on('click', function (ev) {
             let $lgCurr = $(ev.target).closest('.lg-current');
@@ -864,7 +864,6 @@ function createLightboxControl(app) {
 
    function _onGalleryOpen(e) {
       document.documentElement.style.overflowY = "hidden";
-      _zoomer.setPhotos(_data.files);
    }
    function _onGalleryClose(e) {
       console.log('After CLOSE. needBack=', _lg.needBack, history.state);

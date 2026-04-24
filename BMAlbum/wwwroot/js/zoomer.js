@@ -251,33 +251,49 @@ function createSingleZoomer($elt) {
    }
 
 
+   let _x0, y0;
+   let _cx0, _cy0;
+
    function _onMouseDown(ev) {
       if (ev.buttons !== 1 || _logScale === 0) return; //Not for us
 
-      const cx0 = _centerX;
-      const cy0 = _centerY;
-      const elt = $elt[0];
+      _cx0 = _centerX;
+      _cy0 = _centerY;
+      _x0 = ev.clientX;
+      _y0 = ev.clientY;
 
-      function onDragStart(e2) {
-         e2.preventDefault();
-      }
-      function onMouseMove(e2) {
-         e2.preventDefault();
-         e2.stopImmediatePropagation();
-         if ((e2.buttons & 1) === 0) {
-            elt.removeEventListener('mousemove', onMouseMove, true);
-            elt.removeEventListener('dragstart', onDragStart);
-            return;
-         }
+      $elt[0].addEventListener('mousemove', _onMouseMove, true);
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+   }
 
-         _centerX = cx0 + (e2.clientX - ev.clientX) / _scale;
-         _centerY = cy0 + (e2.clientY - ev.clientY) / _scale;
+   function _onMouseMove(ev) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+
+      if (_logScale > 0) {
+         _centerX = _cx0 + (ev.clientX - _x0) / _scale;
+         _centerY = _cy0 + (ev.clientY - _y0) / _scale;
          _applyScaleAndOffset();
       }
-
-      elt.addEventListener('dragstart', onDragStart);
-      elt.addEventListener('mousemove', onMouseMove, true);
    }
+
+   function _onMouseUp(ev) {
+      $elt[0].removeEventListener('mousemove', _onMouseMove, true);
+      if (_logScale !== 0) {
+         ev.preventDefault();
+         ev.stopImmediatePropagation();
+      }
+   }
+
+   function _ignoreOnNotScaled(ev) {
+      console.log('ignored if scaled: ', _logScale, ev);
+      if (_logScale > 0) {
+         ev.preventDefault();
+         ev.stopImmediatePropagation();
+      }
+   }
+
 
    function _onMouseWheel(ev) {
       ev.preventDefault();
@@ -313,7 +329,10 @@ function createSingleZoomer($elt) {
 
    $elt[0].addEventListener('wheel', _onMouseWheel);
    $elt[0].addEventListener('mousedown', _onMouseDown);
+   $elt[0].addEventListener('mouseup', _onMouseUp);
    $elt[0].addEventListener('keydown', _onKeyDown);
+   $elt[0].addEventListener('click', _ignoreOnNotScaled);
+   $elt[0].addEventListener('dragstart', _ignoreOnNotScaled);
    _reset();
 
    return {
