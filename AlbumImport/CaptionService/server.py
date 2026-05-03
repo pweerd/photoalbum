@@ -23,11 +23,9 @@ import sys,os,signal,inspect
 from transformers import AutoProcessor, AutoModelForCausalLM
 import requests
 from PIL import Image
-from googletrans import Translator
 
 processor = AutoProcessor.from_pretrained("microsoft/git-base-coco")
 model = AutoModelForCausalLM.from_pretrained("microsoft/git-base-coco")
-translator = Translator()
 
 print("loaded model.")
 
@@ -48,20 +46,14 @@ async def quitHandler():
 async def captionHandler():
    try:
       maxlen = request.args.get("maxlen")
-      maxlen = 50 if maxlen is None else int(maxlen)
+      maxlen = 100 if maxlen is None else int(maxlen)
       fn = request.args.get("file")
       image = Image.open(fn)
       pixel_values = processor(images=image, return_tensors="pt").pixel_values
       generated_ids = model.generate(pixel_values=pixel_values, max_length=maxlen)
       captions = processor.batch_decode(generated_ids, skip_special_tokens=True)
       print(captions)
-      caption_nl = []
-      for x in captions:
-         trResult = translator.translate(captions[0], src='en', dest='nl')
-         if inspect.isawaitable(trResult):
-            trResult = await trResult  # await if awaitable
-         caption_nl.append(trResult.text)
-      return {"captions_en": captions, "captions_nl": caption_nl}
+      return {"captions_en": captions}
    except Exception as e:
       ret = {"msg": str(e), "trace": traceback.format_exc().replace("\"", "'").splitlines()}
       return {"error": ret}, 500

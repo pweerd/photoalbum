@@ -26,6 +26,6 @@ image = Image.open('example.jpg')
 print("loaded")
 pixel_values = processor(images=image, return_tensors="pt").pixel_values
 
-generated_ids = model.generate(pixel_values=pixel_values, max_length=50)
+generated_ids = model.generate(pixel_values=pixel_values, max_length=100)
 generated_caption = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 print(generated_caption)

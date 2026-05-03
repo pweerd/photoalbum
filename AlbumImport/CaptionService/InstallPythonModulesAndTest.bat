@@ -1,3 +1,4 @@
+@echo off
 echo Upgrading PIP
 python.exe -m pip install --upgrade pip
 if errorlevel 1 goto ERROR
@@ -14,12 +15,12 @@ echo Installing module torch
 pip install torch
 if errorlevel 1 goto ERROR
 
-echo Installing module googletrans
-pip install googletrans
-if errorlevel 1 goto ERROR
-
 echo Installing module Pillow
 pip install Pillow
+if errorlevel 1 goto ERROR
+
+echo Installing module requests
+pip install requests
 if errorlevel 1 goto ERROR
 
 echo Installing AI models and testing
