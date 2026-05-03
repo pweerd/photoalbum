@@ -227,6 +227,7 @@ function createOverlay(pane) {
 
    function _activate(target, behavior, argDelay) {
       _clearActivationTimer();
+      _clearHideTimer();
       const dbg = behavior && behavior.debug;
 
       $target = (target instanceof jQuery) ? target : $(target);
@@ -246,6 +247,7 @@ function createOverlay(pane) {
       //Save if we had the mouse on activation
       const hadMouse = target.matches(':hover');
 
+      console.log("about to activate", _activationTimer);
       if (_activationTimer !== undefined) return;
       _activationTimer = setTimeout(function () {
          if (!target.matches(':hover') && hadMouse) {
@@ -260,6 +262,7 @@ function createOverlay(pane) {
    }
    function _activateNow(behavior, $target) {
       const dbg = behavior.debug;
+      console.log("activateNow");
 
       _clearActivationTimer();
       _clearHideTimer();
