@@ -210,3 +210,60 @@ function _createDeviceCharacteristics() {
 }
 window.device = _createDeviceCharacteristics();
 
+
+function addLongPressHandler(elt, onClick, onLongClick, ms) {
+   let _touchTimer;
+   let _invokedHandler;
+   let _touchEvent;
+
+   if (elt instanceof jQuery) elt = elt[0];
+
+
+   function _onTouchStart(ev) {
+      console.log('LONGPRESS touch start');
+      _onTouchCancel();
+      if (ev.targetTouches.length > 1) return; //more fingers? Not for us
+
+      //Cannot stop propagation: we would interfere with other handlers then!
+      _touchEvent = ev;
+      _touchTimer = setTimeout(function () {
+         _invokedHandler = true;
+         onLongClick.call(elt, ev);
+      }, ms ?? 400);
+   }
+
+   function _onTouchEnd(ev) {
+      console.log('LONGPRESS touch end, _invokedHandler=', _invokedHandler);
+      if (_invokedHandler) {
+         ev.preventDefault();
+         ev.stopImmediatePropagation();
+      } else if (onClick !== undefined) onClick.call(elt, ev);
+      _onTouchCancel();
+   }
+
+   function _onTouchCancel() {
+      if (_touchTimer) {
+         clearTimeout(_touchTimer);
+         _touchTimer = undefined;
+      }
+      _invokedHandler = false;
+      _touchEvent = undefined;
+   }
+
+   function _destroy() {
+      elt.removeEventListener("touchstart", _onTouchStart);
+      elt.removeEventListener("touchend", _onTouchEnd);
+      elt.removeEventListener("touchcancel", _onTouchCancel);
+      elt.removeEventListener("touchmove", _onTouchCancel);
+   }
+
+   elt.addEventListener("touchstart", _onTouchStart);
+   elt.addEventListener("touchend", _onTouchEnd);
+   elt.addEventListener("touchcancel", _onTouchCancel);
+   elt.addEventListener("touchmove", _onTouchCancel);
+
+   return {
+      destroy: _destroy,
+   }
+}
+
