@@ -30,7 +30,7 @@ namespace AlbumImporter {
          existingHashes = new PHashCollection();
          if (!fullImport || !forceRebuild) {
             if (curIndex != null) {
-               existingHashes.Load(ctx.ImportLog, activeOldIndex, !sameIndex);
+               existingHashes.Load(ctx.ImportLog, activeOldIndex, !sameIndexOrNotExist);
             }
          }
 

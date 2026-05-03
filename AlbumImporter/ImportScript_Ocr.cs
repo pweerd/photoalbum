@@ -46,7 +46,7 @@ namespace AlbumImporter {
          existingOcr = new OcrCollection();
          if (!fullImport || !forceRebuild) {
             if (curIndex != null) {
-               existingOcr.Load(ctx.ImportLog, activeOldIndex, !sameIndex, true);
+               existingOcr.Load(ctx.ImportLog, activeOldIndex, !sameIndexOrNotExist, true);
             }
          }
 

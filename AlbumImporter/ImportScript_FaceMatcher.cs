@@ -69,13 +69,13 @@ namespace AlbumImporter {
          coll.Load (
             ctx.ImportLog,
             activeOldIndex,
-            !sameIndex
+            !sameIndexOrNotExist
          );
          existingFaces = coll.GetFaces ();
 
          //save old face-stats if we process in-place
          faceStats = new FaceStatistics (logger, faceNames, ctx.ImportEngine.Xml.BaseDir);
-         if (sameIndex) 
+         if (sameIndexOrNotExist) 
             faceStats.LoadExisting (activeOldIndex, true);
 
 
@@ -102,7 +102,7 @@ namespace AlbumImporter {
 
          //In case of a different index: emit all manual/corrected faces that were not added before
          var ep = (ESDataEndpoint)ctx.Action.Endpoint;
-         if (!sameIndex) {
+         if (!sameIndexOrNotExist) {
             int exported=0;
             foreach (var f in existingFaces) {
                if (!f.CopyNeeded) continue;
@@ -132,7 +132,7 @@ namespace AlbumImporter {
             ctx.ImportLog.Log (e, "Failed to synchronize: {0}", e.Message);
          }
 
-         if (sameIndex) {
+         if (sameIndexOrNotExist) {
             faceStats.DumpNameUsage (curIndex);
             faceStats.DumpDifferences (curIndex);
          } else {
@@ -189,7 +189,7 @@ namespace AlbumImporter {
             f.UpdateNames (faceNames);
             if (f.CopyNeeded) {
                f.Export (ep.Record);
-               if (!sameIndex && f.FaceStorageId >= 0) {
+               if (!sameIndexOrNotExist && f.FaceStorageId >= 0) {
                   var key = f.FaceStorageId.ToString();
                   storages.CopyOldToCur (key, key);
                }

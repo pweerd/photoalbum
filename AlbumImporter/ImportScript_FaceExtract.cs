@@ -64,21 +64,21 @@ namespace AlbumImporter {
          existingFaces.Load (
             ctx.ImportLog,
             activeOldIndex,
-            !sameIndex
+            !sameIndexOrNotExist
          );
 
          faceStats = new FaceStatistics (logger, faceNames, ctx.ImportEngine.Xml.BaseDir);
-         if (sameIndex) {
+         if (sameIndexOrNotExist && activeOldIndex != null) {
             // we keep the assigned storId's and save the old stats
             lastFaceStorageId = existingFaces.LargestStorageId;
             faceStats.LoadExisting (activeOldIndex, true);
          }
 
-         logger.Log ("Loading/Creating bitmap storage");
-         if (sameIndex)
+         logger.Log ("Loading/Creating bitmap storage ");
+         if (sameIndexOrNotExist && activeOldIndex != null)
             storages = new Storages (faceAdminDir, curIndex.Timestamp);
          else
-            storages = new Storages (faceAdminDir, curIndex.Timestamp, oldIndex?.Timestamp);
+            storages = new Storages (faceAdminDir, curIndex.Timestamp, activeOldIndex?.Timestamp);
 
          ctx.ImportLog.Log ("Starting faces extract. Flags={0}, existing records={1}, cur={2}, old={3}, copy={4}" ,
             ctx.ImportFlags ,
@@ -118,7 +118,7 @@ namespace AlbumImporter {
             ctx.ImportLog.Log (e , "Failed to synchronize: {0}" , e.Message);
          }
 
-         if (sameIndex) {
+         if (sameIndexOrNotExist) {
             faceStats.DumpNameUsage (curIndex);
             faceStats.DumpDifferences (curIndex);
          } else {
@@ -191,7 +191,7 @@ namespace AlbumImporter {
             //Copy face-image and embeddings if needed and not yet done (by extractor)
             //NB: the assigned face.StorageID is the old existing storId 
             //    so we have to replace it
-            if (!sameIndex && face.Embeddings==null && face.FaceStorageId >= 0) {
+            if (!sameIndexOrNotExist && face.Embeddings==null && face.FaceStorageId >= 0) {
                int newStorId = ++lastFaceStorageId;
                storages.CopyOldToCur (face.FaceStorageId.ToString (), newStorId.ToString ());
                face.FaceStorageId = newStorId;

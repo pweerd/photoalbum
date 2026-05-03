@@ -50,7 +50,7 @@ namespace AlbumImporter {
       protected bool fullImport;
       protected bool forceRebuild;
       protected bool handleExceptions;
-      protected bool sameIndex;  //curIndex and activeOldIndex are the same
+      protected bool sameIndexOrNotExist;  //curIndex == activeOldIndex || activeOldIndex==null
 
       protected ImportScriptBase () {
          logger = Logs.ErrorLog;
@@ -111,11 +111,13 @@ namespace AlbumImporter {
                logger.Log (_LogType.ltWarning, "Ignored copy_from [{0}]. copy_from is only supported in fullindex-mode.", copyFromIndex.Url);
             copyFromIndex = null;
          }
-         sameIndex = activeOldIndex == null || curIndex.IsSameIndex (activeOldIndex);
+         sameIndexOrNotExist = activeOldIndex == null || curIndex.IsSameIndex (activeOldIndex);
 
          curIndex.Refresh();
          activeOldIndex?.Refresh();
 
+         logger.Log (_LogType.ltInfo, "Indexes: cur={0}, Old={1}, Copyfrom={2}, ActiveOld={3}, sameIndexOrNotExist={4}",
+            curIndex, oldIndex, copyFromIndex, activeOldIndex, sameIndexOrNotExist);
       }
 
       protected FaceNames ReadFaceNames () {

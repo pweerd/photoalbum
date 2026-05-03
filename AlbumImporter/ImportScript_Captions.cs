@@ -39,7 +39,7 @@ namespace AlbumImporter {
          existingCaptions = new CaptionCollection();
          if (!fullImport || !forceRebuild) {
             if (curIndex != null) {
-               existingCaptions.Load(ctx.ImportLog, activeOldIndex, !sameIndex);
+               existingCaptions.Load(ctx.ImportLog, activeOldIndex, !sameIndexOrNotExist);
             }
          }
 
