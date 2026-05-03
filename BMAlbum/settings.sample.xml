@@ -63,7 +63,7 @@
          <_min_factor factor="2" />;
          <factor2 bias=".2" />
          <_factor15 value="0" />
-         <sharpen center="9" only_if_changed="true"/>
+         <_sharpen center="9" only_if_changed="true"/>
       </shrink_large>
    </photocache>
 
@@ -94,6 +94,9 @@
             <searcher field="personen|gezichten" searchfield="face_count" />
             <searcher field="id" searchfield="file" />
             <searcher field="pin|near" searchfield="location" type="pin_searcher" id_field="file" def_distance="10" />
+            <searcher field="mlt" type="mlt_searcher" id_field="file"  />
+            <searcher field="mlt1" type="phash_searcher" searchfield="ph1"  />
+            <searcher field="mlt2" type="phash_searcher" searchfield="ph2"  />
          </searchers>
          <boost_query>
          </boost_query>
@@ -125,6 +128,7 @@
             <searcher field="name|naam" type="name_searcher" searchfield="names!name" tiebreaker="0"/>
             <searcher field="nameid"  searchfield="names!id" />
             <searcher field="personen|gezichten" searchfield="count" />
+            <searcher field="score"  searchfield="names!match_score" />
          </searchers>
          <boost_query>
          </boost_query>
@@ -220,8 +224,10 @@
             <file name="js/app.js"  />
             <file name="js/mapControl.js"  />
             <file name="js/lbControl.js"  />
+            <file name="js/facePhotoControl.js"  />
             <file name="js/geohash.js"  />
             <file name="js/splitter-152.js"  />
+            <file name="js/bmautocomplete.js"  />
          </bundle>
       </bundles>
    </mvc>
@@ -263,7 +269,7 @@
 
       <!-- Template collection.
            Suppose you specified user X in the import, and a request for <main_url>/X is done.
-           Then a dynamic collection with id=X will be created from the filters you specify in the temple-element, ANDed with user=X
+           Then a dynamic collection with id=X will be created from the filters you specify in the template-element, ANDed with user=X
            If not specified, no dynamic collection is created, resulting in a 404.
       -->
       <template  expose="^internal|^authenticated" skip_authenticate=".">
