@@ -7,4 +7,4 @@ using System.Reflection;
 [assembly: AssemblyCompany("De Bitmanager (https://bitmanager.nl)")]
 [assembly: AssemblyCopyright("Copyright © 2024, De Bitmanager")]
 [assembly: AssemblyVersion("2.0.2026.0211")]
-[assembly: AssemblyFileVersion("2.0.2026.0424")]
+[assembly: AssemblyFileVersion("2.0.2026.0503")]
