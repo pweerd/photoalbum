@@ -192,6 +192,7 @@ function createSingleZoomer($elt) {
    }
 
    function _onKeyDown(ev) {
+      if ("input" === ev.target.localName) return;
       if (ev.ctrlKey) {
          if ((ev.key === '+' || ev.key === '-')) {
             _setLogScale(_logScale + (ev.key === '+' ? 1 : -1));

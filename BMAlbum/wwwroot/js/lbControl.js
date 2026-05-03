@@ -121,9 +121,11 @@ function createLightboxControl(app) {
 
    //Register keydown as first thing: we need to be able to cancel processing from lg...
    $(window).on('keydown', function (ev) {
+      if ("input" === ev.target.localName) return;
       if (_faceMode && ev.key.length !== 1) _processGlobalKey(ev);
       if (_zoomer) return _zoomer.onKeyDown(ev);
    }).on('keypress', function (ev) {
+      if ("input" === ev.target.localName) return;
       if (_faceMode && ev.key.length === 1) _processGlobalKey(ev);
    }).on('focus', _onFocus);
 
