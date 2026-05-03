@@ -5,6 +5,9 @@
    $$#define ALBUM_IDS=$$SERVER$$/album-ids$$
    $$#define EXISTING_CAPTIONS=$$SERVER$$/album-captions$$
    $$#define EXISTING_OCR=$$SERVER$$/album-ocr$$
+   $$#define EXISTING_HASHES=$$SERVER$$/album-imghash$$
+   $$#define EXISTING_TRACKS=$$SERVER$$/album-tracks$$
+   $$#define EXTERNAL_TRACKS=$$SERVER$$/tracks$$
    $$#define EXISTING_FACES=$$SERVER$$/album-faces$$
 
    <load_dirs>
@@ -25,7 +28,10 @@
          <index name="captions" indexname="album-captions" config="index_captions.config.js" generations="3" >
             <type name="_doc" />
          </index>
-         <index name="faces" indexname="album-faces" config="index_faces.config.js" generations="2" >
+         <index name="faces" indexname="album-faces" config="index_faces.config.js" generations="3" >
+            <type name="_doc" />
+         </index>
+         <index name="imghash" indexname="album-imghash" config="index_imghash.config.js" generations="3" >
             <type name="_doc" />
          </index>
       </endpoint>
@@ -82,7 +88,13 @@
          <action key="_datasource/_start" script="OnDatasourceStart" />
          <action key="_datasource/_stop" script="OnDatasourceEnd" />
          <action key="_item/_error" script="OnError"/>
-         <action key="record" type="add"/>
+         <action key="record" script="OnId"/>
+         <action key="record/face" type="add"/>
+      </pipeline>
+      <pipeline name="imghash" endpoint="es.imghash._doc"  script="AlbumImporter.dll#AlbumImporter.ImportScript_ImageHash"  >
+         <action key="_datasource/_start" script="OnDatasourceStart" />
+         <action key="_item/_error" script="OnError"/>
+         <action key="record" type="add" script="OnId"/>
       </pipeline>
    </pipelines>
 
@@ -111,8 +123,8 @@
             <no_convert ext=".mp4" codecs="avc1|hvc1"/>
          </convert>
          <commands>
-            <convert       timeout="10m" cmd="ffmpeg -y -i '{0}' -c:v libx265 -preset slow -crf 28 -c:a aac -b:a 128k -tag:v hvc1 -movflags +faststart '{1}'" />
-            <copy          timeout="10m" cmd="ffmpeg -y -i '{0}' -c:v copy -c:a copy -movflags +faststart '{1}'" />
+            <convert       timeout="10m" cmd="ffmpeg -y -i '{0}' -c:v libx265 -preset slow -crf 28 -c:a aac -b:a 128k -tag:v hvc1 -movflags +faststart -movflags use_metadata_tags '{1}'" />
+            <copy          timeout="10m" cmd="ffmpeg -y -i '{0}' -c:v copy -c:a copy -movflags +faststart -movflags use_metadata_tags '{1}'" />
             <extract_frame timeout="10s" cmd="ffmpeg -y -i '{0}' -hide_banner -loglevel warning -vf select=eq(n\,1) -vframes 1 -qscale:v 5 '{1}'" />
          </commands>
       </datasource>
@@ -157,11 +169,13 @@
          <face_rotate max_face_count="0" best_factor="1.2" />
       </datasource>
 
-      <datasource name="face_match" 
-                  active="false" 
-                  type="NopDatasource" 
+      <datasource name="face_match"
+                  active="false"
+                  type="AlbumImporter.dll#AlbumImporter.IDDatasource"
                   desc="Matches the extracted faces to a set of known faces."
+                  url="$$ALBUM_IDS$$"
                   log_progress="10s">
+         <_filter expr="" />
          <manual include_non_ok="false" ratio_range_lo="0" ratio_range_hi="2" />
          <weight face_factor=".9" min_weight=".6" threshold=".1"/>
       </datasource>
@@ -178,7 +192,17 @@
             <whatsapp src="none" />
          </importsettings>
          <ocr         url="$$EXISTING_OCR$$" />
-         <captions    url="$$EXISTING_CAPTIONS$$" /> 
+         <hashes      url="$$EXISTING_HASHES$$" />
+         <captions    url="$$EXISTING_CAPTIONS$$" >
+            <replacers lang="en">
+               <_replace expr="" repl="" />
+            </replacers>
+            <replacers lang="translated">
+               <replace expr="Fluitje van een cent" repl="gebakje" />
+               <replace expr="^De afbeelding (is|toont) (een (foto|kleurenfoto|zwart-witfoto) van )?(een )?" />
+               <replace expr="^Dit is een (afbeelding|foto|zwart-witfoto|kleurenfoto) van (een )?" />
+            </replacers>
+         </captions>
          <faces       url="$$EXISTING_FACES$$" threshold="0.25"/>
          <taggers>
 	    <!--
@@ -188,6 +212,9 @@
             <tagger user="peter" tag="medialab" field="album" expr="ml|^.(?:2012. zwerfpad|2015. brommeren)" />
             -->
  	     </taggers>
+         <geo_name_by_point>
+            <cache file="geoNameByPoint.txt.gz" />
+         </geo_name_by_point>
       </datasource>
    </datasources>
 
