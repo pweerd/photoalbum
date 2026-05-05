@@ -33,14 +33,7 @@
             },
             "stem_nl": {
                 "type": "bm_snowball",
-                "language": "dutch_kp",
-                "repeat": 2,
-                "emit_original": "false"
-            },
-            "stem_nl_hunspell": {
-                "type" : "hunspell",
-                "locale" : "nl_NL",
-                "dedup" : true
+                "language": "dutch_kp"
             },
             "index_delimiter": {
               "type": "word_delimiter",
