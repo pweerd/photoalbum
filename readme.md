@@ -16,7 +16,7 @@ It runs on premise from an Elasticsearch index. Currently the importer supports 
 
 ## Install & getting started
 
-An installer is available. Download it here: [](https://bitmanager.nl/distrib/).
+An installer is available. Download it here: [https://bitmanager.nl/distrib/](https://bitmanager.nl/distrib/).
 The installer will install:
 
 - the photo website + importer
@@ -27,8 +27,8 @@ The installer will install:
 - Bitmanager core components (needed for logviewer)
 
 The installer creates some links, including a getting-started document that explains the best way to start importing your photo's.
-This getting started document is also found here: [](https://bitmanager.nl/albumdocs/getting_started.htm).
-A document describing some possibilities in the website: [](https://bitmanager.nl/albumdocs/help_nl.htm) 
+This getting started document is also found here: [https://bitmanager.nl/albumdocs/getting_started.htm](https://bitmanager.nl/albumdocs/getting_started.htm).
+A document describing some possibilities in the website: [https://bitmanager.nl/albumdocs/help_nl.htm](https://bitmanager.nl/albumdocs/help_nl.htm) 
 
 
 
