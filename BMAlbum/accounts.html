@@ -1,0 +1,236 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+   <meta charset="utf-8" />
+   <title></title>
+   <style>
+         body {
+            width: 100%;
+            height: 100%;
+         }
+
+         .hidden {
+            display: none;
+         }
+
+         .container {
+            display: grid;
+            grid-template-areas: "header header""users details";
+            grid-template-columns: 20ch 1fr;
+            padding: 0.5em;
+         }
+
+         .details > div {
+            margin-left: 1em;
+         }
+
+         .inline {
+            display: inline-block;
+         }
+
+         .header {
+            grid-area: header;
+         }
+
+         .buttons {
+            margin-top: 2em;
+         }
+
+         .passwords {
+            margin-top: 1em;
+         }
+
+         .users {
+            grid-area: users;
+            overflow-y: scroll;
+            height: 100%;
+         }
+
+            .users ul {
+               padding-left: 0px;
+            }
+
+         .details {
+            grid-area: details;
+         }
+
+         .labeled_input input {
+            display: block;
+         }
+
+         #btn_del {
+            margin-left: 1em;
+         }
+   </style>
+</head>
+<body>
+   <div class="container">
+      <div class="header"><h2>Accounts</h2></div>
+      <div class="users" id="users">
+         <ul>
+            <li new_user="true">New user</li>
+         </ul>
+      </div>
+      <div class="details">
+         <div class="labeled_input">
+            <label>Username <input type="text" id="user" /></label>
+         </div>
+         <div class="passwords">
+            <div class="labeled_input inline"><label>Password <input type="text" id="pw1" /></label></div>
+            <div class="labeled_input inline"><label>Retype password <input type="text" id="pw2" /></label></div>
+         </div>
+         <div class="buttons">
+            <button id="btn_add" class="hidden">Add</button><button id="btn_upd" class="hidden">Update</button><button id="btn_del" class="hidden">Delete</button>
+         </div>
+      </div>
+   </div>
+
+   <script language="javascript">
+         const userElt = document.getElementById("user");
+         const usersList = document.getElementById("users").getElementsByTagName("ul")[0];
+         const pw1Elt = document.getElementById("pw1");
+         const pw2Elt = document.getElementById("pw2");
+         const btnAdd = document.getElementById("btn_add");
+         const btnUpd = document.getElementById("btn_upd");
+         const btnDel = document.getElementById("btn_del");
+
+         const escapeHTML = function(unsafe) {
+            return unsafe
+               .replaceAll("&", "&amp;")
+               .replaceAll("<", "&lt;")
+               .replaceAll(">", "&gt;")
+               .replaceAll('"', "&quot;")
+               .replaceAll("'", "&#039;");
+         };
+
+         function clearUser(name) {
+            userElt.value = name;
+            if (name !== '') {
+               userElt.setAttribute('readonly', 'readonly');
+               pw1Elt.focus();
+               btnAdd.classList.add('hidden');
+               btnUpd.classList.remove('hidden');
+               btnDel.classList.remove('hidden');
+            } else {
+               userElt.removeAttribute('readonly');
+               userElt.focus();
+               btnAdd.classList.remove('hidden');
+               btnUpd.classList.add('hidden');
+               btnDel.classList.add('hidden');
+            }
+            pw1Elt.value = '';
+            pw2Elt.value = '';
+         }
+
+         function processUser(action) {
+            const jsonReq = {
+               user: userElt.value,
+               pw1: pw1Elt.value,
+               pw2: pw2Elt.value,
+               action: action,
+            };
+            if (action !== "del" && action !== "fetch") {
+               if (!jsonReq.pw1 || jsonReq.pw1.length <= 5 || !jsonReq.pw2 || jsonReq.pw2.length <= 5) {
+                  alert("Password needs to be 5 chars or larger!");
+                  return;
+               }
+               if (jsonReq.pw2 !== jsonReq.pw1) {
+                  alert("Password are not equal!");
+                  return;
+               }
+            }
+
+            const _req = new Request("$url$", {
+               method: 'POST',
+               headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+               },
+               body: JSON.stringify(jsonReq)
+            });
+
+            function cb(fetcher) {
+               if (fetcher.error) {
+                  const msg = fetcher.error.message;
+                  alert("Error while processing user: " + msg);
+                  return;
+               }
+               const html = ['<li new_user="true">New user</li>'];
+               for (let i = 0; i < fetcher.json.users.length; i++) {
+                  html.push('<li>' + escapeHTML(fetcher.json.users[i].u) + '</li>');
+               }
+               usersList.innerHTML = html.join('');
+
+               const arr = ["User '"];
+               arr.push(jsonReq.user);
+               arr.push("' ");
+               let tmp;
+               switch (action) {
+                  case "add": tmp = "added";
+                  case "del": tmp = "deleted";
+                  case "upd": tmp = "updated";
+                  case "fetch": return;
+               }
+               arr.push(tmp);
+               arr.push(" successful.");
+               alert(arr.join(''));
+            };
+
+            const fetcher = fetch(_req, { signal: AbortSignal.timeout(5000) })
+               .then(rsp => {
+                  fetcher.response = rsp;
+                  return rsp.json();
+               })
+               .then(json => {
+                  fetcher.json = json;
+                  if (!fetcher.response.ok) {
+                     let msg = undefined;
+                     if (json && json.bm_error) {
+                        msg = json.bm_error.message;
+                     } else {
+                        msg = 'Statuscode ' + resp.status;
+                     }
+                     throw new Error(msg);
+                  }
+                  cb(fetcher);
+                  return Promise.resolve(fetcher);
+               })
+               .catch(err => {
+                  if (!Error.isError(err)) {
+                     let msg = err;
+                     //if (fetcher.isAborted()) msg = 'Aborted: ' + JSON.stringify(msg);
+                     err = new Error(msg)
+                  }
+                  err.orgMessage = err.message;
+                  err.message = err.message + '\r\nUrl=' + _req.url;
+                  fetcher.error = err;
+                  cb(fetcher);
+                  return Promise.resolve(fetcher);
+               });
+         }
+
+         processUser("fetch");
+
+         usersList.addEventListener('click', function (ev) {
+            console.log('click');
+            const tgt = ev.target;
+
+            if (tgt.localName !== "li") return;
+            if (ev.target.getAttribute("new_user")) {
+               clearUser('');
+            } else {
+               clearUser(ev.target.innerText);
+            }
+         });
+         btnAdd.addEventListener('click', function (ev) {
+            processUser("add");
+         });
+         btnUpd.addEventListener('click', function (ev) {
+            processUser("upd");
+         });
+         btnDel.addEventListener('click', function (ev) {
+            processUser("del");
+         });
+   </script>
+</body>
+</html>

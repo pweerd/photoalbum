@@ -13,6 +13,7 @@
       <ApplicationIcon>webserver.ico</ApplicationIcon>
    </PropertyGroup>
    <ItemGroup>
+      <Content Include="accounts.html" />
       <Content Include="webserver.ico" />
    </ItemGroup>
    <ItemGroup>

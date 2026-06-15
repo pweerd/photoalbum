@@ -34,7 +34,7 @@ namespace BMAlbum {
             var g = new WebGlobals (services);
             var settings = g.RegisterSettingsService (services, (fn, oldSettings) => new Settings (fn, oldSettings));
             g.RegisterRequestContextService (services);
-            g.RegisterAuthenticationService (services, true);
+            g.RegisterAuthenticationService2 (services);
             g.RegisterAccessControlService (services, false);
 
             var app = builder.Build ();
@@ -51,8 +51,9 @@ namespace BMAlbum {
 
             app.UseStaticFiles ();
             app.UseRouting ();
-            g.RegisterAuthenticationHandler (app);
+            g.RegisterAuthenticationHandler2 (app);
             g.RegisterInternalHandlers (app);
+            g.RegisterLogonLogoffHandlers (app);
             g.RegisterRoutesFromSettings (app, settings);
 
             g.Run (app, "Album website");
