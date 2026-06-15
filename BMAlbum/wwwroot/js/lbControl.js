@@ -1021,18 +1021,20 @@ function createLightboxControl(app) {
       _state.clear();
       _updateLightBox();
    });
-   document.getElementById("btn_recent_uncertain").addEventListener('click', function () {
-      _state.clear();
-      _state.q = "score:[0.25..0.4] src:A NOT src:U";
-      _state.sort = "updated";
-      _updateLightBox();
-   });
-   document.getElementById("btn_recent_unassigned").addEventListener('click', function () {
-      _state.clear();
-      _state.q = "src:N";
-      _state.sort = "updated";
-      _updateLightBox();
-   });
+   if (document.getElementById("btn_recent_uncertain")) {
+      document.getElementById("btn_recent_uncertain").addEventListener('click', function () {
+         _state.clear();
+         _state.q = "score:[0.25..0.4] src:A NOT src:U";
+         _state.sort = "updated";
+         _updateLightBox();
+      });
+      document.getElementById("btn_recent_unassigned").addEventListener('click', function () {
+         _state.clear();
+         _state.q = "src:N";
+         _state.sort = "updated";
+         _updateLightBox();
+      });
+   }
 
    function _search() {
       //Don't honor the album and year facet: its really confusing somethimes
