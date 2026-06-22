@@ -1,11 +1,10 @@
 <!doctype html>
 <html>
 <head>
-<meta charset='UTF-8'><meta name='viewport' content='width=device-width initial-scale=1'>
-
-<link href='https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,700,400&subset=latin,latin-ext' rel='stylesheet' type='text/css' /><style type='text/css'>html {overflow-x: initial !important;}:root { --bg-color: #ffffff; --text-color: #333333; --select-text-bg-color: #B5D6FC; --select-text-font-color: auto; --monospace: "Lucida Console",Consolas,"Courier",monospace; --title-bar-height: 20px; }
+<meta charset='UTF-8'><meta name='viewport' content='width=device-width initial-scale=1'><style type='text/css'>html {overflow-x: initial !important;}</style>
+<style type='text/css'  id="style-base">:root { --bg-color: #ffffff; --text-color: #333333; --select-text-bg-color: #B5D6FC; --select-text-font-color: auto; --monospace: "Lucida Console",Consolas,"Courier",monospace; --title-bar-height: 20px; }
 .mac-os-11 { --title-bar-height: 28px; }
-html { font-size: 14px; background-color: var(--bg-color); color: var(--text-color); font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+html { font-size: 14px; background-color: var(--bg-color); color: var(--text-color); font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI Emoji", "SF Pro", sans-serif; -webkit-font-smoothing: antialiased; }
 h1, h2, h3, h4, h5 { white-space: pre-wrap; }
 body { margin: 0px; padding: 0px; height: auto; inset: 0px; font-size: 1rem; line-height: 1.42857; overflow-x: hidden; background: inherit; }
 iframe { margin: auto; }
@@ -14,7 +13,7 @@ a:active, a:hover { outline: 0px; }
 .in-text-selection, ::selection { text-shadow: none; background: var(--select-text-bg-color); color: var(--select-text-font-color); }
 #write { margin: 0px auto; height: auto; width: inherit; word-break: normal; overflow-wrap: break-word; position: relative; white-space: normal; overflow-x: visible; padding-top: 36px; }
 #write.first-line-indent p { text-indent: 2em; }
-#write.first-line-indent li p, #write.first-line-indent p * { text-indent: 0px; }
+#write.first-line-indent li p, #write.first-line-indent p *, #write.first-line-indent svg * { text-indent: 0px; }
 #write.first-line-indent li { margin-left: 2em; }
 .for-image #write { padding-left: 8px; padding-right: 8px; }
 body.typora-export { padding-left: 30px; padding-right: 30px; }
@@ -32,9 +31,13 @@ input[type="checkbox"], input[type="radio"] { line-height: normal; padding: 0px;
 *, ::after, ::before { box-sizing: border-box; }
 #write h1, #write h2, #write h3, #write h4, #write h5, #write h6, #write p, #write pre { width: inherit; position: relative; }
 #write svg h1, #write svg h2, #write svg h3, #write svg h4, #write svg h5, #write svg h6, #write svg p { position: static; }
+.nodeLabel p { padding-right: 2px; padding-left: 2px; }
+.typora-export .nodeLabel p { padding-right: 0px; padding-left: 0px; }
+foreignobject { overflow: visible; }
 p { line-height: inherit; }
 h1, h2, h3, h4, h5, h6 { break-after: avoid-page; break-inside: avoid; orphans: 4; }
 p { orphans: 4; }
+li p { orphans: 1; }
 h1 { font-size: 2rem; }
 h2 { font-size: 1.8rem; }
 h3 { font-size: 1.6rem; }
@@ -219,8 +222,9 @@ mjx-container { break-inside: avoid; }
 .md-alert-text svg { fill: currentcolor; position: relative; top: 0.125em; margin-right: 1ch; overflow: visible; }
 .md-alert-text-container::after { content: attr(data-text); text-transform: capitalize; pointer-events: none; margin-right: 1ch; }
 
-
-:root {
+</style>
+<link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,700,400&amp;subset=latin,latin-ext' type='text/css' />
+<style type='text/css'  id="style-theme_css">:root {
     --side-bar-bg-color: #fafafa;
     --control-text-color: #777;
 }
@@ -237,7 +241,7 @@ mjx-container { break-inside: avoid; }
 }
 
 body {
-    font-family: "Open Sans","Clear Sans", "Helvetica Neue", Helvetica, Arial, 'Segoe UI Emoji', sans-serif;
+    font-family: "Open Sans","Clear Sans", "Helvetica Neue", Helvetica, Arial, 'Segoe UI Emoji', 'SF Pro', sans-serif;
     color: rgb(51, 51, 51);
     line-height: 1.6;
 }
@@ -607,10 +611,10 @@ header, .context-menu, .megamenu-content, footer{
     background-color: #f5f8fa;
     background-image: linear-gradient( 180deg , hsla(0, 0%, 100%, 0.8), hsla(0, 0%, 100%, 0)); 
 }
+</style>
+<style type='text/css'  id="style-lp">ol, ul {padding-left: 40px}</style>
 
-
-
-</style><title>Help | Album</title>
+<title>Help | Album</title>
 </head>
 <body class='typora-export os-windows'><div class='typora-export-content'>
 <div id='write'  class=''><h2 id='algemeen'><span>Algemeen</span></h2><p><span>Het fotoalbum toont de geïndexeerde foto&#39;s en video&#39;s (eventueel een subset van...). Deze items kunnen opgedeeld zijn in meerdere albums.</span></p><p><span>De importer heeft de items</span></p><ul><li><p><span>Van een album-naam voorzien en de datum, camera, GPS-coördinaten geïndexeerd</span></p></li><li><p><span>Ge-OCR-ed</span>
@@ -620,6 +624,6 @@ header, .context-menu, .megamenu-content, footer{
 <span>Zoekt foto&#39;s waar 2 mensen op staan.</span></p></li><li><p><strong><span>naam</span></strong><span>:peter of </span><strong><span>naam</span></strong><span>:&quot;peter van der weerd&quot; of </span><strong><span>naam</span></strong><span>:(peter wilma)</span>
 <span>Zoekt foto&#39;s waar Peter op staat, of waar Peter en Wilma samen op staan (laatste query)</span></p></li><li><p><strong><span>camera</span></strong><span>:canon</span></p></li></ul><p><span>Ook is er een simpele taxonomie gebruikt, waardoor je nu kunt zoeken of &quot;dier&quot; of &quot;mens&quot; of &quot;vogel&quot;, etc. Voorbeeld: een meeuw zal ook gevonden worden als &#39;vogel&#39; of als &#39;dier&#39;.</span></p><h4 id='wijziging-in-veld-interpretatie'><span>Wijziging in veld-interpretatie.</span></h4><p><span>Bij wijze van experiment worden alle woorden die achter een veld staan bij elkaar geveegd als horende bij dat veld.</span></p><ul><li><p><span>nu: </span><code>naam:peter wilma</code><span> zal geïnterpreteerd worden als </span><code>naam:(peter AND wilma)</code></p></li><li><p><span>vroeger: </span><code>naam:peter wilma</code><span> werd geïnterpreteerd als </span><code>naam:peter AND wilma</code>
 <span>hierbij werd wilma dus gezocht in de default velden (vrijwel alles)</span></p></li></ul><p><span>Dit lijkt meer intuitief, maar heeft natuurlijk ook een keerzijde. Het bij elkaar vegen wordt gestopt zodra er een ander veld, haakjes of operator komt. Voorbeeld van een ongewenste samenvoeging::</span></p><ul><li><p><code>plaats:duitsland fietsen</code>
-<span>Je bedoelt hier waarschijnlijk fietsen ergens in Duitsland. Dit kun je oplossen door eerst alle lossen woorden te tikken en pas daarna de velden. Ook kun je de woorden in het </span><span>*</span><span>-veld stoppen (alle velden). Bijvoorbeeld:</span></p><ul><li><p><code>fietsen plaats:duitsland</code></p></li><li><p><code>plaats:duitsland *:fietsen</code></p></li></ul></li></ul><p>&nbsp;</p><h2 id='contextmenu'><span>Contextmenu</span></h2><p><span>Iedere foto heeft een contextmenu met bv opties om het hele album te tonen, naar de kaart te gaan, etc.</span></p><p><span>Het contextmenu is te bereiken met de rechtermuis (desktop) of long-click(mobiel)</span></p><p>&nbsp;</p><h2 id='kaart'><span>Kaart</span></h2><p><span>Als de positie van een foto bekend is kan een kaart getoond worden.</span></p><p><span>Afhankelijk van het zoom-nivo van de kaart zullen foto&#39;s geclusterd worden.</span></p><p><span>Klikken op een pin laat de foto weer in de lightbox zien, met alle foto&#39;s in de buurt (gesorteerd op afstand van de geselecteerde foto)</span></p><p><span>Als de kaart geopend wordt met CTRL-click in het contextmenu, dan wordt de kaart in een nieuwe tab geopend.</span></p></div></div>
+<span>Je bedoelt hier waarschijnlijk fietsen ergens in Duitsland. Dit kun je oplossen door eerst alle lossen woorden te tikken en pas daarna de velden. Ook kun je de woorden in het </span><span>*</span><span>-veld stoppen (alle velden). Bijvoorbeeld:</span></p><ul><li><p><code>fietsen plaats:duitsland</code></p></li><li><p><code>plaats:duitsland *:fietsen</code></p></li></ul></li></ul><h4 id='special-query-duplicates'><span>Special query: </span><code>duplicates</code></h4><p><span>This query (</span><code>duplicates</code><span>) will give you  all detected near duplicates in your collection.</span></p><p>&nbsp;</p><h2 id='contextmenu'><span>Contextmenu</span></h2><p><span>Iedere foto heeft een contextmenu met bv opties om het hele album te tonen, naar de kaart te gaan, etc.</span></p><p><span>Het contextmenu is te bereiken met de rechtermuis (desktop) of long-click(mobiel)</span></p><p>&nbsp;</p><h2 id='kaart'><span>Kaart</span></h2><p><span>Als de positie van een foto bekend is kan een kaart getoond worden.</span></p><p><span>Afhankelijk van het zoom-nivo van de kaart zullen foto&#39;s geclusterd worden.</span></p><p><span>Klikken op een pin laat de foto weer in de lightbox zien, met alle foto&#39;s in de buurt (gesorteerd op afstand van de geselecteerde foto)</span></p><p><span>Als de kaart geopend wordt met CTRL-click in het contextmenu, dan wordt de kaart in een nieuwe tab geopend.</span></p><p>&nbsp;</p><h2 id='upload'><span>Upload</span></h2><p><span>Als geactiveerd in de </span><code>settings.xml</code><span> kun je foto&#39;s uploaden via de url </span><code>/upload</code><span>. Na het specificeren van je naam kun je foto&#39;s van je telefoon uploaden naar de website. Daarna kan de site beheerder de foto&#39;s organiseren in een album en ook publiceren.</span></p><p><span>Voor een upload moet eerst de naam worden opgegeven zodat de upload georganiseerd kan worden in per-gebruiker mappen.</span></p><p><span>De upload kan ook als sharing-medium dienen: iedereen kan de gedeelde foto&#39;s nu downloaden.</span></p></div></div>
 </body>
 </html>

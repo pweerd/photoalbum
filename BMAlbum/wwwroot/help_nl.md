@@ -65,6 +65,10 @@ Dit lijkt meer intuitief, maar heeft natuurlijk ook een keerzijde. Het bij elkaa
   - `fietsen plaats:duitsland`
   - `plaats:duitsland *:fietsen`
 
+#### Special query: `duplicates`
+
+This query (`duplicates`) will give you  all detected near duplicates in your collection.
+
 
 
 ## Contextmenu
@@ -84,3 +88,13 @@ Afhankelijk van het zoom-nivo van de kaart zullen foto's geclusterd worden.
 Klikken op een pin laat de foto weer in de lightbox zien, met alle foto's in de buurt (gesorteerd op afstand van de geselecteerde foto)
 
 Als de kaart geopend wordt met CTRL-click in het contextmenu, dan wordt de kaart in een nieuwe tab geopend.
+
+
+
+
+## Upload
+Als geactiveerd in de `settings.xml` kun je foto's uploaden via de url `/upload`. Na het specificeren van je naam kun je foto's van je telefoon uploaden naar de website. Daarna kan de site beheerder de foto's organiseren in een album en ook publiceren.
+
+Voor een upload moet eerst de naam worden opgegeven zodat de upload georganiseerd kan worden in per-gebruiker mappen.
+
+De upload kan ook als sharing-medium dienen: iedereen kan de gedeelde foto's nu downloaden.
