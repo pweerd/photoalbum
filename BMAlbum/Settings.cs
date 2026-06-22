@@ -44,6 +44,7 @@ namespace BMAlbum {
       public readonly ESIndexInfoCache IndexInfoCache;
       public readonly MapSettings MapSettings;
       public readonly VideoFrames VideoFrames;
+      public readonly UploadSettings UploadSettings;
       public readonly string ExternalTracksUrl;
 
       public Settings (string fn, SettingsBase oldSettings = null, string expectedVersion = null) : base (fn, oldSettings, expectedVersion) {
@@ -86,6 +87,10 @@ namespace BMAlbum {
          ExternalTracksUrl = Xml.ReadStr ("external_tracks/@url", null);
 
          VideoFrames = VideoFrames.Create (Xml.SelectSingleNode ("video_frames"));
+
+         var uploadNode = Xml.SelectSingleNode ("upload");
+         if (uploadNode != null)
+            UploadSettings = new UploadSettings (uploadNode);
 
          g.SiteLog.Log ("VideoFrames loaded from {0}", VideoFrames?.Filename);
       }

@@ -1,0 +1,42 @@
+﻿@using Bitmanager.Web
+@model UploadModel
+@{
+   ViewData["Title"] = "Upload - Admin";
+}
+
+
+<form id="form" method="POST" action="@Model.CommandUrl">
+   <h1>Upload administration</h1>
+   <input id="command" name="command" type="hidden"/>
+   <p>Current upload state: <strong>@Model.ActivateState</strong></p>
+   <p id="actions" class="hidden">
+      <button class="clip_button" id="btn_clear" type="submit">Clear</button>
+      <button class="clip_button" id="btn_activate" type="submit">@Model.ActivateAction</button>
+   </p>
+</form>
+
+
+@section Heads {
+   <link rel='stylesheet' href='~/css/upload.css' />
+}
+
+@section Scripts {
+
+   <script type="text/javascript">
+      const formElt = document.getElementById("form");
+      const cmdElt = document.getElementById("command");
+
+      @if (!Model.Disabled) {
+         @:document.getElementById("actions").classList.remove("hidden");
+      }
+
+      document.getElementById("btn_clear").addEventListener("click", function(){
+         cmdElt.value = 'clear';
+         //formElt.submit();
+      });
+      document.getElementById("btn_activate").addEventListener("click", function(){
+         cmdElt.value = "@Model.ActivateCommand";
+         //formElt.submit();
+      });
+   </script>
+}

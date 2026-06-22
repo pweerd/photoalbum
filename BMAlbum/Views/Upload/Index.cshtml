@@ -1,0 +1,99 @@
+﻿@using Bitmanager.Web
+@model UploadModel
+@{
+   ViewData["Title"] = "Upload - Foto's";
+}
+
+
+<div class="upload_main">
+   <h1>Upload naar Bitmanager's album</h1>
+   <div class="labeled_input">
+      <label>Uw naam <input type="text" id="user" autocomplete="off" /></label>
+   </div>
+   <button class="clip_button" id="btn_reset">Reset</button>
+   <button class="clip_button hidden" id="btn_goto_album">Toon als album</button>
+   <button class="clip_button" id="btn_download_all">Download alles</button>
+
+   <div id="dropzone" class="dropzone"></div>
+</div>
+
+
+@section Heads {
+   <link rel='stylesheet' href='~/lib/dropzone/basic.css' />
+   <link rel='stylesheet' href='~/lib/dropzone/dropzone.css' />
+   <link rel='stylesheet' href='~/css/upload.css' />
+}
+
+@section Scripts {
+   <script src="~/lib/dropzone/dropzone-min.js"></script>
+   <link rel="shortcut icon" href="~/favicon.png">
+
+   <script type="text/javascript">
+      document.getElementsByClassName
+      const state = @Model.GetStateAsHtmlString();
+      const userElt = document.getElementById("user");
+      let storedUser = localStorage.getItem("user");
+      userElt.value = storedUser;
+
+      function _getAndSaveUser() {
+         const u = userElt.value;
+         if (u && u !== storedUser) {
+            storedUser = u;
+            localStorage.setItem("user", u);
+         }
+         return u;
+      }
+
+
+      function _accept (fn, done) {
+         if (userElt.value) return done();
+         return done("Naam is verplicht.")
+      }
+      function _error (fn, resp) {
+         if (resp.bm_error) resp.error = resp.bm_error.message;
+      }
+
+      function _makeCallbackFirst(cbs) {
+         if (cbs.length > 1) {
+            const tmp = cbs[0];
+            cbs[0] = cbs[cbs.length-1];
+            cbs[cbs.length-1] = tmp;
+         }
+      }
+
+      Dropzone.autoDiscover = false;
+      const dropzone = new Dropzone("div.dropzone", { 
+         url: state.home_url + "upload/post?" + state.home_url_params, 
+         maxFilesize: state.max_file_size,
+         accept: _accept,
+         acceptedFiles: state.filter,
+         addRemoveLinks: state.remove_text ? true : false,
+         dictDefaultMessage: state.upload_text,
+         dictRemoveFile: state.remove_text,
+         init: function() {
+            this.on("error", _error);
+            _makeCallbackFirst(this._callbacks["error"]);
+         },
+
+
+      });
+
+      dropzone.on('sending', function(file, xhr, formData){
+         formData.append('user', _getAndSaveUser());
+      });
+      dropzone.on('error', function(file, resp, xhr){
+         console.log ('onerror', arguments );
+         if (resp.bm_error) resp.error = resp.bm_error.message;
+         console.log(resp);
+      });
+      document.getElementById("btn_reset").addEventListener("click", function(){
+         dropzone.removeAllFiles(true);
+      });
+      document.getElementById("btn_goto_album").addEventListener("click", function(){
+         location.href=state.home_url + "uploaded?" + state.home_url_params;
+      });
+      document.getElementById("btn_download_all").addEventListener("click", function(){
+         location.href=state.home_url + "upload/download?" + state.home_url_params;
+      });
+   </script>
+}
