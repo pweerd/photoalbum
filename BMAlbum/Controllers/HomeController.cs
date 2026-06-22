@@ -44,7 +44,7 @@ namespace BMAlbum.Controllers {
          if (clientState.SortName == null && clientState.User.InitialSortMode != null)
             clientState.SetSortMode (clientState.User.InitialSortMode);
 
-         switch (BMAlbum.User.CheckAccess(clientState.User, RequestCtx.RemoteIPClass, isAuthenticated())) {
+         switch (BMAlbum.User.CheckAccess(clientState.User, RequestCtx.RemoteIPClass, HttpContext.IsAuthenticated ())) {
             case _Access.NotExposed: goto RET_404;
             case _Access.MustAuthenticate: return new RequestAthenticationResult (Request);
          }
@@ -106,7 +106,7 @@ namespace BMAlbum.Controllers {
          try {
             bytes = System.IO.File.ReadAllBytes (fn);
             lastMod = System.IO.File.GetLastWriteTimeUtc (fn);
-         } catch (FileNotFoundException e) {
+         } catch (FileNotFoundException) {
             return new HttpActionResult (404);
          }
          return new BytesActionResult (MimeType.Json, bytes)
@@ -121,7 +121,7 @@ namespace BMAlbum.Controllers {
       }
 
       public IActionResult Login () {
-         if (!isAuthenticated()) {
+         if (!HttpContext.IsAuthenticated()) {
             return new RequestAthenticationResult (Request);
          }
          return Redirect ("~/");

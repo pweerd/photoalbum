@@ -173,7 +173,7 @@ namespace BMAlbum.Controllers {
          int SIZE = clientState.ActualPageSize;
          var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
 
-         switch (BMAlbum.User.CheckAccess (clientState.User, RequestCtx.RemoteIPClass, isAuthenticated ())) {
+         switch (BMAlbum.User.CheckAccess (clientState.User, RequestCtx.RemoteIPClass, HttpContext.IsAuthenticated ())) {
             case _Access.Ok: break;
             default: return new JsonActionResult ();
          }

@@ -101,7 +101,7 @@ namespace BMAlbum.Controllers {
       }
 
       private bool isInternalOrAuthenticated() {
-         return RequestCtx.IsInternalIp || isAuthenticated ();
+         return RequestCtx.IsInternalIp || HttpContext.IsAuthenticated ();
       }
    }
 }
