@@ -45,6 +45,8 @@ namespace BMAlbum.Controllers {
          var settings = (Settings)base.Settings;
 
          var clientState = new ClientState (RequestCtx, settings);
+         if (!RequestCtx.IsInternalIp && !Request.IsAuthenticated ()) return NotFound ();
+
          return View (new UploadModel (this, clientState));
       }
 
