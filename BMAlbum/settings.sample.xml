@@ -21,7 +21,10 @@
       <output ipclass="*">None</output>
    </errorhandling>
 
-   <authentication />
+   <authentication active="false" flags="none">
+      <provider id="file" file="users.txt" min_password_len="1" />
+      <cookie name="_bma" max_age="7d" />
+   </authentication>   
 
    <!-- You don't need the access_control element.
         If you use it, it will be used to block certain request from
@@ -80,9 +83,9 @@
          <searchers>
             <searcher field="default" searchfield="all" tiebreaker="0"/>
             <searcher field="seizoen" searchfield="season"/>
-            <searcher field="jaar" searchfield="year"/>
-            <searcher field="datum" searchfield="date"/>
-            <searcher field="maand" searchfield="month" type="month_searcher"/>
+            <searcher field="jaar|year" searchfield="year"/>
+            <searcher field="datum|date" searchfield="date"/>
+            <searcher field="maand|month" searchfield="month" type="month_searcher"/>
             <searcher field="exist|exists" searchfield="" type="exists_searcher"/>
             <searcher field="loc|location|plaats|locatie" searchfield="location"
                       debug="true"
@@ -158,7 +161,8 @@
       <!-- see app.js for device types -->
       <sizes device="phone">
          <size width="0"   target_count="2" max_ratio="1" />
-         <size width="400" target_count="4" max_ratio="1" />
+         <size width="400" target_count="3" max_ratio="1" />
+         <size width="600" target_count="4" max_ratio="1" />
       </sizes>
       <sizes device="all">
          <size width="0"   target_count="3" max_ratio="1" />
@@ -170,8 +174,9 @@
 
    <mvc>
       <routes authenticate="false" debug="true">
+         <route name="upload" pattern="/upload/{action}" def_controller="Upload" def_action="Index" />
+         <route name="account" pattern="/account/{action}" def_controller="Account" def_action="Index" />
          <route name="guid" pattern="guid" def_controller="Home" def_action="Guid" />
-         <route name="login" pattern="_login" def_controller="Home" def_action="Login" />
          <route name="faces" pattern="faces/{action}" def_controller="Home" def_action="Index" def_mode="faces" />
          <route name="cache" pattern="cache/{action}" def_controller="Cache" />
          <route name="map" pattern="{user}/map" def_controller="Home" def_action="Index" def_mode="map"/>
@@ -298,4 +303,12 @@
       </pins>
    </map>
 
+   <upload active="true" 
+           root="upload" 
+           max_files="100" 
+           max_mb="500" 
+	   max_mb_per_file="50"
+	   filter=".png,.jpg,.jpeg,.mp4,.mov,.heic,.heif"
+	   upload_text=""
+	   remove_text=""/>
 </root>
