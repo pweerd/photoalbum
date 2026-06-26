@@ -131,7 +131,7 @@ namespace AlbumImporter {
       /// - either 1 element from the attribute
       /// - or a collection from the named nodes
       /// </summary>
-      private string[] readStrCollection (XmlNode node, string name) {
+      private static string[] readStrCollection (XmlNode node, string name) {
          var str = node.ReadStr ("@" + name, null);
          if (str != null) return new string[] { str };
          var coll = node.SelectNodes (name);
@@ -211,7 +211,7 @@ namespace AlbumImporter {
          return c;
       }
 
-      Logger exifLogger = Logs.CreateLogger ("exif", "import");
+      static readonly Logger exifLogger = Logs.CreateLogger ("exif", "import");
 
       public object OnPhoto (PipelineContext ctx, object value) {
          handleExceptions = false;
@@ -257,10 +257,10 @@ namespace AlbumImporter {
 
          dirSettings.CachedFileOrder++;
          var user = dirSettings.ForcedUser;
-         if (user == null) user = idInfo.User;
+         user ??= idInfo.User;
          if (user != null) rec["user"] = user;
 
-         string album=null;
+         string album;
          DateTime date = DateTime.MinValue;
          bool whatsapp;
          var meta = mdProcessor.GetMetadata (idInfo.FileName);
@@ -432,7 +432,7 @@ namespace AlbumImporter {
          }
 
          addFaces (rec, idInfo.Id);
-         if (taggers != null) taggers.AddTags (user, rec);
+         taggers?.AddTags (user, rec);
 
          return null;
       }
@@ -511,8 +511,8 @@ namespace AlbumImporter {
 
          for (; i<end; i++) {
             face = faces[i];
-            if (face.Names.Count == 0) continue;
-            var name = face.Names[0];
+            var name = face.Name;
+            if (name == null) continue;
             if (name.Id < 0 || name.Score < facesThreshold) continue;
             name.UpdateName (this.faceNames);
             arr.Add (name.ToJson ());
@@ -524,7 +524,7 @@ namespace AlbumImporter {
       }
 
 
-      private bool isWordInString (string outer, string arg) {
+      private static bool isWordInString (string outer, string arg) {
          int idx = 0;
          while (true) {
             int i = outer.IndexOf (arg, idx); 
@@ -536,7 +536,7 @@ namespace AlbumImporter {
          return false;
       }
 
-      private int getAlbumId(string album) {
+      private static int getAlbumId(string album) {
          int albumId=0;
          if (!string.IsNullOrEmpty (album)) {
             if (!albumIDs.TryGetValue (album, out albumId)) {

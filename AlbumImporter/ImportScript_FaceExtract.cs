@@ -134,14 +134,13 @@ namespace AlbumImporter {
 
          //if (idInfo.Id.StartsWith(@"D\2009-02-22 Jan en Jeannet 25 jaar\20090222 152351  Jan en Jeannet 25 jaar.JPG"))
          //   Debugger.Break ();
-         List<DbFace> faces=null;
+         List<DbFace> faces;
          List<DbFace> existing = FaceCollection.GetExistingFacesForId (existingFaces.GetFaces (), idInfo.Id);
          if (existing != null) {
             faces = existing;
             if (!forceRebuild || !fullImport) goto EXPORT;
          }
 
-      EXTRACT:
          faces = extractFaces (idInfo);
          if (faces[0].FaceCount > 0) {
             if (existing != null) {
@@ -159,7 +158,7 @@ namespace AlbumImporter {
 
       //Match the new extracted face from the existing faces (extracted a previous time)
       //This is done by selecting the most overlapping rectangles (as stored in relpos)
-      private void combineExistingFaces (List<DbFace> curFaces , List<DbFace> existing) {
+      private static void combineExistingFaces (List<DbFace> curFaces , List<DbFace> existing) {
          //We loop backwards, since we remove entries from the existing faces
          //and the lists are most probable equal sorted. Meaning that if we reverse loop,
          //the last entries of existing will be removed first.
@@ -171,7 +170,7 @@ namespace AlbumImporter {
             var bestExistingFace = existing[best];
             existing.RemoveAt (best);
             curFace.NameSrc = bestExistingFace.NameSrc;
-            curFace.Names = bestExistingFace.Names;
+            curFace.Name = bestExistingFace.Name;
             curFace.Updated = bestExistingFace.Updated;
 
             //Copy the storageId for non-extracted (to be copied) faces
@@ -303,6 +302,7 @@ namespace AlbumImporter {
 
                dbFace = new DbFace ();
                dbFace.FaceCount = detResults.Length;
+               dbFace.Confidence = (float)detResult.Confidence;
                dbFace.FaceStorageId = storId;
                dbFace.W0 = imgFace.Width;
                dbFace.H0 = imgFace.Height;
@@ -318,11 +318,10 @@ namespace AlbumImporter {
 
 
                //pw if (rotMode != RotateMode.None) largerRect.Rotate (imgW, imgH, rotMode.ToBackwardRotate ());
-               float div = imgW > imgH ? imgW : imgH;
-               dbFace.RelPos = new RelPos(largerRect.Left / div, largerRect.Right / div, largerRect.Top / div, largerRect.Bottom / div);
+               int div = imgW > imgH ? imgW : imgH;
+               dbFace.RelPos = new RelPos (largerRect, detResult.Landmarks, div);
                dbFace.FaceRatio = detResult.GetFaceRatio ();
                dbFace.FaceAngleRaw = detResult.GetFaceAngle ();
-               dbFace.FaceAngle = dbFace.FaceAngleRaw < 0 ? -1 : ((dbFace.FaceAngleRaw + 45) / 90) * 90;
                dbFace.FaceOrientation = faceOrientation;
                dbFace.FaceOK = faceOK;
                dbFaces.Add (dbFace);

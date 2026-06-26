@@ -53,7 +53,6 @@ namespace AlbumImporter.Fetchers {
       public bool HasTime => state > 3;
 
       public DateTime ToDate (DateTimeKind kind = DateTimeKind.Local) {
-         DateTime dt;
          if (state > 3) {
             if ((flags & DateParserFlags.DisallowTime) != 0) goto RET_DATE;
             goto RET_DATETIME;

@@ -16,6 +16,7 @@
 
 using Bitmanager.AlbumTools;
 using Bitmanager.Json;
+using System.Text.RegularExpressions;
 
 namespace AlbumImporter.FaceRecognition {
    
@@ -24,19 +25,51 @@ namespace AlbumImporter.FaceRecognition {
    /// </summary>
    public class DbFaceName {
       public string Name;
-      public string Explain;
+      public readonly string Explain;
       public readonly int Id;
-      public float Score;
+      public readonly float Score;
+      public readonly float ScoreRaw;
+      public float Confidence;
 
+
+      /// <summary>
+      /// Constructor, used for 'unknown' faces
+      /// </summary>
+      public DbFaceName (int id) {
+         Id = id;
+         Score = 0f;
+         ScoreRaw = 0f;
+      }
+      //PW kan weg?
       public DbFaceName (int id, float score, string explain, string name) {
          Id = id;
          Score = score;
+         ScoreRaw = score;
          Explain = explain;
          Name = name;
       }
-      public DbFaceName (JsonObjectValue v) {
+      public DbFaceName (FaceHit match) {
+         Id = match.MatchedFace.Name.Id;
+         Score = match.Score;
+         ScoreRaw = match.ScoreRaw;
+         Explain = match.Explain;
+         Confidence = match.MatchedFace.Confidence;
+         //Name will be copied later
+      }
+      public DbFaceName (JsonObjectValue v, DbFace parent) {
          Id = v.ReadInt("id");
-         Score = v.ReadFloat ("match_score", float.NaN);
+         if ((parent.NameSrc & NameSource.ManualOrCorrected) != 0) {
+            Confidence = parent.Confidence;
+            ScoreRaw = 1;
+            if ((parent.NameSrc & NameSource.Unknown) != 0)
+               Score = 0;
+            else 
+               Score = 1f;
+         } else {
+            Score = v.ReadFloat ("match_score", float.NaN);
+            ScoreRaw = v.ReadFloat ("match_score_raw", Score);
+            Confidence = v.ReadFloat ("confidence", 0f);
+         }
          Name = v.ReadStr ("name", null);
          Explain = v.ReadStr ("explain", null);
       }
@@ -50,6 +83,8 @@ namespace AlbumImporter.FaceRecognition {
          var json = new JsonObjectValue();
          json.Add ("id", Id);
          json.Add ("match_score", Score);
+         json.Add ("match_score_raw", ScoreRaw);
+         json.Add ("confidence", Confidence);
          if (!string.IsNullOrEmpty (Explain)) json.Add ("explain", Explain);
          if (!string.IsNullOrEmpty(Name)) json.Add ("name", Name);
          return json;

@@ -18,18 +18,18 @@ using Bitmanager.Core;
 
 namespace AlbumImporter.FaceRecognition {
    public class TargetFaces {
-      private readonly DbFace[] faces;
-      public int Count => faces.Length;
-      public DbFace[] Faces => faces;
+      private readonly DbFace[] targets;
+      public int Count => targets.Length;
+      public DbFace[] Faces => targets;
 
       public TargetFaces (List<DbFace> list) {
-         faces = list.ToArray ();
-         Array.Sort (faces, SortId);
+         targets = list.ToArray ();
+         Array.Sort (targets, SortId);
       }
 
       static int SortId (DbFace a, DbFace b) {
-         if (b.Names[0].Id > a.Names[0].Id) return -1;
-         if (b.Names[0].Id < a.Names[0].Id) return 1;
+         if (b.Name.Id > a.Name.Id) return -1;
+         if (b.Name.Id < a.Name.Id) return 1;
          return 0;
       }
 
@@ -38,7 +38,7 @@ namespace AlbumImporter.FaceRecognition {
          if (a.Score > b.Score) return 1;
          if (a.Score < b.Score) return -1;
          if (a.MatchedFace != null && b.MatchedFace != null) {
-            int rc = b.MatchedFace.Names[0].Id - a.MatchedFace.Names[0].Id;
+            int rc = b.MatchedFace.Name.Id - a.MatchedFace.Name.Id;
             if (rc != 0) return rc;
          }
          return 0;
@@ -49,26 +49,26 @@ namespace AlbumImporter.FaceRecognition {
          var hits = new FixedPriorityQueue<FaceHit> (3, compareDetectedFace);
          int prevId = -1;
          float maxScore = -1;
-         DbFace bestFace = null;
+         DbFace bestTarget = null;
          float[] embeddings = face.Embeddings;
-         for (int i = 0; i < faces.Length; i++) {
-            var known = faces[i];
-            var score = scorer.Score (face, known);
+         for (int i = 0; i < targets.Length; i++) {
+            var target = targets[i];
+            var score = scorer.Score (face, target);
             if (score < .2f) continue;
-            int nameId = known.Names[0].Id;
+            int nameId = target.Name.Id;
             if (nameId == prevId) {
                if (score > maxScore) {
                   maxScore = score;
-                  bestFace = known;
+                  bestTarget = target;
                }
                continue;
             }
-            if (bestFace != null) hits.Add (new FaceHit (bestFace, face, maxScore, scorer));
+            if (bestTarget != null) hits.Add (new FaceHit (bestTarget, face, scorer));
             maxScore = score;
-            bestFace = known;
+            bestTarget = target;
             prevId = nameId;
          }
-         if (bestFace != null) hits.Add (new FaceHit (bestFace, face, maxScore, scorer));
+         if (bestTarget != null) hits.Add (new FaceHit (bestTarget, face, scorer));
 
          if (hits.Count == 0) return null;
          return hits.ToSortedList (true);

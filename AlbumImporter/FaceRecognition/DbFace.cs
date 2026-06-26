@@ -18,6 +18,7 @@ using Bitmanager.AlbumTools;
 using Bitmanager.Core;
 using Bitmanager.Elastic;
 using Bitmanager.Json;
+using MetadataExtractor;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 
@@ -29,34 +30,70 @@ namespace AlbumImporter.FaceRecognition {
    /// </summary>
    public readonly struct RelPos {
       private const int MAX=32000;
+      private const float SQR_MAX=MAX*MAX;
       public readonly short X1, X2, Y1, Y2;
+      public readonly short LeftEyeX, LeftEyeY;
+      public readonly short RightEyeX, RightEyeY;
+      public readonly short NoseX, NoseY;
+      public readonly short LeftMouthX, LeftMouthY;
+      public readonly short RightMouthX, RightMouthY;
       public RelPos () {
          X1 = 0;
          X2 = 0;
          Y1 = 0;
          Y2 = 0;
+         LeftEyeX = 0;
+         LeftEyeY = 0;
+         RightEyeX = 0;
+         RightEyeY = 0;
+         NoseX = 0;
+         NoseY = 0;
+         LeftMouthX = 0;
+         LeftMouthY = 0;
+         RightMouthX = 0;
+         RightMouthY = 0;
       }
-      public RelPos (float x1, float x2, float y1, float y2) {
-         X1 = (short)(MAX * x1 + .5f);
-         X2 = (short)(MAX * x2 + .5f);
-         Y1 = (short)(MAX * y1 + .5f);
-         Y2 = (short)(MAX * y2 + .5f);
+
+      public RelPos (in RectangleF rc, IReadOnlyList<PointF> landmarks, int divisor) {
+         var factor = ((double)MAX) / divisor;
+         X1 = (short)(factor * rc.Left + .5);
+         X2 = (short)(factor * rc.Right + .5);
+         Y1 = (short)(factor * rc.Top + .5);
+         Y2 = (short)(factor * rc.Bottom + .5);
+         LeftEyeX = (short)(factor * landmarks[FaceDetectorResultExt.EYE_L].X + .5);
+         LeftEyeY = (short)(factor * landmarks[FaceDetectorResultExt.EYE_L].Y + .5);
+         RightEyeX = (short)(factor * landmarks[FaceDetectorResultExt.EYE_R].X + .5);
+         RightEyeY = (short)(factor * landmarks[FaceDetectorResultExt.EYE_R].Y + .5);
+         NoseX = (short)(factor * landmarks[FaceDetectorResultExt.NOSE].X + .5);
+         NoseY = (short)(factor * landmarks[FaceDetectorResultExt.NOSE].Y + .5);
+         LeftMouthX = (short)(factor * landmarks[FaceDetectorResultExt.MOUTH_L].X + .5);
+         LeftMouthY = (short)(factor * landmarks[FaceDetectorResultExt.MOUTH_L].Y + .5);
+         RightMouthX = (short)(factor * landmarks[FaceDetectorResultExt.MOUTH_R].X + .5);
+         RightMouthY = (short)(factor * landmarks[FaceDetectorResultExt.MOUTH_R].Y + .5);
       }
-      public RelPos (JsonValue v) {
-         if (v==null) {
-            X1 = 0;
-            X2 = 0;
-            Y1 = 0;
-            Y2 = 0;
-            return;
-         }
+
+      public RelPos (JsonValue v) : this() {
+         if (v==null) return;
+
          var arr = v as JsonArrayValue;
          if (arr != null) {
-            if (arr.Count != 4) throw new BMException ("Incorrect length for relpos-array: {0}", arr.Count);
+            if (arr.Count != 4 && arr.Count != 14) throw new BMException ("Incorrect length for relpos-array: {0}", arr.Count);
             X1 = (short)arr[0].AsInt ();
             X2 = (short)arr[1].AsInt ();
             Y1 = (short)arr[2].AsInt ();
             Y2 = (short)arr[3].AsInt ();
+            if (arr.Count == 14) {
+               LeftEyeX = (short)arr[4].AsInt ();
+               LeftEyeY = (short)arr[5].AsInt ();
+               RightEyeX = (short)arr[6].AsInt ();
+               RightEyeY = (short)arr[7].AsInt ();
+               NoseX = (short)arr[8].AsInt ();
+               NoseY = (short)arr[9].AsInt ();
+               LeftMouthX = (short)arr[10].AsInt ();
+               LeftMouthY = (short)arr[11].AsInt ();
+               RightMouthX = (short)arr[12].AsInt ();
+               RightMouthY = (short)arr[13].AsInt ();
+            }
             return;
          }
 
@@ -81,6 +118,9 @@ namespace AlbumImporter.FaceRecognition {
       public int GetArea () {
          return (X2 - X1) * (Y2 - Y1);
       }
+      public float GetRelArea () {
+         return ((X2 - X1) * (Y2 - Y1)) / SQR_MAX;
+      }
 
       public override string ToString () {
          return Invariant.Format (@"{{{0:D5}, {1:D5}, {2:D5}, {3:D5}}}", X1, X2, Y1, Y2);
@@ -92,7 +132,23 @@ namespace AlbumImporter.FaceRecognition {
          ret.Add (X2);
          ret.Add (Y1);
          ret.Add (Y2);
+         ret.Add (LeftEyeX);
+         ret.Add (LeftEyeY);
+         ret.Add (RightEyeX);
+         ret.Add (RightEyeY);
+         ret.Add (NoseX);
+         ret.Add (NoseY);
+         ret.Add (LeftMouthX);
+         ret.Add (LeftMouthY);
+         ret.Add (RightMouthX);
+         ret.Add (RightMouthY);
          return ret;
+      }
+      public float GetFaceRatio() {
+         float dx = Math.Max (0, RightEyeX - LeftEyeX);
+         float dy = ((LeftMouthY + RightMouthY) - (LeftEyeY + RightEyeY)) / 2;
+         return (dy <= 0) ? 2f : Math.Min (2f, dx / dy);
+
       }
    }
    /// <summary>
@@ -107,28 +163,34 @@ namespace AlbumImporter.FaceRecognition {
       public string User;
       public RelPos RelPos;
       public DateTime Updated;
-      public List<DbFaceName> Names;
+      public DbFaceName Name;
       public float[] Embeddings;
       public List<FaceHit> Matches;
       public NameSource NameSrc;
+      public float Confidence;
       public int FaceCount;
       /// <summary>
       /// NB FaceStorageId might contain a new or an old storID. Depending on the context. See ImportScript_FaceExtract::combineExistingFaces
       /// </summary>
       public int FaceStorageId;
       public int W0, H0;
-      public int FaceAngleRaw, FaceAngle;
+      public int FaceAngleRaw;
+      public int FaceAngle => FaceAngleRaw < 0 ? -1 : (((FaceAngleRaw + 45) / 90) % 4) * 90;
       public float FaceRatio;
+      public float FaceRatio_1 {
+         get {
+            if (float.IsNaN (FaceRatio)) return float.NaN;
+            return (FaceRatio >= 1f) ? (2f - FaceRatio) : FaceRatio;
+         }
+      }
       public RotateMode FaceOrientation;
       public bool FaceOK;
       public bool CopyNeeded;
 
       public DbFace () {
-         Names = new List<DbFaceName> (1);
          CopyNeeded = true; //set default: if any face was added other than from GenericDocument, this value is true, 
          Updated = updateStamp;
          FaceAngleRaw = -1;
-         FaceAngle = -1;
          FaceStorageId = -1;
       }
       public DbFace (string id): this() {
@@ -143,27 +205,30 @@ namespace AlbumImporter.FaceRecognition {
          User = src.ReadStr ("user", null);
          W0 = src.ReadInt ("w0", 0);
          H0 = src.ReadInt ("h0", 0);
-         FaceAngle = src.ReadInt ("face_angle", -1);
          FaceAngleRaw = src.ReadInt ("face_angle_raw", -1);
          NameSrc = NameSourceExtensions.FromString(src.ReadStr ("src", null));
-
          FaceStorageId = src.ReadInt ("storage_id", -1);
-         RelPos = new RelPos (src["relpos"]);
-
-         var arr = src.ReadArr ("names", null);
-         if (arr != null) {
-            for (int i=0; i<arr.Count; i++)
-               Names.Add (new DbFaceName ((JsonObjectValue)arr[i]));
-         }
-         arr = src.ReadArr ("embeddings", null);
-         if (arr != null && arr.Count != 0) {
-            Embeddings = new float[arr.Count];
-            for (int i=0; i<arr.Count;i++)
-               Embeddings[i] = (float)arr[i];
-         }
+         Confidence = src.ReadFloat ("confidence", 0);
          FaceRatio = src.ReadFloat ("face_ratio", float.NaN);
          FaceOK = src.ReadBool ("face_ok", true);
          FaceOrientation = (RotateMode)src.ReadInt ("FaceOrientation", 0);
+
+         RelPos = new RelPos (src["relpos"]);
+
+         var arr = src.ReadArr ("names", null);
+         if (arr != null && arr.Count>0) { //Backward compatibility
+            Name = new DbFaceName ((JsonObjectValue)arr[0], this);
+         } else {
+            var tmp = src.ReadObj("name", null);
+            if (tmp != null) Name = new DbFaceName (tmp, this);
+         }
+
+         arr = src.ReadArr ("embeddings", null);
+         if (arr != null && arr.Count != 0) {
+            Embeddings = new float[arr.Count];
+            for (int i = 0; i < arr.Count; i++)
+               Embeddings[i] = (float)arr[i];
+         }
       }
 
 
@@ -178,20 +243,18 @@ namespace AlbumImporter.FaceRecognition {
 
 
       public void UpdateNames (FaceNames definedNames) {
-         for (int i = 0; i < Names.Count; i++) {
-            if (Names[i].Id < 0) continue;
-            string oldName = Names[i].Name;
-            Names[i].UpdateName (definedNames);
-            if (!string.Equals (oldName , Names[i].Name , StringComparison.Ordinal)) {
+         if (Name != null && Name.Id >= 0) {
+            var oldName = Name.Name;
+            Name.UpdateName (definedNames);
+            if (!string.Equals (oldName, Name.Name, StringComparison.Ordinal))
                CopyNeeded = true;
-            }
          }
       }
 
       public int GetMatchedNameId () {
          if ((NameSrc & NameSource.ManualOrCorrected) != 0)
-            return Names != null && Names.Count > 0 ? Names[0].Id : -1;
-         return Matches == null ? -1 : Matches[0].MatchedNameId;
+            return Name != null ? Name.Id : -1;
+         return Matches == null ? -1 : Matches[0].MatchedFace.Name.Id;
       }
       public float GetMatchedScore () {
          //Make sure we sort by manual -> corrected -> other
@@ -205,39 +268,22 @@ namespace AlbumImporter.FaceRecognition {
       public void AssignMatchesToNamesAndClearMatches() {
          if (Matches==null) {
             NameSrc = NameSource.NotAssigned;
-            if (Names.Count > 0) {  //The face was assigned, but now it isn't anymore...
+            if (Name != null) {  //The face was assigned, but now it isn't anymore...
                MarkUpdated ();
-               Names.Clear ();
+               Name = null;
             }
             goto EXIT_RTN;
          }
 
-         NameSrc = Matches[0].MatchedFace.NameSrc.ToAuto();
-         if (hasChangeInNameIds()) {
-            if (Names.Count==0 || Names[0].Id != Matches[0].MatchedNameId)
-               MarkUpdated ();
-            Names.Clear ();
-            for (int i = 0; i < Matches.Count; i++) {
-               var m = Matches[i];
-               Names.Add (new DbFaceName (m.MatchedNameId,
-                                        m.Score,
-                                        m.Explain,
-                                        null));
-            }
-         }
+         var m = Matches[0];
+         NameSrc = m.MatchedFace.NameSrc.ToAuto();
+         if (Name != null && Name.Id == m.MatchedFace.Name.Id && Name.Score != m.Score) goto EXIT_RTN;
+
+         MarkUpdated ();
+         Name = new DbFaceName (m);
 
       EXIT_RTN:
          Matches = null;
-      }
-
-
-      private bool hasChangeInNameIds() {
-         if (Matches.Count != Names.Count) return true;
-         for (int i=0; i<Matches.Count; i++) {
-            if (Names[i].Id != Matches[i].MatchedNameId || Names[i].Score != Matches[i].Score)
-               return true;
-         }
-         return false;
       }
 
 
@@ -256,7 +302,11 @@ namespace AlbumImporter.FaceRecognition {
             rec["any_face"] = true;
             rec["storage_id"] = FaceStorageId;
             rec["relpos"] = RelPos.ToJson();
-            if (!float.IsNaN(FaceRatio)) rec["face_ratio"] = FaceRatio;
+            rec["relarea"] = Math.Round (RelPos.GetRelArea (), 4);
+            if (!float.IsNaN (FaceRatio)) {
+               rec["face_ratio"] = FaceRatio;
+               rec["face_ratio_1"] = FaceRatio_1;
+            }
             rec["face_ok"] = FaceOK;
             if (FaceOrientation != RotateMode.None) rec["face_orientation"] = (int)FaceOrientation;
 
@@ -266,14 +316,10 @@ namespace AlbumImporter.FaceRecognition {
             }
 
             rec["src"] = NameSourceExtensions.ToString(NameSrc);
-            if (Names?.Count > 0) {
-               var arr = new JsonArrayValue ();
-               foreach (var f in Names) {
-                  arr.Add (f.ToJson ());
-                  break; //PW only export 1 name...
-               }
-               rec["names"] = arr;
-            }
+            if (Name != null) rec["name"] = Name.ToJson ();
+
+            rec["confidence"] = Math.Round (Confidence, 2);
+            rec["face_ratio2"] = RelPos.GetFaceRatio();
             //The embeddings will never be exported 
             //Instead they are saved in a separate storage file
          }

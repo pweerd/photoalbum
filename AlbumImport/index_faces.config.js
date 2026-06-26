@@ -56,11 +56,14 @@
          "w0": {"type": "integer"},
          "h0": { "type": "integer" },
          "face_ratio": { "type": "float" },
+         "face_ratio_1": { "type": "float" },
          "face_ok": { "type": "boolean" },
          "face_orientation": { "type": "keyword", "doc_values": false },
          "updated": { "type": "date"},
          "storage_id": { "type": "keyword", "doc_values": false },
-         "relpos": {"type": "keyword", "index": false, "doc_values": false},
+         "confidence": { "type": "float"},
+         "relarea": { "type": "float", "index": true, "doc_values": true },
+         "relpos": { "type": "integer", "index": false, "doc_values": false },
          "src": { "type": "text", "analyzer": "lc_letters", "search_analyzer": "lc_text", "index_options": "docs" },
          "user": {"type": "keyword", "normalizer": "lc_facet"},
          "txt": {"type": "text", "analyzer": "lc_text"},
@@ -69,10 +72,10 @@
                "facet": { "type": "keyword", "normalizer": "lc_facet", "doc_values": true }
             }},
             "id": {"type": "integer"},
-            "match_score": {"type": "float"},
-            "face_detect_score": {"type": "float"},
-            "detected_face_detect_score": {"type": "float"},
-            "score_all": {"type": "float"}
+            "match_score_raw": { "type": "float" },
+            "match_score": { "type": "float" },
+            "confidence": { "type": "float", "index": false, "doc_values": false },
+            "explain": { "type": "text", "index": false }
          }}
       }
    }

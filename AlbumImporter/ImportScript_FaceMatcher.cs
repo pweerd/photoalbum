@@ -289,7 +289,7 @@ namespace AlbumImporter {
                case NameSource.Manual:
                   if ((f.NameSrc & NameSource.Known) != 0) {
                      ++manualKnown;
-                     if (f.Names.Count == 0) {
+                     if (f.Name == null) {
                         string msg = Invariant.Format ("No names for target face [{0}].", f.Id);
                         Logs.ErrorLog.Log (msg);
                         continue;
@@ -332,11 +332,10 @@ namespace AlbumImporter {
                if ((f.NameSrc & NameSource.Manual) != 0) {
                   if (id != -1) continue;
                   id = --lowestID;
-                  f.Names.Clear ();
-                  f.Names.Add (new DbFaceName (id, 1.0f, null, faceNames.NameById (id)));
+                  f.Name = new DbFaceName (id);
                } else {
-                  if (f.Names.Count == 0) continue;
-                  f.Names.Clear ();
+                  if (f.Name == null) continue;
+                  f.Name = null;
                }
                f.CopyNeeded = true;
                ++updated;
@@ -358,7 +357,7 @@ namespace AlbumImporter {
       }
 
       private static int getFaceId (DbFace f) {
-         return f.Names?.Count == 0 ? -1 : f.Names[0].Id;
+         return f.Name == null ? -1 : f.Name.Id;
       }
 
 

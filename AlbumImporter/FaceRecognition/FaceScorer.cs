@@ -17,12 +17,21 @@
 using Bitmanager.Core;
 using SimpleSimd;
 using System.Text;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace AlbumImporter.FaceRecognition {
 
+   public readonly struct ScoreValues {
+      public ScoreValues(string explain, float raw) {
+         Explain = explain;
+         ScoreRaw = raw;
+      }
+      public readonly string Explain;
+      public readonly float ScoreRaw;
+   }
    public interface IFaceScorer {
       float Score (DbFace toMatched, DbFace matchCandidate);
-      string Explain (DbFace toMatched, DbFace matchCandidate);
+      float Score (DbFace toMatched, DbFace matchCandidate, out ScoreValues scoreValues);
    }
 
    public class FaceScorer : IFaceScorer {
@@ -54,20 +63,37 @@ namespace AlbumImporter.FaceRecognition {
          float r = ratioScore (toMatch.FaceRatio);
          return score * f * h * r;
       }
-
-      public virtual string Explain (DbFace toMatch, DbFace matchCandidate) {
-         sb.Clear ();
-         float score = SimdOps<float>.Dot (toMatch.Embeddings, matchCandidate.Embeddings);
+      public virtual float Score (DbFace toMatch, DbFace matchCandidate, out ScoreValues scoreValues) {
+         float rawScore = SimdOps<float>.Dot (toMatch.Embeddings, matchCandidate.Embeddings);
          int fc = toMatch.FaceCount;
-         float f = fc < faceCountFactors.Length ? faceCountFactors[fc] : minFaceCountFactor;
-         int minH = toMatch.H0 < matchCandidate.H0 ? toMatch.H0 : matchCandidate.H0;
-         float h = heightScore (minH);//(toMatch.H0+matchCandidate.H0)/2);
+         float f = fc <faceCountFactors.Length ? faceCountFactors[fc] : minFaceCountFactor;
+         float h = heightScore (toMatch.H0 < matchCandidate.H0 ? toMatch.H0 : matchCandidate.H0);//(toMatch.H0+matchCandidate.H0)/2);
          float r = ratioScore (toMatch.FaceRatio);
+
+         float score =rawScore * f * h * r;
+
+         sb.Clear ();
          sb.AppendFormat (Invariant.Culture,
                          "s={0:F2} raw={1:F2}, f={2:F2}, h={3:F2}, r={4:F2}",
-                         score * f* h * r, score, f, h, r);
-         return sb.ToString ();
+                         score, rawScore, f, h, r);
+         scoreValues = new ScoreValues (sb.ToString (), rawScore);
+         return score;
       }
+
+      //PW kan weg
+      //public virtual string Explain (DbFace toMatch, DbFace matchCandidate) {
+      //   sb.Clear ();
+      //   float score = SimdOps<float>.Dot (toMatch.Embeddings, matchCandidate.Embeddings);
+      //   int fc = toMatch.FaceCount;
+      //   float f = fc < faceCountFactors.Length ? faceCountFactors[fc] : minFaceCountFactor;
+      //   int minH = toMatch.H0 < matchCandidate.H0 ? toMatch.H0 : matchCandidate.H0;
+      //   float h = heightScore (minH);//(toMatch.H0+matchCandidate.H0)/2);
+      //   float r = ratioScore (toMatch.FaceRatio);
+      //   sb.AppendFormat (Invariant.Culture,
+      //                   "s={0:F2} raw={1:F2}, f={2:F2}, h={3:F2}, r={4:F2}",
+      //                   score * f* h * r, score, f, h, r);
+      //   return sb.ToString ();
+      //}
 
       static FaceScorer () {
          float[] factors = new float[MAX_HEIGHT + 1];

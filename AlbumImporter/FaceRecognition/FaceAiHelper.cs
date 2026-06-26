@@ -19,34 +19,23 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using System.Drawing;
 using Image = SixLabors.ImageSharp.Image;
-using PointF = SixLabors.ImageSharp.PointF;
-using RectangleF = SixLabors.ImageSharp.RectangleF;
 
 namespace AlbumImporter.FaceRecognition {
 
-   public class FaceHit {  
+   public class FaceHit {
       public readonly DbFace MatchedFace;
       public readonly DbFace FaceToMatch;
-      private readonly IFaceScorer scorer;
-      private string explain;
+      public readonly string Explain;
       public readonly float Score;
-      public readonly int MatchedNameId;
+      public readonly float ScoreRaw;
 
-      public FaceHit (DbFace matched, DbFace faceToMatch, float score, IFaceScorer scorer) {
+      public FaceHit (DbFace matched, DbFace faceToMatch, IFaceScorer scorer) {
          MatchedFace = matched;
          FaceToMatch = faceToMatch;
-         Score = score;
-         MatchedNameId = matched.Names[0].Id;
-         this.scorer = scorer;
-      }
-
-      public string Explain {
-         get {
-            if (explain == null && scorer != null) explain = scorer.Explain (FaceToMatch, MatchedFace);
-            return explain;
-         }
+         Score = scorer.Score(faceToMatch, matched, out var scoreValues);
+         Explain = scoreValues.Explain;
+         ScoreRaw = scoreValues.ScoreRaw;
       }
    }
 
@@ -92,101 +81,98 @@ namespace AlbumImporter.FaceRecognition {
 
 
 
-}
+   public class FaceAiHelper : IDisposable {
+      private readonly IFaceDetector _faceDetector;
+      private readonly IFaceEmbeddingsGenerator _embeddingsGenerator;
+      public FaceAiHelper () {
+         _faceDetector = FaceAiSharpBundleFactory.CreateFaceDetector ();
+         _embeddingsGenerator = FaceAiSharpBundleFactory.CreateFaceEmbeddingsGenerator ();
+      }
+
+      public static Image<Rgb24> LoadImage (byte[] bytes) {
+         return Image.Load<Rgb24> (bytes);
+      }
+      public static Image<Rgb24> LoadImage (Stream strm) {
+         return Image.Load<Rgb24> (strm);
+      }
+      public static Image<Rgb24> LoadImage (string fn) {
+         return Image.Load<Rgb24> (fn);
+      }
 
 
-public class FaceAiHelper : IDisposable {
-   private readonly IFaceDetector _faceDetector;
-   private readonly IFaceEmbeddingsGenerator _embeddingsGenerator;
-   public FaceAiHelper () {
-      _faceDetector = FaceAiSharpBundleFactory.CreateFaceDetector ();
-      _embeddingsGenerator = FaceAiSharpBundleFactory.CreateFaceEmbeddingsGenerator ();
-   }
+      public FaceDetectorResult[] DetectFaces (Image<Rgb24> img) {
+         var coll = _faceDetector.DetectFaces (img);
+         return coll.Count == 0 ? null : coll.ToArray ();
+      }
 
-   public Image<Rgb24> LoadImage (byte[] bytes) {
-      return Image.Load<Rgb24> (bytes);
-   }
-   public Image<Rgb24> LoadImage (Stream strm) {
-      return Image.Load<Rgb24> (strm);
-   }
-   public Image<Rgb24> LoadImage (string fn) {
-      return Image.Load<Rgb24> (fn);
-   }
+      /// <summary>
+      /// Rotates the image over multiples of 90 degrees. If the extraction-score is bestFactor better then the
+      /// current score, this rotation is used.
+      /// bestScore is introduced because otherwise one of the rotated images is used while the score is only
+      /// very slightly better.
+      /// Rotation is tried in this order: 0, 180, 270, 90 and so giving preference to the original img or the 
+      /// 180 deg rotated img
+      /// </summary>
+      public FaceDetectorResult[] RotateAndDetectFaces (ref Image<Rgb24> img, float bestFactor, out RotateMode rotateMode) {
+         ExtractResult best = new ExtractResult ();
+         Image<Rgb24> clone = img.Clone ();
+         try {
+            extractAndSetBest (ref best, img, RotateMode.None, bestFactor);
 
+            //We use the clone for all 3 rotations. This saves making a copy of the bitmap
+            clone.Mutate (x => x.RotateFlip (RotateMode.Rotate180, FlipMode.None));
+            extractAndSetBest (ref best, clone, RotateMode.Rotate180, bestFactor);
 
-   public FaceDetectorResult[] DetectFaces (Image<Rgb24> img) {
-      var coll = _faceDetector.DetectFaces (img);
-      return coll.Count == 0 ? null : coll.ToArray ();
-   }
+            clone.Mutate (x => x.RotateFlip (RotateMode.Rotate90, FlipMode.None));
+            extractAndSetBest (ref best, clone, RotateMode.Rotate270, bestFactor);
 
-   /// <summary>
-   /// Rotates the image over multiples of 90 degrees. If the extraction-score is bestFactor better then the
-   /// current score, this rotation is used.
-   /// bestScore is introduced because otherwise one of the rotated images is used while the score is only
-   /// very slightly better.
-   /// Rotation is tried in this order: 0, 180, 270, 90 and so giving preference to the original img or the 
-   /// 180 deg rotated img
-   /// </summary>
-   public FaceDetectorResult[] RotateAndDetectFaces (ref Image<Rgb24> img, float bestFactor, out RotateMode rotateMode) {
-      ExtractResult best = new ExtractResult ();
-      Image<Rgb24> clone = img.Clone ();
-      try {
-         extractAndSetBest (ref best, img, RotateMode.None, bestFactor);
+            clone.Mutate (x => x.RotateFlip (RotateMode.Rotate180, FlipMode.None));
+            extractAndSetBest (ref best, clone, RotateMode.Rotate90, bestFactor);
 
-         //We use the clone for all 3 rotations. This saves making a copy of the bitmap
-         clone.Mutate (x => x.RotateFlip (RotateMode.Rotate180, FlipMode.None));
-         extractAndSetBest (ref best, clone, RotateMode.Rotate180, bestFactor);
+            rotateMode = best.RotateMode;
+            if (best.TotalScore == 0f) return null;
 
-         clone.Mutate (x => x.RotateFlip (RotateMode.Rotate90, FlipMode.None));
-         extractAndSetBest (ref best, clone, RotateMode.Rotate270, bestFactor);
-
-         clone.Mutate (x => x.RotateFlip (RotateMode.Rotate180, FlipMode.None));
-         extractAndSetBest (ref best, clone, RotateMode.Rotate90, bestFactor);
-
-         rotateMode = best.RotateMode;
-         if (best.TotalScore == 0f) return null;
-
-         switch (best.RotateMode) {
-            case RotateMode.None: break;
-            case RotateMode.Rotate90: //is current state of the clone!
-               img.Dispose ();
-               img = clone;
-               clone = null;
-               break;
-            default:
-               img.Mutate (x => x.RotateFlip (best.RotateMode, FlipMode.None));
-               break;
+            switch (best.RotateMode) {
+               case RotateMode.None: break;
+               case RotateMode.Rotate90: //is current state of the clone!
+                  img.Dispose ();
+                  img = clone;
+                  clone = null;
+                  break;
+               default:
+                  img.Mutate (x => x.RotateFlip (best.RotateMode, FlipMode.None));
+                  break;
+            }
+            return best.Faces;
+         } finally {
+            clone?.Dispose ();
          }
-         return best.Faces;
-      } finally {
-         clone?.Dispose ();
+
       }
 
-   }
+      readonly struct ExtractResult {
+         public readonly FaceDetectorResult[] Faces;
+         public readonly float TotalScore;
+         public readonly RotateMode RotateMode;
+         public ExtractResult () {
+            Faces = null;
+            TotalScore = 0;
+            RotateMode = RotateMode.None;
+         }
 
-   struct ExtractResult {
-      public readonly FaceDetectorResult[] Faces;
-      public readonly float TotalScore;
-      public readonly RotateMode RotateMode;
-      public ExtractResult () {
-         Faces = null;
-         TotalScore = 0;
-         RotateMode = RotateMode.None;
+         public ExtractResult (RotateMode rotateMode, FaceDetectorResult[] faces, float totalScore) {
+            Faces = faces;
+            TotalScore = totalScore;
+            RotateMode = rotateMode;
+         }
       }
 
-      public ExtractResult (RotateMode rotateMode, FaceDetectorResult[] faces, float totalScore) {
-         Faces = faces;
-         TotalScore = totalScore;
-         RotateMode = rotateMode;
-      }
-   }
-
-   static int order;
-   private void extractAndSetBest (ref ExtractResult best, Image<Rgb24> img, RotateMode rotateMode, float bestFactor) {
-      var faces = DetectFaces(img);
-      if (faces == null) return;
-      var total = 0f;
-      for (int i = 0; i < faces.Length; i++) total += (float)faces[i].Confidence;
+      //static int order;
+      private void extractAndSetBest (ref ExtractResult best, Image<Rgb24> img, RotateMode rotateMode, float bestFactor) {
+         var faces = DetectFaces(img);
+         if (faces == null) return;
+         var total = 0f;
+         for (int i = 0; i < faces.Length; i++) total += (float)faces[i].Confidence;
 
 #if DBG
          string imgName = Invariant.Format (@"z:\temp\{0}_{1}_{2}{3}.jpg",
@@ -194,69 +180,70 @@ public class FaceAiHelper : IDisposable {
             total > best.TotalScore * bestFactor ? "_best" : "");
          img.SaveAsJpeg (imgName);
 #endif
-      if (total > best.TotalScore * bestFactor) {
-         best = new ExtractResult (rotateMode, faces, total);
-      };
-   }
+         if (total > best.TotalScore * bestFactor) {
+            best = new ExtractResult (rotateMode, faces, total);
+         }
+         ;
+      }
 
-   public int GetExifOrientation (Image<Rgb24> img) {
-      return img.Metadata.ExifProfile != null && img.Metadata.ExifProfile.TryGetValue (ExifTag.Orientation, out var tmp)
-         ? tmp.Value : 0;
-   }
+      public static int GetExifOrientation (Image<Rgb24> img) {
+         return img.Metadata.ExifProfile != null && img.Metadata.ExifProfile.TryGetValue (ExifTag.Orientation, out var tmp)
+            ? tmp.Value : 0;
+      }
 
-   public void RotateBasedOnExifValue (Image<Rgb24> img) {
-      RotateBasedOnExifValue (img, GetExifOrientation (img));
-   }
+      public void RotateBasedOnExifValue (Image<Rgb24> img) {
+         RotateBasedOnExifValue (img, GetExifOrientation (img));
+      }
 
-   public void RotateBasedOnExifValue (Image<Rgb24> img, int exifOrientation) {
-      switch (exifOrientation) {
-         case 2: //"Mirror horizontal")]
-            img.Mutate (x => x.Flip (FlipMode.Horizontal));
-            break;
-         case 3: //"Rotate 180")]
-            img.Mutate (x => x.Rotate (RotateMode.Rotate180));
-            break;
-         case 4: //"Mirror vertical")]
-            img.Mutate (x => x.Flip (FlipMode.Vertical));
-            break;
-         case 5: //"Mirror horizontal and rotate 270 CW")]
-            img.Mutate (x => x.Flip (FlipMode.Horizontal).Rotate (RotateMode.Rotate270));
-            break;
-         case 6: //"Rotate 90 CW")]
-            img.Mutate (x => x.Rotate (RotateMode.Rotate90));
-            break;
-         case 7: //"Mirror horizontal and rotate 90 CW")]
-            img.Mutate (x => x.Flip (FlipMode.Horizontal).Rotate (RotateMode.Rotate90));
-            break;
-         case 8: //"Rotate 270 CW")] 
-            img.Mutate (x => x.Rotate (RotateMode.Rotate270));
-            break;
+      public static void RotateBasedOnExifValue (Image<Rgb24> img, int exifOrientation) {
+         switch (exifOrientation) {
+            case 2: //"Mirror horizontal")]
+               img.Mutate (x => x.Flip (FlipMode.Horizontal));
+               break;
+            case 3: //"Rotate 180")]
+               img.Mutate (x => x.Rotate (RotateMode.Rotate180));
+               break;
+            case 4: //"Mirror vertical")]
+               img.Mutate (x => x.Flip (FlipMode.Vertical));
+               break;
+            case 5: //"Mirror horizontal and rotate 270 CW")]
+               img.Mutate (x => x.Flip (FlipMode.Horizontal).Rotate (RotateMode.Rotate270));
+               break;
+            case 6: //"Rotate 90 CW")]
+               img.Mutate (x => x.Rotate (RotateMode.Rotate90));
+               break;
+            case 7: //"Mirror horizontal and rotate 90 CW")]
+               img.Mutate (x => x.Flip (FlipMode.Horizontal).Rotate (RotateMode.Rotate90));
+               break;
+            case 8: //"Rotate 270 CW")] 
+               img.Mutate (x => x.Rotate (RotateMode.Rotate270));
+               break;
+         }
+      }
+
+      public bool HasFace (Stream mem) {
+         using (var img = Image.Load<Rgb24> (mem))
+            return HasFace (img);
+      }
+      public bool HasFace (Image<Rgb24> img) {
+         var coll = _faceDetector.DetectFaces (img);
+         return coll.Count > 0;
+      }
+
+      public void Align (Image<Rgb24> img, FaceDetectorResult r) {
+         _embeddingsGenerator.AlignFaceUsingLandmarks (img, r.Landmarks);
+      }
+
+      public float[] CreateEmbedding (Image<Rgb24> img) {
+         return _embeddingsGenerator.GenerateEmbedding (img);
+      }
+      public static float Compare (float[] a, float[] b) {
+         return FaceAiSharp.Extensions.GeometryExtensions.Dot (a, b);
+      }
+
+      public void Dispose () {
+         (_faceDetector as IDisposable)?.Dispose ();
+         (_embeddingsGenerator as IDisposable)?.Dispose ();
       }
    }
-
-   public bool HasFace (Stream mem) {
-      using (var img = Image.Load<Rgb24> (mem))
-         return HasFace (img);
-   }
-   public bool HasFace (Image<Rgb24> img) {
-      var coll = _faceDetector.DetectFaces (img);
-      return coll.Count > 0;
-   }
-
-   public void Align (Image<Rgb24> img, FaceDetectorResult r) {
-      _embeddingsGenerator.AlignFaceUsingLandmarks (img, r.Landmarks);
-   }
-
-   public float[] CreateEmbedding (Image<Rgb24> img) {
-      return _embeddingsGenerator.GenerateEmbedding (img);
-   }
-   public float Compare (float[] a, float[] b) {
-      return FaceAiSharp.Extensions.GeometryExtensions.Dot (a, b);
-   }
-
-   public void Dispose () {
-      (_faceDetector as IDisposable)?.Dispose ();
-      (_embeddingsGenerator as IDisposable)?.Dispose ();
-   }
 }
-

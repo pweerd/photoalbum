@@ -62,9 +62,7 @@ namespace AlbumImporter.FaceRecognition {
 
                var face = new DbFace (rec, copyNeeded);
                if (face.FaceStorageId > largestStorId) largestStorId = face.FaceStorageId;
-               if (face.Names != null)
-                  foreach (var name in face.Names)
-                     if (name.Id > largestFaceId) largestFaceId = name.Id;
+               if (face.Name != null && face.Name.Id > largestFaceId) largestFaceId = face.Name.Id;
                dict.TryAdd(face.Id, face);
             }
          }
