@@ -30,8 +30,8 @@ namespace AlbumImporter.FaceRecognition {
       public readonly float ScoreRaw;
    }
    public interface IFaceScorer {
-      float Score (DbFace toMatched, DbFace matchCandidate);
-      float Score (DbFace toMatched, DbFace matchCandidate, out ScoreValues scoreValues);
+      float Score (DbFace toMatch, DbFace matchCandidate);
+      float Score (DbFace toMatch, DbFace matchCandidate, out ScoreValues scoreValues);
    }
 
    public class FaceScorer : IFaceScorer {
