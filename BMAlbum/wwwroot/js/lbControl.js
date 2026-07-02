@@ -199,8 +199,16 @@ function createLightboxControl(app) {
       sb.push('"><div class="lb-wrapper"><img class="lb-image lazyload" width="' + w);
       sb.push('" height="' + h + '" src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src="');
       sb.push(photo.imgUrl);
-      sb.push('"><div class="face_name">'); 
-      if (photo.names) {
+      sb.push('"><div class="face_name">');             
+      let matchedConfidence='';
+      if (photo.name) {
+         let name = photo.name.name || 'unknown';
+         sb.push('<b>' + name + '<br />[' + round2(photo.name.match_score) + ']</b> ' + photo.src + ", " + toDateString(photo.updated) + '<br />');
+         if (photo.name.explain) {
+            sb.push(stripExplain(photo.name.explain) + '<br />');
+         }
+         matchedConfidence = photo.name.confidence.toFixed(2);
+      } else if (photo.names) {
          for (let nameObj of photo.names) {
             let name = nameObj.name || 'unknown';
             sb.push('<b>' + name + '<br />[' + round2(nameObj.match_score) + ']</b> ' + photo.src + ", " + toDateString(photo.updated) + '<br />');
@@ -217,6 +225,7 @@ function createLightboxControl(app) {
       sb.push(", h=" + photo.h0);
       sb.push(", rto=" + round2(photo.face_ratio));
       sb.push(", " + (photo.face_ok ? 'ok' : '!ok') + ", " + photo.storage_id);
+      sb.push("<br />conf=" + photo.confidence + ", match=" + matchedConfidence + ", diff=" + photo.name.diff);
       sb.push('</div>');
 
       //<div class="txtbadge info-badge bottom-right-4"></div>
