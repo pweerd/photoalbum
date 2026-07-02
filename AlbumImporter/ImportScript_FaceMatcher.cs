@@ -22,6 +22,7 @@ using Bitmanager.ImportPipeline;
 using Bitmanager.Json;
 using Bitmanager.Xml;
 using MetadataExtractor;
+using System.Diagnostics;
 using System.Security.Cryptography;
 
 namespace AlbumImporter {
@@ -33,6 +34,7 @@ namespace AlbumImporter {
       private float[] weightPerFaceCount;
       private FaceStatistics faceStats;
       private TargetFaces targetFaces;
+      private string debugID;
 
 
       private IFaceScorer faceScorer;
@@ -41,8 +43,11 @@ namespace AlbumImporter {
       public object OnDatasourceStart (PipelineContext ctx, object value) {
          Init (ctx, true);
 
+         var ctxNode = ctx.DatasourceAdmin.ContextNode;
+         debugID = ctxNode.ReadStr ("@debug_id", null);
+
          //Load the facecount weights
-         var weightNode = ctx.DatasourceAdmin.ContextNode.SelectMandatoryNode ("weight");
+         var weightNode = ctxNode.SelectMandatoryNode ("weight");
          this.threshold = (float)weightNode.ReadFloat ("@threshold");
          var min = (float)weightNode.ReadFloat ("@min_weight");
          var factors = new List<float> (20);
@@ -146,6 +151,11 @@ namespace AlbumImporter {
 
       public object OnId (PipelineContext ctx, object value) {
          idInfo = (IdInfo)value;
+         bool rescoreForDbg = false;
+         if (debugID != null && debugID==idInfo.Id) {
+            Debugger.Break ();
+            rescoreForDbg = true;
+         }
          var facesInPhoto = FaceCollection.GetExistingFacesForId (existingFaces, idInfo.Id);
          if (facesInPhoto == null) {
             goto EXIT_RTN; //No face-record found
@@ -168,6 +178,16 @@ namespace AlbumImporter {
             var f = facesInPhoto[i];
             if ((f.NameSrc & NameSource.ManualOrCorrected) != 0) continue;
             matchFace (f, targetFaces);
+         }
+         if (rescoreForDbg) {
+            for (int i = 0; i < facesInPhoto.Count; i++) {
+               var f = facesInPhoto[i];
+               if ((f.NameSrc & NameSource.ManualOrCorrected) != 0) continue;
+               for (int j=0; j<f.Matches.Count; j++) {
+                  var m = f.Matches[j];
+                  faceScorer.Score (m.FaceToMatch, m.MatchedFace, out var scoreValues);
+               }
+            }
          }
 
          //Prevent duplicate faces in 1 photo
