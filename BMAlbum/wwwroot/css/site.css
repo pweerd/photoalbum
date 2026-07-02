@@ -384,6 +384,9 @@ input[type="search"]::-webkit-search-decoration {
 #face_names input {
    margin-left:1px;
 }
+.face_name {
+   margin: .5em;
+}
 
 #drag_proxy {
    visibility: hidden;
