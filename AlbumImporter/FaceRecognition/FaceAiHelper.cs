@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 //#define DBG
+using Bitmanager.Core;
 using FaceAiSharp;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
+using System.Text.RegularExpressions;
 using Image = SixLabors.ImageSharp.Image;
 
 namespace AlbumImporter.FaceRecognition {
@@ -26,17 +28,32 @@ namespace AlbumImporter.FaceRecognition {
    public class FaceHit {
       public readonly DbFace MatchedFace;
       public readonly DbFace FaceToMatch;
-      public readonly string Explain;
-      public readonly float Score;
-      public readonly float ScoreRaw;
+      public string Explain;
+      public float Score;
+      public float ScoreRaw;
 
       public FaceHit (DbFace matched, DbFace faceToMatch, IFaceScorer scorer) {
          MatchedFace = matched;
          FaceToMatch = faceToMatch;
-         Score = scorer.Score(faceToMatch, matched, out var scoreValues);
+         Score = scorer.Score (faceToMatch, matched);
+         ScoreRaw = Score;
+      }
+
+
+      /// <summary>
+      /// Call Rescore() (potentially with a different scorer) to fill the Explain
+      /// </summary>
+      /// <param name="scorer"></param>
+      public void Rescore (IFaceScorer scorer) {
+         Score = scorer.Score (FaceToMatch, MatchedFace, out var scoreValues);
          Explain = scoreValues.Explain;
          ScoreRaw = scoreValues.ScoreRaw;
       }
+
+      public override string ToString () {
+         return Invariant.Format ("Hit: {0}(raw={1}), {2}", Score, ScoreRaw, MatchedFace.Name.Name);
+      }
+
    }
 
    internal static class FaceDetectorResultExt {

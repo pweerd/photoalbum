@@ -37,14 +37,14 @@ namespace AlbumImporter.FaceRecognition {
       static int compareDetectedFace (FaceHit a, FaceHit b) {
          if (a.Score > b.Score) return 1;
          if (a.Score < b.Score) return -1;
-         if (a.MatchedFace != null && b.MatchedFace != null) {
+         if (a.MatchedFace != null && b.MatchedFace != null) {    //pw a en b zijn nooit null!
             int rc = b.MatchedFace.Name.Id - a.MatchedFace.Name.Id;
             if (rc != 0) return rc;
          }
          return 0;
       }
 
-      public List<FaceHit> FindFaces (DbFace face, IFaceScorer scorer) {
+      public List<FaceHit> FindFaces (DbFace face, IFaceScorer rawScorer, IFaceScorer scorer) {
          if (face == null) return null;
          var hits = new FixedPriorityQueue<FaceHit> (3, compareDetectedFace);
          int prevId = -1;
@@ -53,7 +53,7 @@ namespace AlbumImporter.FaceRecognition {
          float[] embeddings = face.Embeddings;
          for (int i = 0; i < targets.Length; i++) {
             var target = targets[i];
-            var score = scorer.Score (face, target);
+            var score = rawScorer.Score (face, target);
             if (score < .2f) continue;
             int nameId = target.Name.Id;
             if (nameId == prevId) {
@@ -63,15 +63,18 @@ namespace AlbumImporter.FaceRecognition {
                }
                continue;
             }
-            if (bestTarget != null) hits.Add (new FaceHit (bestTarget, face, scorer));
+            if (bestTarget != null) hits.Add (new FaceHit (bestTarget, face, rawScorer));
             maxScore = score;
             bestTarget = target;
             prevId = nameId;
          }
-         if (bestTarget != null) hits.Add (new FaceHit (bestTarget, face, scorer));
+         if (bestTarget != null) hits.Add (new FaceHit (bestTarget, face, rawScorer));
 
          if (hits.Count == 0) return null;
-         return hits.ToSortedList (true);
+         var hitsList = hits.ToSortedList (true);
+         for (int i = 0; i < hitsList.Count; i++)
+            hitsList[i].Rescore (scorer);
+         return hitsList;
       }
 
    }

@@ -25,6 +25,7 @@ using Bitmanager.Xml;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using System;
+using System.Text.RegularExpressions;
 
 namespace AlbumImporter {
 
@@ -41,6 +42,8 @@ namespace AlbumImporter {
       protected string tempFrameFile;
       protected FileGenerations2 videoFramesGeneration;
       protected FileStorage videoFrames;
+      protected Regex breakAt;
+
 
 
       protected ESConnection esConnection;
@@ -86,6 +89,9 @@ namespace AlbumImporter {
          var dsNode = ctx.DatasourceAdmin.ContextNode;
          sleepAfterExtract = ctx.DatasourceAdmin.ContextNode.ReadInt ("@sleep_after_extract", 0);
          copyFromIndex = IndexInfo.Create(dsNode.ReadStr("copy_from/@url", null), true);
+         var breakAt = dsNode.ReadStr ("@break_at", null);
+         if (breakAt != null) this.breakAt = new Regex (breakAt, RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
 
          videoFramesGeneration = new FileGenerations2 (Path.Combine (videoFramesDir, "video_frames"), ".stor");
          if (initVideoFrames) {
@@ -123,6 +129,28 @@ namespace AlbumImporter {
       protected FaceNames ReadFaceNames () {
          return new FaceNames (Path.Combine (faceAdminDir, "facenames.txt"));
       }
+
+
+      protected void CheckLegacyFaceNamesIndex() {
+         if  (activeOldIndex != null) {
+            if (!forceRebuild || !fullImport) {
+               if (!hasName (activeOldIndex))
+                  throw new BMException (
+                     "Old/existing index [{0}] does not contain a definition for [name].\nPlease run *only* your [face_extract] import with [FullImport] and [ForceRebuild].",
+                     activeOldIndex.Name);
+            }
+         }
+
+         if (!hasName (curIndex))
+            throw new BMException ("Incorrect mappings for [album-faces] index: does not contain definition for [name].");
+      }
+
+      private bool hasName(IndexInfo index) {
+         var resp = index.Connection.SendGetJson (HttpMethod.Get, index.Name + "/_mapping");
+         var indexJson = (JsonObjectValue)resp.Values.First();
+         var mappings = indexJson.ReadObj("mappings.properties");
+         return mappings.ContainsKey ("name"); 
+      } 
 
 
       /// <summary>

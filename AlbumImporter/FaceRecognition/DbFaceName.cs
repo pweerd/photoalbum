@@ -15,6 +15,7 @@
  */
 
 using Bitmanager.AlbumTools;
+using Bitmanager.Core;
 using Bitmanager.Json;
 using System.Text.RegularExpressions;
 
@@ -26,9 +27,9 @@ namespace AlbumImporter.FaceRecognition {
    public class DbFaceName {
       public string Name;
       public readonly string Explain;
-      public readonly int Id;
+      public readonly int Id, AltId;
       public readonly float Score;
-      public readonly float ScoreRaw;
+      public readonly float ScoreRaw, AltScore;
       public float Confidence;
 
 
@@ -39,24 +40,28 @@ namespace AlbumImporter.FaceRecognition {
          Id = id;
          Score = 0f;
          ScoreRaw = 0f;
+         AltId = -1;
       }
-      //PW kan weg?
-      public DbFaceName (int id, float score, string explain, string name) {
-         Id = id;
-         Score = score;
-         ScoreRaw = score;
-         Explain = explain;
-         Name = name;
-      }
-      public DbFaceName (FaceHit match) {
-         Id = match.MatchedFace.Name.Id;
-         Score = match.Score;
-         ScoreRaw = match.ScoreRaw;
-         Explain = match.Explain;
-         Confidence = match.MatchedFace.Confidence;
+
+      public DbFaceName (List<FaceHit> matches, bool includeAltName) {
+         var m = matches[0];
+         Id = m.MatchedFace.Name.Id;
+         Score = m.Score;
+         ScoreRaw = m.ScoreRaw;
+         Explain = m.Explain;
+         Confidence = m.MatchedFace.Confidence;
+
+         AltId = -1;
+         if (matches.Count > 1) {
+            var m2 = matches[1];
+            AltScore = m2.ScoreRaw;
+            if (includeAltName) AltId = m2.MatchedFace.Name.Id;
+         }
          //Name will be copied later
       }
+
       public DbFaceName (JsonObjectValue v, DbFace parent) {
+         AltId = -1;
          Id = v.ReadInt("id");
          if ((parent.NameSrc & NameSource.ManualOrCorrected) != 0) {
             Confidence = parent.Confidence;
@@ -75,8 +80,11 @@ namespace AlbumImporter.FaceRecognition {
       }
 
       public void UpdateName (FaceNames faceNames) {
-         if (Id >= 0) 
-            Name = faceNames.NameById(Id);
+         if (Id >= 0) {
+            Name = faceNames.NameById (Id);
+            if (AltId >= 0)
+               Name = Invariant.Format ("{0} ({1}, {2:F2})", Name, faceNames.NameById (AltId), AltScore);
+         }
       }
 
       public JsonObjectValue ToJson() {
@@ -85,9 +93,18 @@ namespace AlbumImporter.FaceRecognition {
          json.Add ("match_score", Score);
          json.Add ("match_score_raw", ScoreRaw);
          json.Add ("confidence", Confidence);
+         if (AltScore > 0) {
+            json.Add ("diff_factor", Math.Round (AltScore / ScoreRaw, 3));
+            json.Add ("diff", Math.Round (ScoreRaw - AltScore, 3));
+            json.Add ("altscore", AltScore);
+         }
          if (!string.IsNullOrEmpty (Explain)) json.Add ("explain", Explain);
          if (!string.IsNullOrEmpty(Name)) json.Add ("name", Name);
          return json;
+      }
+
+      public override string ToString () {
+         return Invariant.Format("{0} ({1}, raw={2}, alt={3}", Name, Score, ScoreRaw, AltScore);
       }
 
    }

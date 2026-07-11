@@ -150,13 +150,13 @@ namespace BMAlbum.Controllers {
          string resultName;
          switch (faceId) {
             case ID_CLEAR: 
-               rec.Remove ("names");
+               rec.Remove ("name");
                rec.Remove ("explain");
                rec["src"] = "N";
                resultName = string.Empty;
                break;
-            case ID_UNKNOWN: 
-               rec.Remove ("names");
+            case ID_UNKNOWN:
+               rec.Remove ("name");
                rec.Remove ("explain");
                rec["src"] = correct ? "CU" : "MU";
                resultName = "Unknown";
@@ -165,7 +165,7 @@ namespace BMAlbum.Controllers {
                rec.Remove ("explain");
                rec["src"] = correct ? "CK": "MK";
                var nameObj = new JsonObjectValue ();
-               rec["names"] = new JsonArrayValue ((JsonValue)nameObj);
+               rec["name"] = nameObj;
                nameObj["id"] = faceId;
                nameObj["match_score"] = 1;
                nameObj["name"] = resultName = names.NameById (faceId);
@@ -187,7 +187,7 @@ namespace BMAlbum.Controllers {
             foreach (var d in recs) {
                var idUrl = settings.FaceIndex + "/_doc/" + Encoders.UrlDataEncode (d.Id);
                var json = d._Source;
-               json.Remove ("names");
+               json.Remove ("name");
                json["src"] = "U";
                c.Send (HttpMethod.Put, idUrl, HttpPayload.Create (json)).ThrowIfError ();
                cnt++;

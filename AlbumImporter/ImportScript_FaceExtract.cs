@@ -53,6 +53,7 @@ namespace AlbumImporter {
 
       public object OnDatasourceStart (PipelineContext ctx , object value) {
          Init (ctx , true);
+         CheckLegacyFaceNamesIndex ();
 
          var dsNode = ctx.DatasourceAdmin.ContextNode;
          rotateMaxFaceCount = dsNode.ReadInt ("face_rotate/@max_face_count" , 4);

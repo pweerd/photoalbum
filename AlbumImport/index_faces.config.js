@@ -67,15 +67,17 @@
          "src": { "type": "text", "analyzer": "lc_letters", "search_analyzer": "lc_text", "index_options": "docs" },
          "user": {"type": "keyword", "normalizer": "lc_facet"},
          "txt": {"type": "text", "analyzer": "lc_text"},
-         "names": {"type": "nested", "properties": {
+         "name": {"properties": {
             "name": {"type": "text", "analyzer": "lc_text", "copy_to":["txt"], "fields": {
                "facet": { "type": "keyword", "normalizer": "lc_facet", "doc_values": true }
             }},
             "id": {"type": "integer"},
-            "match_score_raw": { "type": "float" },
-            "match_score": { "type": "float" },
+            "match_score_raw": { "type": "float", "index": false },
+            "match_score": { "type": "float", "index": false },
             "confidence": { "type": "float", "index": false, "doc_values": false },
-            "explain": { "type": "text", "index": false }
+            "explain": { "type": "text", "index": false },
+            "diff_factor": { "type": "float" },
+            "diff": { "type": "float" }
          }}
       }
    }

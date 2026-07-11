@@ -17,7 +17,6 @@
 using Bitmanager.Core;
 using SimpleSimd;
 using System.Text;
-using static System.Formats.Asn1.AsnWriter;
 
 namespace AlbumImporter.FaceRecognition {
 
@@ -34,6 +33,7 @@ namespace AlbumImporter.FaceRecognition {
       float Score (DbFace toMatch, DbFace matchCandidate, out ScoreValues scoreValues);
    }
 
+   //PW ook ID erbij betrekken?
    public class FaceScorer : IFaceScorer {
       private const int MAX_HEIGHT = 250;
       private static readonly float[] heightFactors;
@@ -80,21 +80,6 @@ namespace AlbumImporter.FaceRecognition {
          return score;
       }
 
-      //PW kan weg
-      //public virtual string Explain (DbFace toMatch, DbFace matchCandidate) {
-      //   sb.Clear ();
-      //   float score = SimdOps<float>.Dot (toMatch.Embeddings, matchCandidate.Embeddings);
-      //   int fc = toMatch.FaceCount;
-      //   float f = fc < faceCountFactors.Length ? faceCountFactors[fc] : minFaceCountFactor;
-      //   int minH = toMatch.H0 < matchCandidate.H0 ? toMatch.H0 : matchCandidate.H0;
-      //   float h = heightScore (minH);//(toMatch.H0+matchCandidate.H0)/2);
-      //   float r = ratioScore (toMatch.FaceRatio);
-      //   sb.AppendFormat (Invariant.Culture,
-      //                   "s={0:F2} raw={1:F2}, f={2:F2}, h={3:F2}, r={4:F2}",
-      //                   score * f* h * r, score, f, h, r);
-      //   return sb.ToString ();
-      //}
-
       static FaceScorer () {
          float[] factors = new float[MAX_HEIGHT + 1];
          factors[0] = 0f;
@@ -102,6 +87,23 @@ namespace AlbumImporter.FaceRecognition {
             factors[i] = (float)(1f - Math.Log10 (i / (double)MAX_HEIGHT));
          }
          heightFactors = factors;
+      }
+
+   }
+   public class RawFaceScorer : IFaceScorer {
+      public readonly static IFaceScorer Instance = new RawFaceScorer ();
+
+      protected RawFaceScorer () {
+      }
+
+
+      public virtual float Score (DbFace toMatch, DbFace matchCandidate) {
+         return SimdOps<float>.Dot (toMatch.Embeddings, matchCandidate.Embeddings);
+      }
+      public virtual float Score (DbFace toMatch, DbFace matchCandidate, out ScoreValues scoreValues) {
+         float score = SimdOps<float>.Dot (toMatch.Embeddings, matchCandidate.Embeddings);
+         scoreValues = new ScoreValues (null, score);
+         return score;
       }
 
    }

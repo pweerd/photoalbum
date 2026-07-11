@@ -28,4 +28,4 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCulture("")]
 
 [assembly: AssemblyVersion("2.1.2026.0206")]
-[assembly: AssemblyFileVersion("2.1.2026.0626")]
+[assembly: AssemblyFileVersion("2.1.2026.0711")]

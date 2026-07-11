@@ -207,7 +207,7 @@ function createLightboxControl(app) {
          if (photo.name.explain) {
             sb.push(stripExplain(photo.name.explain) + '<br />');
          }
-         matchedConfidence = photo.name.confidence.toFixed(2);
+         if (photo.name.confidence !== undefined) matchedConfidence = photo.name.confidence.toFixed(2);
       } else if (photo.names) {
          for (let nameObj of photo.names) {
             let name = nameObj.name || 'unknown';
@@ -218,14 +218,14 @@ function createLightboxControl(app) {
          }
       } else {
          sb.push(photo.src + ", " + toDateString(photo.updated));
-         if (photo.explain) sb.push(", " + stripExplain(nameObj.explain));
          sb.push("<br />");
       }
       sb.push(photo.id.substring(1+photo.id.lastIndexOf('~')) + "/" + photo.count);
       sb.push(", h=" + photo.h0);
       sb.push(", rto=" + round2(photo.face_ratio));
       sb.push(", " + (photo.face_ok ? 'ok' : '!ok') + ", " + photo.storage_id);
-      sb.push("<br />conf=" + photo.confidence + ", match=" + matchedConfidence + ", diff=" + photo.name.diff);
+      sb.push("<br />conf=" + photo.confidence + "/" + matchedConfidence);
+      if (photo.name?.diff) sb.push(", df=" + photo.name.diff_factor + ", d=" + photo.name.diff);
       sb.push('</div>');
 
       //<div class="txtbadge info-badge bottom-right-4"></div>

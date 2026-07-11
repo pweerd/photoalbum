@@ -21,6 +21,7 @@ using Bitmanager.Json;
 using MetadataExtractor;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
+using System.Diagnostics;
 
 namespace AlbumImporter.FaceRecognition {
 
@@ -157,6 +158,8 @@ namespace AlbumImporter.FaceRecognition {
    /// The embeddings are stored in a separate storage file
    /// A face is keyed like &lt;main-key&gt;~&lt;num&gt;
    /// </summary>
+
+   [DebuggerDisplay ("Face: {NameSrc}, {Name}")]
    public class DbFace {
       private static readonly DateTime updateStamp = DateTime.UtcNow;
       public string Id;
@@ -265,7 +268,7 @@ namespace AlbumImporter.FaceRecognition {
       }
 
 
-      public void AssignMatchesToNamesAndClearMatches() {
+      public void AssignMatchesToNamesAndClearMatches(bool rebuild, bool includeAltName) {
          if (Matches==null) {
             NameSrc = NameSource.NotAssigned;
             if (Name != null) {  //The face was assigned, but now it isn't anymore...
@@ -277,10 +280,10 @@ namespace AlbumImporter.FaceRecognition {
 
          var m = Matches[0];
          NameSrc = m.MatchedFace.NameSrc.ToAuto();
-         if (Name != null && Name.Id == m.MatchedFace.Name.Id && Name.Score != m.Score) goto EXIT_RTN;
+         if (Name != null && Name.Id == m.MatchedFace.Name.Id && Name.Score == m.Score && !rebuild) goto EXIT_RTN;
 
          MarkUpdated ();
-         Name = new DbFaceName (m);
+         Name = new DbFaceName (Matches, includeAltName);
 
       EXIT_RTN:
          Matches = null;

@@ -24,6 +24,7 @@ using Bitmanager.Xml;
 using MetadataExtractor;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 namespace AlbumImporter {
 
@@ -34,17 +35,18 @@ namespace AlbumImporter {
       private float[] weightPerFaceCount;
       private FaceStatistics faceStats;
       private TargetFaces targetFaces;
-      private string debugID;
 
 
       private IFaceScorer faceScorer;
       private float threshold;
+      private bool includeAltName;
 
       public object OnDatasourceStart (PipelineContext ctx, object value) {
          Init (ctx, true);
+         CheckLegacyFaceNamesIndex ();
 
          var ctxNode = ctx.DatasourceAdmin.ContextNode;
-         debugID = ctxNode.ReadStr ("@debug_id", null);
+         includeAltName = ctxNode.ReadBool ("@include_altname", false);
 
          //Load the facecount weights
          var weightNode = ctxNode.SelectMandatoryNode ("weight");
@@ -74,7 +76,7 @@ namespace AlbumImporter {
          coll.Load (
             ctx.ImportLog,
             activeOldIndex,
-            !sameIndexOrNotExist
+            !sameIndexOrNotExist || base.forceRebuild
          );
          existingFaces = coll.GetFaces ();
 
@@ -152,7 +154,7 @@ namespace AlbumImporter {
       public object OnId (PipelineContext ctx, object value) {
          idInfo = (IdInfo)value;
          bool rescoreForDbg = false;
-         if (debugID != null && debugID==idInfo.Id) {
+         if (breakAt != null && breakAt.IsMatch(idInfo.Id)) {
             Debugger.Break ();
             rescoreForDbg = true;
          }
@@ -205,7 +207,7 @@ namespace AlbumImporter {
          for (int i = 0; i < facesInPhoto.Count; i++) {
             var f = facesInPhoto[i];
             if ((f.NameSrc & NameSource.ManualOrCorrected) == 0)
-               f.AssignMatchesToNamesAndClearMatches ();
+               f.AssignMatchesToNamesAndClearMatches (base.forceRebuild, includeAltName);
             f.UpdateNames (faceNames);
             if (f.CopyNeeded) {
                f.Export (ep.Record);
@@ -231,7 +233,7 @@ namespace AlbumImporter {
             if (face.Embeddings == null || face.Embeddings.Length == 0)
                throw new BMException ("Normal face [{0}] has no embeddings.", face.Id);
 
-            var m = targetFaces.FindFaces (face, faceScorer);
+            var m = targetFaces.FindFaces (face, RawFaceScorer.Instance, faceScorer);
             if (m != null) {
                if (m[0].Score >= threshold) face.Matches = m;
             }
