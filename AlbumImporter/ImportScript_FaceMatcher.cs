@@ -122,7 +122,7 @@ namespace AlbumImporter {
                   var key = f.FaceStorageId.ToString();
                   storages.CopyOldToCur (key, key);
                }
-               f.RecomputeStatus (thresholds);
+               f.RecomputeStatus (thresholds, faceNames);
                f.Export (ep.Record);
                ctx.Pipeline.HandleValue (ctx, "record/face", f);
                exported++;
@@ -171,7 +171,7 @@ namespace AlbumImporter {
          var ep = ctx.Action.Endpoint;
          if (facesInPhoto[0].FaceCount == 0) {//No faces in this photo
             if (facesInPhoto[0].CopyNeeded) {
-               facesInPhoto[0].RecomputeStatus (thresholds);
+               facesInPhoto[0].RecomputeStatus (thresholds, faceNames);
                facesInPhoto[0].Export (ep.Record);
                ctx.Pipeline.HandleValue (ctx, "record/face", ep.Record);
             }
@@ -215,7 +215,7 @@ namespace AlbumImporter {
                f.AssignMatchesToNamesAndClearMatches (base.forceRebuild, includeAltName);
             f.UpdateNames (faceNames);
             if (f.CopyNeeded) {
-               f.RecomputeStatus (thresholds);
+               f.RecomputeStatus (thresholds, faceNames);
                f.Export (ep.Record);
                if (!sameIndexOrNotExist && f.FaceStorageId >= 0) {
                   var key = f.FaceStorageId.ToString();

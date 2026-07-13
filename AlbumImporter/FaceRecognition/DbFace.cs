@@ -260,20 +260,21 @@ namespace AlbumImporter.FaceRecognition {
          }
       }
 
-      public StatusFlags RecomputeStatus (FaceRecognitionThresholds thresholds) {
-         if (FaceCount == 0) Status = StatusFlags.None;
-         else if ((NameSrc & NameSource.Unknown) != 0) Status = StatusFlags.Unknown;
-         else if (Name == null) Status = StatusFlags.Unknown;
-         else if ((NameSrc & NameSource.ManualOrCorrected) != 0) Status = StatusFlags.Valid;
-         else if (Name.Score < thresholds.ScoreThreshold) Status = StatusFlags.Ignored;
-         else { 
-            if (Name.AltId >= 0) {
-               if (Name.ScoreRaw - Name.AltScore < thresholds.MinScoreDiff || Name.AltScore / Name.ScoreRaw > thresholds.MaxScoreDiffFactor) Status = StatusFlags.Ignored;
-               else Status = StatusFlags.Valid;
-            } else
-               Status = StatusFlags.Valid;
-         }
-         return Status;
+      public StatusFlags RecomputeStatus (FaceRecognitionThresholds thresholds, FaceNames faceNames) {
+         if (FaceCount == 0) return Status = StatusFlags.None;
+         if ((NameSrc & NameSource.Unknown) != 0) goto UNKNOWN;
+         if (Name == null) goto UNKNOWN;
+         if ((NameSrc & NameSource.ManualOrCorrected) != 0) goto VALID;
+         if (Name.Score < thresholds.ScoreThreshold) goto IGNORED;
+
+         if (Name.AltId < 0) goto VALID;   //No ID or ID is unknown
+         if (Name.ScoreRaw - Name.AltScore >= thresholds.MinScoreDiff && Name.AltScore / Name.ScoreRaw <= thresholds.MaxScoreDiffFactor) goto VALID;
+         if (faceNames.AreTwins(Name.Id, Name.AltId)) goto VALID;
+         goto IGNORED;
+
+      IGNORED: return Status = StatusFlags.Ignored;
+      UNKNOWN: return Status = StatusFlags.Unknown;
+      VALID: return Status = StatusFlags.Valid;
       }
 
       public int GetMatchedNameId () {
