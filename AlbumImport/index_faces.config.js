@@ -65,7 +65,8 @@
          "relarea": { "type": "float", "index": true, "doc_values": true },
          "relpos": { "type": "integer", "index": false, "doc_values": false },
          "src": { "type": "text", "analyzer": "lc_letters", "search_analyzer": "lc_text", "index_options": "docs" },
-         "user": {"type": "keyword", "normalizer": "lc_facet"},
+         "status": { "type": "keyword", "normalizer": "lc_facet" },
+         "user": { "type": "keyword", "normalizer": "lc_facet" },
          "txt": {"type": "text", "analyzer": "lc_text"},
          "name": {"properties": {
             "name": {"type": "text", "analyzer": "lc_text", "copy_to":["txt"], "fields": {

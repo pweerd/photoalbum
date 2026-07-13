@@ -152,6 +152,8 @@ namespace AlbumImporter.FaceRecognition {
 
       }
    }
+
+
    /// <summary>
    /// Represents a face stored in the DB
    /// Note that we don't store the embeddings in the ES index, since records will be big and slow
@@ -161,6 +163,8 @@ namespace AlbumImporter.FaceRecognition {
 
    [DebuggerDisplay ("Face: {NameSrc}, {Name}")]
    public class DbFace {
+      public enum StatusFlags:byte { None, Valid, Ignored, Unknown };
+
       private static readonly DateTime updateStamp = DateTime.UtcNow;
       public string Id;
       public string User;
@@ -189,6 +193,7 @@ namespace AlbumImporter.FaceRecognition {
       public RotateMode FaceOrientation;
       public bool FaceOK;
       public bool CopyNeeded;
+      public StatusFlags Status;
 
       public DbFace () {
          CopyNeeded = true; //set default: if any face was added other than from GenericDocument, this value is true, 
@@ -232,6 +237,7 @@ namespace AlbumImporter.FaceRecognition {
             for (int i = 0; i < arr.Count; i++)
                Embeddings[i] = (float)arr[i];
          }
+         if (FaceCount > 0) Status = strToStatus (src.ReadStr ("status", null));
       }
 
 
@@ -252,6 +258,22 @@ namespace AlbumImporter.FaceRecognition {
             if (!string.Equals (oldName, Name.Name, StringComparison.Ordinal))
                CopyNeeded = true;
          }
+      }
+
+      public StatusFlags RecomputeStatus (FaceRecognitionThresholds thresholds) {
+         if (FaceCount == 0) Status = StatusFlags.None;
+         else if ((NameSrc & NameSource.Unknown) != 0) Status = StatusFlags.Unknown;
+         else if (Name == null) Status = StatusFlags.Unknown;
+         else if ((NameSrc & NameSource.ManualOrCorrected) != 0) Status = StatusFlags.Valid;
+         else if (Name.Score < thresholds.ScoreThreshold) Status = StatusFlags.Ignored;
+         else { 
+            if (Name.AltId >= 0) {
+               if (Name.ScoreRaw - Name.AltScore < thresholds.MinScoreDiff || Name.AltScore / Name.ScoreRaw > thresholds.MaxScoreDiffFactor) Status = StatusFlags.Ignored;
+               else Status = StatusFlags.Valid;
+            } else
+               Status = StatusFlags.Valid;
+         }
+         return Status;
       }
 
       public int GetMatchedNameId () {
@@ -299,6 +321,7 @@ namespace AlbumImporter.FaceRecognition {
          if (Id[^1] == '0' && Id[^2] == '~') rec["first"] = true;
          if (Updated != DateTime.MinValue) rec["updated"] = Updated;
          rec["count"] = FaceCount;
+         rec["status"] = statusToStr (Status);
          if (FaceCount > 0) {
             rec["w0"] = W0;
             rec["h0"] = H0;
@@ -325,6 +348,23 @@ namespace AlbumImporter.FaceRecognition {
             rec["face_ratio2"] = RelPos.GetFaceRatio();
             //The embeddings will never be exported 
             //Instead they are saved in a separate storage file
+         }
+      }
+
+      private static StatusFlags strToStatus (string s) {
+         switch (s) {
+            case "V": return StatusFlags.Valid;
+            case "I": return StatusFlags.Ignored;
+            case "U": return StatusFlags.Unknown;
+            default: return StatusFlags.None;
+         }
+      }
+      private static string statusToStr (StatusFlags s) {
+         switch (s) {
+            case StatusFlags.Valid: return "V";
+            case StatusFlags.Ignored: return "I";
+            case StatusFlags.Unknown: return "U";
+            default: return string.Empty;
          }
       }
 

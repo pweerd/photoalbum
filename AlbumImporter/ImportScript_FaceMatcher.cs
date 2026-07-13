@@ -29,6 +29,7 @@ using System.Text.RegularExpressions;
 namespace AlbumImporter {
 
    public class ImportScript_FaceMatcher : ImportScriptBase {
+      private const float THRESHOLD_FOR_MATCHES = .1f;
       private List<DbFace> existingFaces;
       private FaceNames faceNames;
       private Storages storages;
@@ -38,7 +39,7 @@ namespace AlbumImporter {
 
 
       private IFaceScorer faceScorer;
-      private float threshold;
+      private FaceRecognitionThresholds thresholds;
       private bool includeAltName;
 
       public object OnDatasourceStart (PipelineContext ctx, object value) {
@@ -48,9 +49,11 @@ namespace AlbumImporter {
          var ctxNode = ctx.DatasourceAdmin.ContextNode;
          includeAltName = ctxNode.ReadBool ("@include_altname", false);
 
+         thresholds = new FaceRecognitionThresholds(ctxNode.SelectMandatoryNode ("thresholds"));
+         ctx.ImportLog.Log ("Using recognition thresholds: " + thresholds.ToString ());
+
          //Load the facecount weights
          var weightNode = ctxNode.SelectMandatoryNode ("weight");
-         this.threshold = (float)weightNode.ReadFloat ("@threshold");
          var min = (float)weightNode.ReadFloat ("@min_weight");
          var factors = new List<float> (20);
          factors.Add (0);
@@ -63,7 +66,7 @@ namespace AlbumImporter {
          }
          factors.Add (min);
          weightPerFaceCount = factors.ToArray ();
-         ctx.ImportLog.Log ("Dumping face-count weight. Threshold={0:F2}", threshold);
+         ctx.ImportLog.Log ("Dumping face-count weight. Threshold={0:F2}", THRESHOLD_FOR_MATCHES);
          for (int i = 1; i < weightPerFaceCount.Length; i++) {
             ctx.ImportLog.Log ("-- face-count [{0}]: {1}", i, weightPerFaceCount[i]);
          }
@@ -119,6 +122,7 @@ namespace AlbumImporter {
                   var key = f.FaceStorageId.ToString();
                   storages.CopyOldToCur (key, key);
                }
+               f.RecomputeStatus (thresholds);
                f.Export (ep.Record);
                ctx.Pipeline.HandleValue (ctx, "record/face", f);
                exported++;
@@ -167,6 +171,7 @@ namespace AlbumImporter {
          var ep = ctx.Action.Endpoint;
          if (facesInPhoto[0].FaceCount == 0) {//No faces in this photo
             if (facesInPhoto[0].CopyNeeded) {
+               facesInPhoto[0].RecomputeStatus (thresholds);
                facesInPhoto[0].Export (ep.Record);
                ctx.Pipeline.HandleValue (ctx, "record/face", ep.Record);
             }
@@ -210,6 +215,7 @@ namespace AlbumImporter {
                f.AssignMatchesToNamesAndClearMatches (base.forceRebuild, includeAltName);
             f.UpdateNames (faceNames);
             if (f.CopyNeeded) {
+               f.RecomputeStatus (thresholds);
                f.Export (ep.Record);
                if (!sameIndexOrNotExist && f.FaceStorageId >= 0) {
                   var key = f.FaceStorageId.ToString();
@@ -235,7 +241,7 @@ namespace AlbumImporter {
 
             var m = targetFaces.FindFaces (face, RawFaceScorer.Instance, faceScorer);
             if (m != null) {
-               if (m[0].Score >= threshold) face.Matches = m;
+               if (m[0].Score >= THRESHOLD_FOR_MATCHES) face.Matches = m;
             }
          }
       }
