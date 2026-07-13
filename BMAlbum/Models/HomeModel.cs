@@ -25,6 +25,7 @@ namespace BMAlbum.Models {
       public readonly RequestContext RequestCtx;
       public readonly string Id;
       public readonly bool AllowSensors;
+      public readonly bool Debug;
 
       public HomeModel (BaseController c, ClientState state, string id=null) {
          RequestCtx = c.RequestCtx;
@@ -32,6 +33,7 @@ namespace BMAlbum.Models {
          MapSettings = state.Settings.MapSettings;
          AllowSensors = state.AllowSensors;
          Id = id;
+         Debug = (state.DebugFlags & DebugFlags.TRUE) != 0;
       }
 
       public HtmlString AllowSensorsStr => new HtmlString (AllowSensors ? "true" : "false");

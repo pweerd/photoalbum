@@ -34,6 +34,7 @@ namespace BMAlbum.Controllers {
 
          var c = settings.ESClient;
          var req = c.CreateSearchRequest (settings.FaceIndex);
+         req.TrackTotalHits = true;
          clientState.Sort.ToSearchRequest (req);
          req.Size = 1000;
          var bq = new ESBoolQuery ();
@@ -67,7 +68,7 @@ namespace BMAlbum.Controllers {
          }
 
          json.WriteProperty ("chgid", faceNames.ChangeId);
-         json.WriteProperty ("total", resp.TotalHits);
+         json.WriteProperty ("total_hits", resp.TotalHits);
          json.WriteProperty ("new_state", (IJsonSerializable)clientState.ToJson ());
          if ((clientState.DebugFlags & DebugFlags.TRUE) != 0) {
             json.WriteStartObject ("dbg");

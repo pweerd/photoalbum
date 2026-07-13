@@ -137,7 +137,8 @@ namespace BMAlbum.Controllers {
          docs.Sort(cmp);
          var debug = (clientState.DebugFlags & DebugFlags.TRUE) != 0;
 
-         writeFiles(json, docs.Select((d)=>d.Doc).ToList(), debug, null);
+         json.WriteProperty ("total_hits", resp.TotalHits);
+         writeFiles (json, docs.Select((d)=>d.Doc).ToList(), debug, null);
 
          if (debug) {
             json.WriteStartObject("dbg");
@@ -250,6 +251,7 @@ namespace BMAlbum.Controllers {
          var json = new JsonMemoryBuffer ();
          json.WriteStartObject ();
          if (indexInfo == null) {
+            json.WriteProperty ("total_hits", 0);
             json.WriteProperty ("new_state", (IJsonSerializable)clientState.ToJson ());
             json.WriteEmptyArray ("files");
             json.WriteEmptyArray ("albums");
@@ -390,6 +392,7 @@ namespace BMAlbum.Controllers {
             docs.RemoveRange (1, docs.Count - 1);
          json.WriteProperty ("new_state", (IJsonSerializable)clientState.ToJson ());
 
+         json.WriteProperty ("total_hits", resp.TotalHits);
          writeFiles (json, docs, debug, queryGenerator);
 
          if (debug) {

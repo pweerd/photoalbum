@@ -642,6 +642,7 @@ function createLightboxControl(app) {
       else if (data.query_error) tt = "Query kon niet goed geinterpreteerd worden.\nRaadpleeg even de help...\n(?-icon)";
       else tt = ''
       $('#searchq').attr('data-title', tt);
+      $('#total_hits').text(data.files.length + "/" + data.total_hits );
 
       if (_faceMode) _updateLightboxFaces($elt, data); else _updateLightboxPhotos($elt, data);
 

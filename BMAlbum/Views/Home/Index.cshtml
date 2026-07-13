@@ -17,6 +17,12 @@
                <button id="help_link" class="link" title="Toon help">?</button>
             </div>
          </div>
+         @if (Model.Debug){
+         <div id="row_hits" class="labeled-input">
+            <span class="lcell" for="albums">Hits:</span>
+            <div id="total_hits" class="rcell"></div>
+         </div>
+         }
          <div id="row_album" class="labeled-input">
             <label class="lcell" for="albums">Album:</label>
             <div class="rcell">
@@ -46,7 +52,7 @@
             <button id="btn_recent_uncertain" title="Zoek recent, onzeker, automatisch toegekende namen">Recent onzeker</button>
             <button id="btn_recent_unassigned" title="Zoek recente gezichten zonder naam">Recent naamloos</button>
          </div>  }
-         @if ((Model.State.DebugFlags & DebugFlags.TRUE) != 0) {
+         @if (Model.Debug) {
             <span id="dbg_timings" class="txtbadge dbg-badge">T</span> <span id="dbg_esrequest" class="txtbadge  dbg-badge">Q</span>
          }
       </div>
