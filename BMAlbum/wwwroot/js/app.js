@@ -363,6 +363,7 @@ function createApplication(state, fnInit) {
             break;
       }
       if (_state.mode == "faces") {
+         $("html").css("overflow-y","hidden");
          $("#row_album").addClass("hidden");
          $("#row_year").addClass("hidden");
          $("#row_per_album").addClass("hidden");
