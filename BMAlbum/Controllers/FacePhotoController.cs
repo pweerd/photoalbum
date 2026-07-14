@@ -154,12 +154,14 @@ namespace BMAlbum.Controllers {
                rec.Remove ("name");
                rec.Remove ("explain");
                rec["src"] = "N";
+               rec["status"] = "N";
                resultName = string.Empty;
                break;
             case ID_UNKNOWN:
                rec.Remove ("name");
                rec.Remove ("explain");
                rec["src"] = correct ? "CU" : "MU";
+               rec["status"] = "I";
                resultName = "Unknown";
                break;
             default: //Update
@@ -167,6 +169,7 @@ namespace BMAlbum.Controllers {
                rec["src"] = correct ? "CK": "MK";
                var nameObj = new JsonObjectValue ();
                rec["name"] = nameObj;
+               rec["status"] = "V";
                nameObj["id"] = faceId;
                nameObj["match_score"] = 1;
                nameObj["name"] = resultName = names.NameById (faceId);
