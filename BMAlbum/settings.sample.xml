@@ -128,10 +128,13 @@
          </fieldconfigs>
          <searchers>
             <searcher field="default" searchfield="txt" tiebreaker="0"/>
-            <searcher field="name|naam" type="name_searcher" searchfield="names!name" tiebreaker="0"/>
-            <searcher field="nameid"  searchfield="names!id" />
+            <searcher field="name|naam" type="name_searcher" searchfield="name.name" tiebreaker="0"/>
+            <searcher field="nameid"  searchfield="name.id" />
             <searcher field="personen|gezichten" searchfield="count" />
-            <searcher field="score"  searchfield="names!match_score" />
+            <searcher field="score"  searchfield="name.match_score" />
+            <searcher field="diff"  searchfield="name.diff" />
+            <searcher field="diff_factor"  searchfield="name.diff_factor" />
+            <searcher field="exist|exists" searchfield="" type="exists_searcher"/>
          </searchers>
          <boost_query>
          </boost_query>
@@ -139,13 +142,17 @@
          <sortmodes>
             <sort name="updated" text="Laatst gewijzigd" field="updated" direction="desc" />
             <sort name="relevance" text="Relevantie" field="_score" direction="desc" />
-            <sort name="name_down" text="Naam-ID aflopend" field="names!id" direction="desc" followedby="score_down" />
-            <sort name="name_up" text="Naam-ID" field="names!id" direction="asc" followedby="score_down"/>
-            <sort name="score_down" text="Score aflopend" field="names!match_score" direction="desc" mode="max" />
-            <sort name="score_up" text="Score" field="names!match_score" direction="asc" mode="max" />
+            <sort name="name_down" text="Naam-ID aflopend" field="name.id" direction="desc" followedby="score_down" />
+            <sort name="name_up" text="Naam-ID" field="name.id" direction="asc" followedby="score_down"/>
+            <sort name="score_down" text="Score aflopend" field="name.match_score" direction="desc" mode="max" />
+            <sort name="score_up" text="Score" field="name.match_score" direction="asc" mode="max" />
             <sort name="face_size" text="Grootte gezicht" field="h0" direction="asc" />
             <sort name="ratio_up" text="Ratio oplopend" field="face_ratio" direction="asc" />
             <sort name="ratio_down" text="Ratio aflopend" field="face_ratio" direction="desc" />
+            <sort name="diff_up" text="Diff oplopend" field="name.diff" direction="asc" />
+            <sort name="diff_down" text="Diff aflopend" field="name.diff" direction="desc" />
+            <sort name="diff_fact_up" text="Diff-factor oplopend" field="name.diff_factor" direction="asc" />
+            <sort name="diff_fact_down" text="Diff-factor aflopend" field="name.diff_factor" direction="desc" />
          </sortmodes>
 
          <facets />

@@ -17,38 +17,43 @@
 using Bitmanager.BoolParser;
 using Bitmanager.Elastic;
 using Bitmanager.Query;
-using Bitmanager.Webservices;
-using Microsoft.AspNetCore.DataProtection.KeyManagement;
-using System.Diagnostics;
 
 namespace BMAlbum {
 
    public class NameSearcher : SingleFieldSearcher {
+      private readonly string nestField;
+      private readonly string scoreField;
 
       public NameSearcher (string field, string searchField, SearchFieldConfig fieldConfig)
          : base (field, searchField.Replace('!', '.'), fieldConfig) {
+         var idx = base.SearchField.LastIndexOf('.');
+         string rootField = null;
+         if (idx < 0)
+            scoreField = "match_score";
+         else {
+            rootField = base.SearchField.Substring (0, idx);
+            if (searchField[idx] == '!') nestField = rootField;
+            scoreField = rootField + ".match_score";
+         }
       }
-      
-      private ESQuery wrapNestedScorer (QueryGenerator generator, ESQuery q) {
+
+      private ESQuery wrapNestedScorer (ESQuery q) {
          var fq = new ESFunctionScoreQuery (q);
          fq.BoostMode = ESBoostMode.replace;
-         if (generator.IndexInfo.GetField("names", false)!=null) {
-            fq.Functions.Add (new ESFieldScoreFunction ("names.match_score"));
-            return new ESNestedQuery ("names", fq, ESScoreMode.max);
-         }
-         fq.Functions.Add (new ESFieldScoreFunction ("match_score"));
-         return fq;
+         fq.Functions.Add (new ESFieldScoreFunction (scoreField));
+         return nestField == null ? fq : new ESNestedQuery (nestField, fq, ESScoreMode.max);
       }
+      
       public override ESQuery CreatePhraseQuery (QueryGenerator generator, ParserPhraseValueNode node) {
-         return wrapNestedScorer (generator, base.CreatePhraseQuery (generator, node));
+         return wrapNestedScorer (base.CreatePhraseQuery (generator, node));
       }
 
       public override ESQuery CreateRangeQuery (QueryGenerator generator, ParserRangeValueNode node) {
-         return wrapNestedScorer(generator, base.CreateRangeQuery (generator, node));
+         return wrapNestedScorer(base.CreateRangeQuery (generator, node));
       }
 
       public override ESQuery CreateTextQuery (QueryGenerator generator, ParserValueNode node) {
-         return wrapNestedScorer (generator, base.CreateTextQuery (generator, node));
+         return wrapNestedScorer (base.CreateTextQuery (generator, node));
       }
 
    }
