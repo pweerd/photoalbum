@@ -36,7 +36,7 @@ namespace BMAlbum.Controllers {
          var req = c.CreateSearchRequest (settings.FaceIndex);
          req.TrackTotalHits = true;
          clientState.Sort.ToSearchRequest (req);
-         req.Size = 1000;
+         req.Size = clientState.ActualPageSize;
          var bq = new ESBoolQuery ();
          req.Query = bq;
          bq.AddFilter (new ESTermQuery ("any_face", "true"));
