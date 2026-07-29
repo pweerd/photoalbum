@@ -1,4 +1,6 @@
 ﻿using Bitmanager.Core;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Bitmanager.AlbumTools {
 
@@ -106,7 +108,59 @@ namespace Bitmanager.AlbumTools {
          if (TwinsSet == null || !TwinsSet.TryGetValue (id1, out var twins)) return false;
          return twins.Contains (id2);
       }
+
+      [Flags]
+      public enum FindNameFlags {SortedById=1, SearchEqual=2, SearchPrefix=4, SearchContains=8, MustExcept=16 };
+      public FaceName FindName(string name, FindNameFlags flags) {
+         var names = (flags & FindNameFlags.SortedById) != 0 ? this.Names : SortedNames;
+
+         if (string.IsNullOrEmpty (name)) goto NOT_FOUND;
+
+         if ((flags & FindNameFlags.SearchEqual) != 0) {
+            for (int i = 0; i < names.Length; i++) {
+               if (string.Equals (name, names[i].Name, StringComparison.InvariantCultureIgnoreCase))
+                  return names[i];
+            }
+         }
+
+         if ((flags & FindNameFlags.SearchPrefix) != 0) {
+            for (int i = 0; i < names.Length; i++) {
+               if (names[i].Name.StartsWith (name, StringComparison.InvariantCultureIgnoreCase))
+                  return names[i];
+            }
+         }
+
+         if ((flags & FindNameFlags.SearchContains) != 0) {
+            var expr = createRegexForName(name);
+            for (int i = 0; i < names.Length; i++) {
+               if (expr.IsMatch (names[i].Name))
+                  return names[i];
+            }
+         }
+
+      NOT_FOUND:
+         if ((flags & FindNameFlags.MustExcept) != 0) throw new BMException ("Face named [{0}] not found.", name);
+         return null;
+      }
+
+      private static Regex createRegexForName (string name) {
+         var nameForExpr = name;
+         if (name.Contains (' ')) {
+            var sb = new StringBuilder();
+            for (int i = 0; i < name.Length; i++) {
+               if (name[i] == ' ') {
+                  if (i > 0 && name[i - 1] == ' ') continue;
+                  sb.Append (".+");
+                  continue;
+               }
+               sb.Append (name[i]);
+            }
+            nameForExpr = sb.ToString ();
+         }
+         return new Regex(nameForExpr, RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+      }
    }
+
 
    public class FaceName {
       public readonly int Id;
