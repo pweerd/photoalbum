@@ -37,11 +37,7 @@ namespace AlbumImporter.FaceRecognition {
       static int compareDetectedFace (FaceHit a, FaceHit b) {
          if (a.Score > b.Score) return 1;
          if (a.Score < b.Score) return -1;
-         if (a.MatchedFace != null && b.MatchedFace != null) {    //pw a en b zijn nooit null!
-            int rc = b.MatchedFace.Name.Id - a.MatchedFace.Name.Id;
-            if (rc != 0) return rc;
-         }
-         return 0;
+         return b.MatchedFace.Name.Id - a.MatchedFace.Name.Id;
       }
 
       public List<FaceHit> FindFaces (DbFace face, IFaceScorer rawScorer, IFaceScorer scorer) {

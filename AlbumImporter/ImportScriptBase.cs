@@ -134,15 +134,19 @@ namespace AlbumImporter {
       protected void CheckLegacyFaceNamesIndex() {
          if  (activeOldIndex != null) {
             if (!forceRebuild || !fullImport) {
-               if (!hasName (activeOldIndex))
-                  throw new BMException (
-                     "Old/existing index [{0}] does not contain a definition for [name].\nPlease run *only* your [face_extract] import with [FullImport] and [ForceRebuild].",
-                     activeOldIndex.Name);
+               CheckLegacyFaceNamesIndex (activeOldIndex);
             }
          }
 
          if (!hasName (curIndex))
             throw new BMException ("Incorrect mappings for [album-faces] index: does not contain definition for [name].");
+      }
+
+      protected void CheckLegacyFaceNamesIndex (IndexInfo index) {
+         if (index != null && !hasName (index))
+            throw new BMException (
+               "Old/existing index [{0}] does not contain a definition for [name].\nPlease run *only* your [face_extract] import with [FullImport] and [ForceRebuild].",
+               index.Name);
       }
 
       private bool hasName(IndexInfo index) {

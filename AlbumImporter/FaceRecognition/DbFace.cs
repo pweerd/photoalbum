@@ -18,7 +18,6 @@ using Bitmanager.AlbumTools;
 using Bitmanager.Core;
 using Bitmanager.Elastic;
 using Bitmanager.Json;
-using MetadataExtractor;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using System.Diagnostics;
@@ -251,31 +250,41 @@ namespace AlbumImporter.FaceRecognition {
       public bool HasEmbeddings => Embeddings != null && Embeddings.Length > 0;
 
 
-      public void UpdateNames (FaceNames definedNames) {
-         if (Name != null && Name.Id >= 0) {
-            var oldName = Name.Name;
-            Name.UpdateName (definedNames);
-            if (!string.Equals (oldName, Name.Name, StringComparison.Ordinal))
-               CopyNeeded = true;
-         }
-      }
+      public void UpdateNamesAndStatus (FaceNames faceNames, FaceRecognitionThresholds thresholds) {
+         if (FaceCount == 0) return;
+         if (Name != null && Name.Id >= 0) CopyNeeded |= Name.UpdateName (faceNames);
 
-      public StatusFlags RecomputeStatus (FaceRecognitionThresholds thresholds, FaceNames faceNames) {
-         if (FaceCount == 0) return Status = StatusFlags.None;
+         StatusFlags newStatus;
          if ((NameSrc & NameSource.Unknown) != 0) goto UNKNOWN;
          if (Name == null) goto UNKNOWN;
          if ((NameSrc & NameSource.ManualOrCorrected) != 0) goto VALID;
-         if (Name.Score < thresholds.ScoreThreshold) goto IGNORED;
+         if (thresholds==null) {
+            if (Name.Score < FaceRecognitionThresholds.DEF_SCORE_THRESHOLD) goto IGNORED;
+            goto VALID;
+         }
 
+         //Threshold not null!
+         if (Name.Score < thresholds.ScoreThreshold) goto IGNORED;
          if (Name.AltId < 0) goto VALID;   //No ID or ID is unknown
          if (Name.ScoreRaw - Name.AltScore >= thresholds.MinScoreDiff && Name.AltScore / Name.ScoreRaw <= thresholds.MaxScoreDiffFactor) goto VALID;
-         if (faceNames.AreTwins(Name.Id, Name.AltId)) goto VALID;
+         if (faceNames.AreTwins (Name.Id, Name.AltId)) goto VALID;
          goto IGNORED;
 
-      IGNORED: return Status = StatusFlags.Ignored;
-      UNKNOWN: return Status = StatusFlags.Unknown;
-      VALID: return Status = StatusFlags.Valid;
+      IGNORED:
+         newStatus = StatusFlags.Ignored;
+         goto EXIT_RTN;
+      UNKNOWN:
+         newStatus = StatusFlags.Unknown;
+         goto EXIT_RTN;
+      VALID:
+         newStatus = StatusFlags.Valid;
+         goto EXIT_RTN;
+
+      EXIT_RTN:
+         CopyNeeded |= (newStatus != Status);
+         Status = newStatus;
       }
+
 
       public int GetMatchedNameId () {
          if ((NameSrc & NameSource.ManualOrCorrected) != 0)

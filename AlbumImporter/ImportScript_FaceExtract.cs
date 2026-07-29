@@ -197,7 +197,7 @@ namespace AlbumImporter {
                face.FaceStorageId = newStorId;
             }
 
-            face.UpdateNames (faceNames);
+            face.UpdateNamesAndStatus (faceNames, null);
             if (face.CopyNeeded) {
                face.Export (ep.Record);
                ctx.Pipeline.HandleValue (ctx, "record/face", face);

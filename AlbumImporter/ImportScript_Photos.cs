@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-using Bitmanager.ImportPipeline;
-using Bitmanager.Json;
-using System.Text;
-using Bitmanager.Core;
-using Bitmanager.Xml;
-using Bitmanager.IR;
-using Bitmanager.Elastic;
-using Bitmanager.Webservices;
-using Bitmanager.ImageTools;
-using Bitmanager.AlbumTools;
-using System.Xml;
-using AlbumImporter.PHash;
 using AlbumImporter.Captions;
-using AlbumImporter.Ocr;
-using AlbumImporter.Tracks;
 using AlbumImporter.FaceRecognition;
+using AlbumImporter.Ocr;
+using AlbumImporter.PHash;
+using AlbumImporter.Tracks;
+using Bitmanager.AlbumTools;
+using Bitmanager.Core;
+using Bitmanager.Elastic;
+using Bitmanager.ImageTools;
+using Bitmanager.ImportPipeline;
+using Bitmanager.IR;
+using Bitmanager.Json;
+using Bitmanager.Webservices;
+using Bitmanager.Xml;
+using System.Text;
+using System.Xml;
 
 namespace AlbumImporter {
 
@@ -67,7 +67,6 @@ namespace AlbumImporter {
          "november",
          "december"
       };
-      private float facesThreshold;
 
       public object OnDatasourceStart (PipelineContext ctx, object value) {
          const _XmlRawMode mandatory = _XmlRawMode.EmptyToNull | _XmlRawMode.ExceptNullValue;
@@ -109,8 +108,9 @@ namespace AlbumImporter {
          taggers = new Taggers (dsNode.SelectSingleNode ("taggers"));
          if (taggers.Count == 0) taggers = null;
 
-         facesThreshold = (float)dsNode.ReadFloat ("faces/@threshold", .25);
-         faces = new FaceCollection (ctx.ImportLog, IndexInfo.Create(dsNode.ReadStrRaw ("faces/@url", mandatory), false), false).GetFaces ();
+         var facesIndex = IndexInfo.Create(dsNode.ReadStrRaw ("faces/@url", mandatory), false);
+         base.CheckLegacyFaceNamesIndex (facesIndex);
+         faces = new FaceCollection (ctx.ImportLog, facesIndex, false).GetFaces ();
          faces.Sort ((a, b) => string.Compare (a.Id, b.Id, StringComparison.Ordinal));
 
          faceNames = ReadFaceNames();
@@ -511,11 +511,20 @@ namespace AlbumImporter {
 
          for (; i<end; i++) {
             face = faces[i];
+            if (face.Status != DbFace.StatusFlags.Valid) continue;
+
             var name = face.Name;
-            if (name == null) continue;
-            if (name.Id < 0 || name.Score < facesThreshold) continue;
             name.UpdateName (this.faceNames);
-            arr.Add (name.ToJson ());
+            var json = new JsonObjectValue();
+            json.Add ("id", name.Id);
+            json.Add ("name", name.Name);
+            json.Add ("match_score", name.Score);
+            json.Add ("match_score_raw", name.ScoreRaw);
+            json.Add ("confidence", name.Confidence);
+            json.Add ("relarea", face.RelPos.GetRelArea ());
+            json.Add ("ratio", face.FaceRatio);
+            json.Add ("ratio_01", face.FaceRatio_1);
+            arr.Add (json);
          }
          return;
 

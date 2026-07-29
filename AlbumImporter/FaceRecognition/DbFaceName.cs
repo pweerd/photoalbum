@@ -25,7 +25,7 @@ namespace AlbumImporter.FaceRecognition {
    /// Represents a known or a matched face
    /// </summary>
    public class DbFaceName {
-      public string Name;
+      public string Name, AltName;
       public readonly string Explain;
       public readonly int Id, AltId;
       public readonly float Score;
@@ -57,7 +57,7 @@ namespace AlbumImporter.FaceRecognition {
             AltScore = m2.ScoreRaw;
             if (includeAltName) AltId = m2.MatchedFace.Name.Id;
          }
-         //Name will be copied later
+         //Name(s) will be set later via UpdateName()
       }
 
       public DbFaceName (JsonObjectValue v, DbFace parent) {
@@ -75,16 +75,28 @@ namespace AlbumImporter.FaceRecognition {
             ScoreRaw = v.ReadFloat ("match_score_raw", Score);
             Confidence = v.ReadFloat ("confidence", 0f);
          }
+
+         AltScore = v.ReadFloat ("altscore", 0f);
+         AltId = v.ReadInt ("altid", -1);
+         if (AltId>=0) AltName = v.ReadStr ("altname", null);
+
          Name = v.ReadStr ("name", null);
          Explain = v.ReadStr ("explain", null);
       }
 
-      public void UpdateName (FaceNames faceNames) {
+      public bool UpdateName (FaceNames faceNames) {
+         var ret = false;
          if (Id >= 0) {
+            var oldName = Name;
             Name = faceNames.NameById (Id);
-            if (AltId >= 0)
-               Name = Invariant.Format ("{0} ({1}, {2:F2})", Name, faceNames.NameById (AltId), AltScore);
+            ret = string.Equals (Name, oldName, StringComparison.Ordinal);
+            if (AltId >= 0) {
+               oldName = AltName;
+               AltName = faceNames.NameById (AltId);
+               ret = string.Equals (AltName, oldName, StringComparison.Ordinal);
+            }
          }
+         return ret;
       }
 
       public JsonObjectValue ToJson() {
@@ -97,6 +109,8 @@ namespace AlbumImporter.FaceRecognition {
             json.Add ("diff_factor", Math.Round (AltScore / ScoreRaw, 3));
             json.Add ("diff", Math.Round (ScoreRaw - AltScore, 3));
             json.Add ("altscore", AltScore);
+            json.Add ("altid", AltId);
+            json.Add ("altname", AltName);
          }
          if (!string.IsNullOrEmpty (Explain)) json.Add ("explain", Explain);
          if (!string.IsNullOrEmpty(Name)) json.Add ("name", Name);

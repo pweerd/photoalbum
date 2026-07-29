@@ -115,14 +115,14 @@ namespace AlbumImporter {
          if (!sameIndexOrNotExist) {
             int exported=0;
             foreach (var f in existingFaces) {
-               if (!f.CopyNeeded) continue;
+               if (!f.CopyNeeded) continue;   //PW moet met een handled flag
                if (!f.NameSrc.IsManualDefined ()) continue;
 
                if (f.FaceStorageId >= 0) {
                   var key = f.FaceStorageId.ToString();
                   storages.CopyOldToCur (key, key);
                }
-               f.RecomputeStatus (thresholds, faceNames);
+               f.UpdateNamesAndStatus (faceNames, thresholds);
                f.Export (ep.Record);
                ctx.Pipeline.HandleValue (ctx, "record/face", f);
                exported++;
@@ -171,7 +171,6 @@ namespace AlbumImporter {
          var ep = ctx.Action.Endpoint;
          if (facesInPhoto[0].FaceCount == 0) {//No faces in this photo
             if (facesInPhoto[0].CopyNeeded) {
-               facesInPhoto[0].RecomputeStatus (thresholds, faceNames);
                facesInPhoto[0].Export (ep.Record);
                ctx.Pipeline.HandleValue (ctx, "record/face", ep.Record);
             }
@@ -190,6 +189,7 @@ namespace AlbumImporter {
             for (int i = 0; i < facesInPhoto.Count; i++) {
                var f = facesInPhoto[i];
                if ((f.NameSrc & NameSource.ManualOrCorrected) != 0) continue;
+               if (f.Matches == null) continue;
                for (int j=0; j<f.Matches.Count; j++) {
                   var m = f.Matches[j];
                   faceScorer.Score (m.FaceToMatch, m.MatchedFace, out var scoreValues);
@@ -213,9 +213,8 @@ namespace AlbumImporter {
             var f = facesInPhoto[i];
             if ((f.NameSrc & NameSource.ManualOrCorrected) == 0)
                f.AssignMatchesToNamesAndClearMatches (base.forceRebuild, includeAltName);
-            f.UpdateNames (faceNames);
+            f.UpdateNamesAndStatus (faceNames, thresholds);
             if (f.CopyNeeded) {
-               f.RecomputeStatus (thresholds, faceNames);
                f.Export (ep.Record);
                if (!sameIndexOrNotExist && f.FaceStorageId >= 0) {
                   var key = f.FaceStorageId.ToString();

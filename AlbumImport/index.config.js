@@ -170,10 +170,12 @@
                "facet": { "type": "keyword", "normalizer": "lc_facet", "doc_values": true }
             }},
             "id": {"type": "integer"},
-            "match_score": {"type": "float"},
-            "face_detect_score": {"type": "float"},
-            "detected_face_detect_score": {"type": "float"},
-            "score_all": {"type": "float"}
+            "match_score": { "type": "float" },
+            "match_score_raw": { "type": "float" },
+            "confidence": {"type": "float"},
+            "relarea": {"type": "float"},
+            "ratio": { "type": "float" },
+            "ratio_01": { "type": "float" }
          }},
          "trkid": { "type": "text", "analyzer": "lc_text" }
       }
