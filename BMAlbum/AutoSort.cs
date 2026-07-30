@@ -12,25 +12,28 @@ namespace BMAlbum {
 
    public class AutoSort {
 
-      private readonly SortMode Album;
-      private readonly SortMode LocationOrNameQuery;
-      private readonly SortMode FuzzyQuery;
-      private readonly SortMode OtherQuery;
-      private readonly SortMode Default;
+      private readonly SortMode SortForOneAlbum;
+      private readonly SortMode SortForLocationOrNameQuery;
+      private readonly SortMode SortForFuzzyQuery;
+      private readonly SortMode SortForOtherQuery;
+      private readonly SortMode SortForNoQuery;
+      private readonly SortMode SortForPortraitQuery;
       public AutoSort (XmlNode node, SortModes sortModes) {
          try {
+            SortForPortraitQuery = sortModes.Find ("oldontop", true);
             if (node == null) {
-               Album = sortModes.Find ("oldontop", true);
-               LocationOrNameQuery = sortModes.Find ("relevance", true);
-               FuzzyQuery = LocationOrNameQuery;
-               OtherQuery = LocationOrNameQuery;
-               Default = sortModes.Find ("newontop", true);
+               SortForPortraitQuery = SortForOneAlbum = sortModes.Find ("oldontop", true);
+               SortForLocationOrNameQuery = sortModes.Find ("relevance", true);
+               SortForFuzzyQuery = SortForLocationOrNameQuery;
+               SortForOtherQuery = SortForLocationOrNameQuery;
+               SortForNoQuery = sortModes.Find ("newontop", true);
             } else {
-               Album = readSortMode (node, "@album", null, sortModes);
-               LocationOrNameQuery = readSortMode (node, "@loc_or_name_query", null, sortModes);
-               FuzzyQuery = readSortMode (node, "@fuzzy_query", null, sortModes);
-               OtherQuery = readSortMode (node, "@other_query", null, sortModes);
-               Default = readSortMode (node, "@default", null, sortModes);
+               SortForOneAlbum = readSortMode (node, "@album", null, sortModes);
+               SortForPortraitQuery = readSortMode (node, "@portrait_query", null, sortModes);
+               SortForLocationOrNameQuery = readSortMode (node, "@loc_or_name_query", null, sortModes);
+               SortForFuzzyQuery = readSortMode (node, "@fuzzy_query", null, sortModes);
+               SortForOtherQuery = readSortMode (node, "@other_query", null, sortModes);
+               SortForNoQuery = readSortMode (node, "@default", null, sortModes);
             }
          } catch (Exception e) {
             throw new BMNodeException (e, node, e.Message);
@@ -38,17 +41,18 @@ namespace BMAlbum {
       }
 
       public SortMode ResolveSortMode (List<ParserValueNode> query, bool oneAlbum, bool fuzzy) {
-         if (oneAlbum) return Album;
-         if (fuzzy) return FuzzyQuery;
-         if (query != null && query.Count > 0) {
-            for (int i = 0; i < query.Count; i++) {
-               var processed = query[i].ProcessedBy;
-               if (processed is LocationSearcher || processed is NameSearcher || processed is PinSearcher)
-                  return LocationOrNameQuery;
-            }
-            return OtherQuery;
+         if (oneAlbum) return SortForOneAlbum;
+         if (fuzzy) return SortForFuzzyQuery;
+         if (query == null || query.Count == 0) return SortForNoQuery;
+
+         for (int i = 0; i < query.Count; i++) {
+            var processed = query[i].ProcessedBy;
+            if (processed is PortraitSearcher)
+               return SortForPortraitQuery;
+            if (processed is LocationSearcher || processed is NameSearcher || processed is PinSearcher)
+               return SortForLocationOrNameQuery;
          }
-         return Default;
+         return SortForOtherQuery;
       }
 
       private SortMode readSortMode (XmlNode node, string key, string def, SortModes sortModes) {

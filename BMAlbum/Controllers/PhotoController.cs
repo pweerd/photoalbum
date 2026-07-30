@@ -25,15 +25,10 @@ using Bitmanager.Web;
 using Bitmanager.Web.ActionResults;
 using Bitmanager.Xml;
 using BMAlbum.Core;
-using BMAlbum.Models;
 using Microsoft.AspNetCore.Mvc;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -323,6 +318,15 @@ namespace BMAlbum.Controllers {
 
          bool hasAlbumFacet = clientState.ContainsFacetRequest ("album");
          bool oneQueryIsEnough = (hasAlbumFacet || clientState.PerAlbum == TriStateBool.False || hasFuzzy);
+         bool hasPortraitQ = false;
+         bool hasLocationQ = false;
+         if (valueNodes != null) {
+            foreach (var node in valueNodes) {
+               if (node.ProcessedBy is PinSearcher || node.ProcessedBy is LocationSearcher) hasLocationQ = true;
+               else if (node.ProcessedBy is PortraitSearcher) hasPortraitQ = true;
+            }
+         }
+
          req.Aggregations = outerAggs;
 
          if (reqSortMode == null)
@@ -359,7 +363,7 @@ namespace BMAlbum.Controllers {
 
 
          //If a per-album result with an album, just do the original query with the correct size
-         if (docs.Count>0 && (firstAlbum==null || hasLocationQuery(valueNodes))) { 
+         if (docs.Count>0 && (firstAlbum==null || hasLocationQ)) { 
             var album0 = docs[0].ReadStr ("album", null);
             SiteLog.Log("Replacing album if nonNull: was {0}, into {1}", firstAlbum, album0);
             if (album0 != null) firstAlbum = album0;
@@ -375,8 +379,9 @@ namespace BMAlbum.Controllers {
          json.WriteProperty ("cur_album", firstAlbum);
          var albumQuery = new ESTermQuery ("album.facet", firstAlbum);
          req.Query = wrapQueryInFilters (clientState, albumQuery, null);
-         if (reqSortMode == null)
+         if (reqSortMode == null) {
             curSortMode = settings.MainAutoSortResolver.ResolveSortMode (valueNodes, true, hasFuzzy);
+         }
          curSortMode.ToSearchRequest (req);
          if (debug) optSetExplain (req);
 
@@ -390,6 +395,7 @@ namespace BMAlbum.Controllers {
          docs = resp.Documents;
          if ((clientState.DebugFlags & DebugFlags.ONE) != 0 && docs.Count>1)
             docs.RemoveRange (1, docs.Count - 1);
+         if (hasPortraitQ) PortraitSearcher.PostProcess (docs);
          json.WriteProperty ("new_state", (IJsonSerializable)clientState.ToJson ());
 
          json.WriteProperty ("total_hits", resp.TotalHits);

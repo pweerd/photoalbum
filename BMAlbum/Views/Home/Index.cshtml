@@ -49,8 +49,10 @@
          </div>
          @if (Model.State.AppMode == AppMode.Faces) {
          <div id="row_face_buttons" class="labeled-input">
-            <button id="btn_recent_uncertain" title="Zoek recent, onzeker, automatisch toegekende namen">Recent onzeker</button>
-            <button id="btn_recent_unassigned" title="Zoek recente gezichten zonder naam">Recent naamloos</button>
+            <label class="lcell">Toon:</label>
+            <button id="btn_recent_valid" title="Toon toegekende namen">Toegekend</button>
+            <button id="btn_recent_ignored" title="Toon genegeerde namen">Genegeerd</button>
+            <button id="btn_recent_unknown" title="Toon onbekende gezichten">Onbekend</button>
          </div>  }
          @if (Model.Debug) {
             <span id="dbg_timings" class="txtbadge dbg-badge">T</span> <span id="dbg_esrequest" class="txtbadge  dbg-badge">Q</span>
@@ -61,7 +63,14 @@
 <div id="content" class="full-width">
    @if (Model.State.AppMode == AppMode.Faces) {
       <div id="face_names" class="scroll_container_Y bordered-slimbar">
-         <div id="face_header"><input id="face_filter" type="text" autocomplete="off" placeholder="Filter namen..."/></div>
+         <div id="face_header"><input id="face_filter" type="text" autocomplete="off" placeholder="Filter namen..." /></div>
+         <div id="faces_sort">
+            Sort
+               <input type="radio" id="faces_sort_id" name="faces_sort" value="id" />
+            <label for="faces_sort_id">Id</label>
+            <input type="radio" id="faces_sort_name" name="faces_sort" value="name" checked />
+            <label for="faces_sort_name">Naam</label>
+         </div>
          <div id="face_list"></div>
       </div>
       <div id="faces_scroller" class="scroll_container slimbar">

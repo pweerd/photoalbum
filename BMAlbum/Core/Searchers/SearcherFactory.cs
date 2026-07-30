@@ -27,7 +27,8 @@ namespace BMAlbum {
          if (type == "name_searcher") return new NameSearcher (field, searchField, cfg);
          if (type == "pin_searcher") return new PinSearcher (node, field, searchField, cfg);
          if (type == "mlt_searcher") return new MoreLikeThisSearcher(node, field, searchField, cfg);
-         if (type == "phash_searcher") return new PHashSearcher(node, field, searchField, cfg);
+         if (type == "phash_searcher") return new PHashSearcher (node, field, searchField, cfg);
+         if (type == "portrait_searcher") return new PortraitSearcher (node, field, searchField, cfg);
          return null;
       }
    }
