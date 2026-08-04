@@ -28,6 +28,7 @@ function createClientLog(url, cap, timeout) {
    const _cap = cap ?? 100;
    const _timeout = timeout ?? 5000;
    const _url = url;
+   const _lastReload = new Date();
    let _cache = [];
    let _timer;
 
@@ -90,9 +91,19 @@ function createClientLog(url, cap, timeout) {
          arr.push(obj.stack);
       }
       _addToCache({ t: 'error', m: arr.join('') });
+
+      //Optional reload
+      if (_reloadOnError) {
+         if (Date.now() - _lastReload > 60000) location.reload(); 
+      }
    }
-   function _hookError() {
-      window.addEventListener("error", _logErrorToServer);
+
+   function _logErrorToServerAndReload(e) {
+      _logErrorToServer(e);
+      if (Date.now() - _lastReload > 120000) location.reload(); 
+   }
+   function _hookError(reloadOnError) {
+      window.addEventListener("error", reloadOnError===true ? _logErrorToServerAndReload : _logErrorToServer);
    }
 
    function _hookConsole(types) {
@@ -126,6 +137,16 @@ function createClientLog(url, cap, timeout) {
       logToServer: _logToServer,
       hookConsole: _hookConsole
    }
+}
+
+function hookVisibilityChange() {
+   const loaded = Date.now();
+   document.body._mykey = 123;
+   document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+         console.log("VISIBLE again. Key=", document.body._mykey, (Date.now() - loaded) / 3600000.0);
+      }
+   });
 }
 
 /**
@@ -210,60 +231,132 @@ function _createDeviceCharacteristics() {
 }
 window.device = _createDeviceCharacteristics();
 
-
-function addLongPressHandler(elt, onClick, onLongClick, ms) {
-   let _touchTimer;
-   let _invokedHandler;
-   let _touchEvent;
-
-   if (elt instanceof jQuery) elt = elt[0];
-
-
-   function _onTouchStart(ev) {
-      console.log('LONGPRESS touch start');
-      _onTouchCancel();
-      if (ev.targetTouches.length > 1) return; //more fingers? Not for us
-
-      //Cannot stop propagation: we would interfere with other handlers then!
-      _touchEvent = ev;
-      _touchTimer = setTimeout(function () {
-         _invokedHandler = true;
-         onLongClick.call(elt, ev);
-      }, ms ?? 400);
-   }
-
-   function _onTouchEnd(ev) {
-      console.log('LONGPRESS touch end, _invokedHandler=', _invokedHandler);
-      if (_invokedHandler) {
-         ev.preventDefault();
-         ev.stopImmediatePropagation();
-      } else if (onClick !== undefined) onClick.call(elt, ev);
-      _onTouchCancel();
-   }
-
-   function _onTouchCancel() {
-      if (_touchTimer) {
-         clearTimeout(_touchTimer);
-         _touchTimer = undefined;
-      }
-      _invokedHandler = false;
-      _touchEvent = undefined;
-   }
-
-   function _destroy() {
-      elt.removeEventListener("touchstart", _onTouchStart);
-      elt.removeEventListener("touchend", _onTouchEnd);
-      elt.removeEventListener("touchcancel", _onTouchCancel);
-      elt.removeEventListener("touchmove", _onTouchCancel);
-   }
-
-   elt.addEventListener("touchstart", _onTouchStart);
-   elt.addEventListener("touchend", _onTouchEnd);
-   elt.addEventListener("touchcancel", _onTouchCancel);
-   elt.addEventListener("touchmove", _onTouchCancel);
+window.encode = function () {
+   const entityMap  = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;'
+   };
+   const regexp = new RegExp('[&<>"]', 'g');
 
    return {
-      destroy: _destroy,
+      html: function (s) {
+         return s.replace(regexp, ch => entityMap[ch]);
+      },
+      url: encodeURIComponent,
    }
+}();
+
+
+// see if it looks and smells like an iterable object
+function isArrayLike(item) {
+   if (Array.isArray(item)) return true;
+   if (!!item && typeof (item) === "object") {
+      const len = item.length;
+      if (!typeof (len) === "number") return false;
+      if (len === 0) return true;
+      return len > 0 && ((len - 1) in item);
+   }
+   return false;
 }
+
+
+//Hook _on() and _off()
+(function () {
+   function _on() {
+      if (this instanceof HTMLElement) {
+         this.addEventListener.apply(this, arguments);
+         return this;
+      }
+      if (!isArrayLike(this)) {
+         throw new Error("_on() cannot be used on " + this.toString());
+      }
+      for (let i = 0; i < this.length; i++) {
+         const item = this[i];
+         item.addEventListener.apply(item, arguments);
+      }
+      return this;
+   }
+   function _off() {
+      if (this instanceof HTMLElement) {
+         this.removeEventListener.apply(this, arguments);
+         return this;
+      }
+      if (!isArrayLike(this)) {
+         throw new Error("_off() cannot be used on " + this.toString());
+      }
+      for (let i = 0; i < this.length; i++) {
+         const item = this[i];
+         item.removeEventListener.apply(item, arguments);
+      }
+      return this;
+   }
+   HTMLElement.prototype._on = _on;
+   HTMLElement.prototype._off = _off;
+   NodeList.prototype._on = _on;
+   NodeList.prototype._off = _off;
+   // Array.prototype._on = _on;
+   // Array.prototype._off = _off;
+   if ($ !== undefined) {
+      $.prototype._on = _on;
+      $.prototype._off = _off;
+   }
+}) ();
+
+// function addLongPressHandler(elt, onClick, onLongClick, ms) {
+//    let _touchTimer;
+//    let _invokedHandler;
+//    let _touchEvent;
+
+//    if (elt instanceof jQuery) elt = elt[0];
+
+
+//    function _onTouchStart(ev) {
+//       console.log('LONGPRESS touch start');
+//       _onTouchCancel();
+//       if (ev.targetTouches.length > 1) return; //more fingers? Not for us
+
+//       //Cannot stop propagation: we would interfere with other handlers then!
+//       _touchEvent = ev;
+//       _touchTimer = setTimeout(function () {
+//          _invokedHandler = true;
+//          onLongClick.call(elt, ev);
+//       }, ms ?? 400);
+//    }
+
+//    function _onTouchEnd(ev) {
+//       console.log('LONGPRESS touch end, _invokedHandler=', _invokedHandler);
+//       if (_invokedHandler) {
+//          ev.preventDefault();
+//          ev.stopImmediatePropagation();
+//       } else if (onClick !== undefined) onClick.call(elt, ev);
+//       _onTouchCancel();
+//    }
+
+//    function _onTouchCancel() {
+//       if (_touchTimer) {
+//          clearTimeout(_touchTimer);
+//          _touchTimer = undefined;
+//       }
+//       _invokedHandler = false;
+//       _touchEvent = undefined;
+//    }
+
+//    function _destroy() {
+//       elt.removeEventListener("touchstart", _onTouchStart);
+//       elt.removeEventListener("touchend", _onTouchEnd);
+//       elt.removeEventListener("touchcancel", _onTouchCancel);
+//       elt.removeEventListener("touchmove", _onTouchCancel);
+//    }
+
+//    elt.addEventListener("touchstart", _onTouchStart);
+//    elt.addEventListener("touchend", _onTouchEnd);
+//    elt.addEventListener("touchcancel", _onTouchCancel);
+//    elt.addEventListener("touchmove", _onTouchCancel);
+
+//    return {
+//       destroy: _destroy,
+//    }
+//}
 
