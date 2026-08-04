@@ -114,8 +114,9 @@ function pinchAndZoom(target, txt) {
 const dbg_overlay = false;
 
 function createApplication(state, fnInit) {
+   hookVisibilityChange();
    const _clientLog = createClientLog(state.home_url + '_clientlog');
-   _clientLog.hookError();
+   _clientLog.hookError(false);
    if ((state.debug_flags & 0x10000) !== 0) {
       _clientLog.hookConsole();
    }
