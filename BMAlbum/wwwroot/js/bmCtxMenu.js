@@ -22,6 +22,7 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       _this.context = undefined;
       $menu.removeClass("bm_menu_active");
       _onTouchCancel();
+      //console.trace("hidemenu", new Error().stack);
    }
 
    let _touchTimer;
@@ -40,6 +41,7 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       }, 400);
    }
    function _onOtherTouchStart(ev) {
+      if (_touchInvokedCtxMenu) return; //otherwise we immediately close the menu
       console.log('TOUCH other, same=', ev.target === _touchTarget);
       if (ev.target === _touchTarget) return; //This is our own touch
 
@@ -114,7 +116,7 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       let $item = $(ev.target).closest('.bm_menu_item');
       if ($item.length === 0 || $item.hasClass('bm_menu_disabled')) {
          console.log("menu skipped: disabled or not found");
-         _onMenuLeave(ev);
+         _hideMenu();
          return;
       }
 
@@ -125,40 +127,43 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
          ctx.clickedIndex = $item.index();
          _onMenuItemClick.call (this, ev, ctx);
       } finally {
-         _onMenuLeave(ev);
+         _hideMenu();
       }
    }
 
    function _onMenuLeave(ev) {
+      if (ev.pointerType === "touch") return;
+      //console.log("ONMENULEAVE", ev.target.localName, ev.relatedTarget?.localName, ev.pointerType, typeof(_this));
+      //console.log("ONMENULEAVE", new Error().stack);
       _hideMenu();
    }
 
 
-   $element.on("contextmenu", _onContextMenu);
+   $element._on("contextmenu", _onContextMenu);
+   $menu
+      ._on("pointerleave", _onMenuLeave)
+      ._on("click", _onMenuClick);
    if (device.isIPhone || device.isIPad) {
       $element
-         .on("touchstart", _onTouchStart)
-         .on("touchend", _onTouchEnd)
-         .on("touchcancel", _onTouchCancel)
-         .on("touchmove", _onTouchCancel);
-      $(window).on("touchstart", _onOtherTouchStart);
+         ._on("touchstart", _onTouchStart)
+         ._on("touchend", _onTouchEnd)
+         ._on("touchcancel", _onTouchCancel)
+         ._on("touchmove", _onTouchCancel);
+      //window.addEventListener("touchstart", _onOtherTouchStart);
    }
-   $menu
-      .on("mouseleave", _onMenuLeave)
-      .on("click", _onMenuClick);
 
    function _destroy() {
-      $element.off("contextmenu", _onContextMenu);
+      $element._off("contextmenu", _onContextMenu);
       $menu
-         .off("mouseleave", _onMenuLeave)
-         .off("click", _onMenuClick);
+         ._off("pointerleave", _onMenuLeave)
+         ._off("click", _onMenuClick);
       if (device.isIPhone || device.isIPad) {
          $element
-            .off("touchstart", _onTouchStart)
-            .off("touchend", _onTouchEnd)
-            .off("touchcancel", _onTouchCancel)
-            .off("touchmove", _onTouchCancel);
-         $(window).off("touchstart", _onOtherTouchStart);
+            ._off("touchstart", _onTouchStart)
+            ._off("touchend", _onTouchEnd)
+            ._off("touchcancel", _onTouchCancel)
+            ._off("touchmove", _onTouchCancel);
+         //window.removeEventListener("touchstart", _onOtherTouchStart);
       }
    }
 
@@ -184,5 +189,8 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       showMenu: _showMenu,
       close: _hideMenu,
       context: undefined,
+      isMenuShown: function () {
+         return _touchInvokedCtxMenu;
+      },
    };
 };
