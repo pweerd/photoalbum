@@ -21,7 +21,6 @@ using Bitmanager.Web;
 using BMAlbum.Core;
 using BMAlbum.Models;
 using Microsoft.AspNetCore.Mvc;
-using System.Data;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 
@@ -65,7 +64,9 @@ namespace BMAlbum.Controllers {
             cmd = v.ToString ().TrimToNull ();
          }
          switch (cmd) {
-            case "clear": break;
+            case "clear":
+               IOUtils.DeleteDirectoryContent (uploadSettings.UploadRoot, DeleteFlags.Recursive | DeleteFlags.AllowNonExist);
+               break;
             case "activate":
                uploadSettings.Active = true;
                break;
@@ -111,7 +112,10 @@ namespace BMAlbum.Controllers {
 
             foreach (var file in files) {
                if (file.Length <= 0) continue;
-               using (var fileStream = new FileStream (Path.Combine (root, file.FileName), FileMode.Create)) {
+               var storedFn = file.FileName;
+               if (storedFn.EndsWith (".jpeg", StringComparison.OrdinalIgnoreCase))
+                  storedFn = Path.ChangeExtension (storedFn, ".jpg");
+               using (var fileStream = new FileStream (Path.Combine (root, storedFn), FileMode.Create)) {
                   await file.CopyToAsync (fileStream);
                }
             }
