@@ -22,7 +22,6 @@ html {
    scroll-behavior: auto;
    position: relative;
    font-size: 16px;
-   font-family: Verdana, Helvetica, Sans-Serif;
    overflow-y: scroll;
    margin: 0px;
    padding: 0px;
@@ -33,7 +32,6 @@ html {
 
 body {
    margin: 0px;
-   font-family: Verdana, Helvetica, Sans-Serif;
 }
 
 input[type="search"]::-webkit-search-cancel-button,
@@ -384,8 +382,16 @@ input[type="search"]::-webkit-search-decoration {
 #face_names input {
    margin-left:1px;
 }
+#faces_sort {
+   margin-left: 4px;
+   margin-bottom: .5em
+}
+#faces_scroller {
+   padding-left: 0.2em;
+}
 .face_name {
-   margin: .5em;
+   margin: .2em .2em .5em 0em;
+   width: 16em;
 }
 
 #drag_proxy {

@@ -20,6 +20,9 @@
    display: block;
    color: var(--font-color);
 }
+.labeled_input label {
+   font-weight: bold;
+}
 .labeled_input {
    margin-bottom: 1em;
 }
@@ -44,7 +47,6 @@ html {
    width: auto;
 }
 body {
-   font-family: Verdana, Arial, Helvetica, sans-serif;
    color: var(--font-color);
 }
 h1 {
