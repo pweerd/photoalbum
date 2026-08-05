@@ -22,10 +22,17 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       _this.context = undefined;
       $menu.removeClass("bm_menu_active");
       _onTouchCancel();
-      //console.trace("hidemenu", new Error().stack);
+      if (_touchInvokedCtxMenu) {
+         _clickTimer = setTimeout(function () {
+            console.log("clear touchInvoked. Was", _touchInvokedCtxMenu);
+            _touchInvokedCtxMenu = false;
+            _clickTimer = undefined;
+         }, 200);
+      }
    }
 
    let _touchTimer;
+   let _clickTimer;
    let _touchInvokedCtxMenu;
    let _touchTarget;
    function _onTouchStart(ev) {
@@ -35,6 +42,10 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
 
       //Cannot stop propagation: we would interfere with other handlers then!
       _touchTarget = ev.target;
+      if (_clickTimer) {
+         clearTimeout(_clickTimer);
+         _clickTimer = undefined;
+      }
       _touchTimer = setTimeout(function () {
          _touchInvokedCtxMenu = true;
          _onContextMenu(ev);
@@ -56,8 +67,9 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       _hideMenu();
    }
 
+
    function _onTouchEnd(ev) {
-      console.log('TOUCH end, _touchInvokedCtxMenu=', _touchInvokedCtxMenu);
+      console.log('TOUCH end, _touchInvokedCtxMenu=', _touchInvokedCtxMenu, ev.target.localName, ev.target.id);
       if (_touchInvokedCtxMenu) {
          ev.preventDefault();
          ev.stopImmediatePropagation();
@@ -69,7 +81,6 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
          clearTimeout(_touchTimer);
          _touchTimer = undefined;
       }
-      _touchInvokedCtxMenu = false;
       _touchTarget = undefined;
    }
 
@@ -137,7 +148,6 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
       //console.log("ONMENULEAVE", new Error().stack);
       _hideMenu();
    }
-
 
    $element._on("contextmenu", _onContextMenu);
    $menu
