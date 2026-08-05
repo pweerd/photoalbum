@@ -1,6 +1,7 @@
 ﻿@using Bitmanager.Web
 @model UploadModel
 @{
+   Layout = "_UploadLayout";
    ViewData["Title"] = "Upload - Admin";
 }
 
@@ -16,12 +17,7 @@
 </form>
 
 
-@section Heads {
-   <link rel='stylesheet' href='~/css/upload.css' />
-}
-
 @section Scripts {
-
    <script type="text/javascript">
       const formElt = document.getElementById("form");
       const cmdElt = document.getElementById("command");
@@ -32,11 +28,9 @@
 
       document.getElementById("btn_clear").addEventListener("click", function(){
          cmdElt.value = 'clear';
-         //formElt.submit();
       });
       document.getElementById("btn_activate").addEventListener("click", function(){
          cmdElt.value = "@Model.ActivateCommand";
-         //formElt.submit();
       });
    </script>
 }

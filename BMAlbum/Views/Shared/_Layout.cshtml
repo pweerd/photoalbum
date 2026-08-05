@@ -13,11 +13,11 @@
 
    <title>@ViewData["Title"]</title>
    @Bundles.Render(Model.RequestCtx, BundleType.Css, "main")
-   @await RenderSectionAsync("Heads", required: false)
+   @RenderSection("Heads", required: false)
 </head>
 <body class="fullwidth">
    @RenderBody()
    @Bundles.Render(Model.RequestCtx, BundleType.Js, "main")
-   @await RenderSectionAsync("Scripts", required: false)
+   @RenderSection("Scripts", required: false)
 </body>
 </html>

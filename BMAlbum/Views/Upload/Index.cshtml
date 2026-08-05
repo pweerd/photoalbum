@@ -1,6 +1,7 @@
 ﻿@using Bitmanager.Web
 @model UploadModel
 @{
+   Layout = "_UploadLayout";
    ViewData["Title"] = "Upload - Foto's";
 }
 
@@ -10,23 +11,15 @@
    <div class="labeled_input">
       <label>Uw naam <input type="text" id="user" autocomplete="off" /></label>
    </div>
+   <div id="dropzone" class="dropzone"></div>
    <button class="clip_button" id="btn_reset">Reset</button>
    <button class="clip_button hidden" id="btn_goto_album">Toon als album</button>
    <button class="clip_button" id="btn_download_all">Download alles</button>
-
-   <div id="dropzone" class="dropzone"></div>
 </div>
 
 
-@section Heads {
-   <link rel='stylesheet' href='~/lib/dropzone/basic.css' />
-   <link rel='stylesheet' href='~/lib/dropzone/dropzone.css' />
-   <link rel='stylesheet' href='~/css/upload.css' />
-}
-
 @section Scripts {
    <script src="~/lib/dropzone/dropzone-min.js"></script>
-   <link rel="shortcut icon" href="~/favicon.png">
 
    <script type="text/javascript">
       document.getElementsByClassName

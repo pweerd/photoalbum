@@ -1,0 +1,14 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .arrow {
+      font: 64px sans-serif;
+      fill:white;
+    }
+  </style>
+  <path d="M 128 8 A 48 48 0 0 1 128 128 Z" fill="#EA4335" />
+  <path d="M 128 248 A 48 48 0 0 1 128 128 Z" fill="#34A853" />
+  <path d="M 8 128 A 48 48 0 0 1 128 128 Z" fill="#FBBC04" />
+  <path d="M 248 128 A 48 48 0 0 1 128 128 Z" fill="#4285F4" />
+  <circle cx="216" cy="216" r="32" fill="black" stroke-width="0" />
+  <text x="188" y="238" class="arrow">&#x1F809;</text>
+</svg>

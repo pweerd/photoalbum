@@ -1,0 +1,19 @@
+﻿@using Bitmanager.Web
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+   <meta charset="utf-8" />
+   <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1,viewport-fit=cover" />
+   <link rel="icon" href="~/favicon.svg" />
+   <link rel="apple-touch-icon" href="~/favicon-upload2-180.png">
+   <link rel="shortcut icon" href="~/favicon-upload2-180.png">
+   @Bundles.Render(Model.RequestCtx, BundleType.Css, "upload")
+
+   <title>@ViewData["Title"]</title>
+</head>
+<body class="fullwidth">
+   @RenderBody()
+   @Bundles.Render(Model.RequestCtx, BundleType.Js, "upload")
+   @RenderSection("Scripts", required: false)
+</body>
+</html>
