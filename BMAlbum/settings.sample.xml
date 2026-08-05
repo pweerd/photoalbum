@@ -74,11 +74,11 @@
       <search track_hits="true" debug="false">
          <fuzzy trigger_at="0" weight="0.45"/>
          <fieldconfigs>
-            <config select_searchfield="location" flags="default|FieldCollapseToText"/>
+            <config select_searchfield="location|names!id" flags="default|FieldCollapseToText"/>
             <config base="default" select_searchfield="all|text_nl" or_flags="useOnlyStem"/>
             <config base="default" select_searchfield="camera|season" not_flags="useStem|allowFuzzy" or_flags="phraseForNormal"/>
             <config select_field="exist|exists" flags="default"/>
-            <config name="default" select_field="."  not_flags="useStem" flags="default|constant|FieldCollapseToParenthesis" fuzzy_rewrite="top_terms_boost_6"/>
+            <config name="default" select_field="."  not_flags="useStem" phrase_slop="1" flags="default|constant|FieldCollapseToParenthesis" fuzzy_rewrite="top_terms_boost_6"/>
          </fieldconfigs>
          <searchers>
             <searcher field="default" searchfield="all" tiebreaker="0"/>
@@ -94,6 +94,7 @@
                       score_distance="true"
                       api_key="YOUR_GOOGLE_API_SERVER_KEY"/>
             <searcher field="name|naam|persoon" type="name_searcher" searchfield="names!name" />
+            <searcher field="life|leven|portret|portrait" type="portrait_searcher" searchfield="names!id" max_face_count="3" />
             <searcher field="personen|gezichten" searchfield="face_count" />
             <searcher field="id" searchfield="file" />
             <searcher field="pin|near" searchfield="location" type="pin_searcher" id_field="file" def_distance="10" />
@@ -108,12 +109,14 @@
                     loc_or_name_query="relevance" 
                     fuzzy_query="relevance" 
                     other_query="relevance|newontop" 
+                    portrait_query="oldontop"
                     default="newontop"/>
          <sortmodes>
             <sort name="auto" text="Auto" field="_score" direction="desc" />
             <sort name="oldontop" text="Oudste eerst" field="sort_key" direction="asc" />
             <sort name="newontop" text="Nieuwste eerst" field="sort_key" direction="desc" />
             <sort name="relevance" text="Relevantie" field="_score" direction="desc" />
+            <sort name="area" text="Gezichtsgrootte" field="names!relarea" direction="desc" mode="max" />
          </sortmodes>
 
          <facets />
@@ -194,7 +197,7 @@
 
       <bundles loadbehavior="always">
          <bundle name="main" type="css">
-            <file name="lib/bootstrap/dist/css/bootstrap.min.css" />
+            <file name="lib/bootstrap538/bootstrap-reboot.min.css" />
             <file name="css/site.css" />
             <file name="css/bmslimbar.css" />
             <file name="css/bmCtxMenu.css" />
@@ -202,6 +205,13 @@
             <file name="js/overlay/overlay.css" />
             <file name="js/clipboard/clip.css"/>
             <file name="lib/lg/css/lightgallery-bundle.css" />
+         </bundle>
+         <bundle name="upload" type="css">
+            <file name="lib/bootstrap538/bootstrap-reboot.min.css" />
+            <file name="lib/dropzone/basic.css" />
+            <file name="lib/dropzone/dropzone.css" />
+            <file name="js/clipboard/clip.css"/>
+            <file name="css/upload.css" />
          </bundle>
 
          <!--
@@ -240,6 +250,11 @@
             <file name="js/geohash.js"  />
             <file name="js/splitter-152.js"  />
             <file name="js/bmautocomplete.js"  />
+            <file name="js/facenames.js"  />
+         </bundle>
+
+         <bundle name="upload" type="js">
+            <file name="lib/dropzone/dropzone-min.js"  />
          </bundle>
       </bundles>
    </mvc>
@@ -312,10 +327,10 @@
 
    <upload active="true" 
            root="upload" 
-           max_files="100" 
+           max_files="200" 
            max_mb="500" 
-	   max_mb_per_file="50"
-	   filter=".png,.jpg,.jpeg,.mp4,.mov,.heic,.heif"
-	   upload_text=""
-	   remove_text=""/>
+           max_mb_per_file="50"
+           filter=".png,.jpg,.jpeg,.mp4,.mov,.heic,.heif"
+           upload_text=""
+           remove_text=""/>
 </root>
