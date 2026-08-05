@@ -45,12 +45,13 @@ function createLightboxControl(app) {
    let _data;
    let _lg;
    let _lastLbState = new LightboxState(-1, null, 0);  //Last state of the lightbox
-   let _isTouch = false;
    let _zoomer; 
    let _rotateWarningShown = false;
    let _unique = 0;
-   let _faceNames = { chgid: -1 };
+   let _faceNames = new FaceNames();
    let _t0;
+   let _lg_org_touchEnd;
+
 
    function _prepareTiming() {
       _t0 = Date.now();
@@ -71,45 +72,38 @@ function createLightboxControl(app) {
    let _globalKeyTimerId;
    let _lastCharReceived = Date.now();
    function _processGlobalKey(ev) {
-      if (!_faceMode || "input" === ev.target.localName) return;
-      console.log("KEYPRESS ", ev.key, " for ", ev.target.localName);
+      if (!_faceMode) return;
+      console.log('_processGlobalKey', ev.type, ev.key, " for ", ev.target.localName);
 
       const $ff = $("#face_filter");
       let v = $ff.val();
-      if (ev.key.length === 1) {
-         const dt = Date.now();
-         if (dt - _lastCharReceived > 2000) v = "";
-         _lastCharReceived = dt;
-         v = v + ev.key;
-      } else if ("Escape" === ev.key) v = "";
-      else if ("Backspace" === ev.key && v.length > 0) v = v.substring(0, v.length - 1);
-      else return;
-      $ff.val(v);
-      _buildFilteredFaceNames(v);
+      if ("Escape" === ev.key) {
+         v = '';
+         //if (_draggedFaceId > NO_DRAG_ID) return;
+      } else {
+         if ("input" === ev.target.localName && ev.target.attributes("type"==="text")) return;
+         if (ev.key.length === 1) {
+            const dt = Date.now();
+            if (dt - _lastCharReceived > 2000) v = "";
+            _lastCharReceived = dt;
+            v = v + ev.key;
+         } else if ("Backspace" === ev.key && v.length > 0) v = v.substring(0, v.length - 1);
+         else return;
+         $ff.val(v);
+      }
+
+      _buildFilteredFaceNames(v, false);
 
       if (_globalKeyTimerId) clearTimeout(_globalKeyTimerId);
       _globalKeyTimerId = setTimeout(function () {
          _globalKeyTimerId = undefined;
          if (_draggedFaceId <= NO_DRAG_ID) return;
 
-         const ac = new Autocomplete(v, true);
-         const names = _faceNames.sortedNames;
-         let best = -1;
-         let bestScore = -1;
-         for (let i = 0; i < names.length; i++) {
-            let score = ac.score(names[i].name);
-            if (names[i].id < 0) score *= .8;
-            console.log(score.toFixed(4), " ", names[i].name.length, names[i].name);
-            if (score <= bestScore) continue;
-            bestScore = score;
-            best = i;
+         const bestName = _faceNames.getFirstMatchingName(v, false);
+         if (bestName !== undefined) {
+            _draggedFaceId = bestName.id;
+            _setFaceCursorName({});
          }
-         console.log("best=", best);
-         if (best < 0) return;
-         console.log("best=", names[best]);
-
-         _draggedFaceId = names[best].id;
-         _setFaceCursorName({});
       }, 750);
 
    }
@@ -180,16 +174,10 @@ function createLightboxControl(app) {
 
       function round2(v) {
          return v ? v.toFixed(2) : '';
-         //return Math.round((v + Number.EPSILON) * 100) / 100;
       }
       function stripExplain(e) {
-         if (e.startsWith("score=")) {
-            let ix = e.indexOf(',');
-            if (ix > 0) e = e.substring(ix + 2);
-         } else if (e.startsWith("s=")) {
-            let ix = e.indexOf(' ');
-            if (ix > 0) e = e.substring(ix + 1);
-         }
+         const ix = e.indexOf(', f=');
+         if (ix > 0) e = e.substring(ix);
          return e;
       } 
       sb.push('<div class="lb-item cursor_pointer" data-src="');
@@ -200,22 +188,19 @@ function createLightboxControl(app) {
       sb.push('" height="' + h + '" src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src="');
       sb.push(photo.imgUrl);
       sb.push('"><div class="face_name">');             
-      let matchedConfidence='';
-      if (photo.name) {
-         let name = photo.name.name || 'unknown';
-         sb.push('<b>' + name + '<br />[' + round2(photo.name.match_score) + ']</b> ' + photo.src + ", " + toDateString(photo.updated) + '<br />');
-         if (photo.name.explain) {
-            sb.push(stripExplain(photo.name.explain) + '<br />');
+      let matchedConfidence = '';
+      const nameObj = photo.name;
+      let nameId = -1;
+      if (nameObj) {
+         let name = encode.html(nameObj.name || 'unknown');
+         sb.push('<b>[' + round2(nameObj.match_score) + '] ' + photo.status + ', ' + photo.src + ", " + toDateString(photo.updated) + '</b><br />');
+         sb.push('<b>[' + round2(nameObj.match_score_raw) + '] ' + name + '</b><br />');
+         if (nameObj.altname) sb.push('[' + round2(photo.name.altscore) + '] ' + encode.html(nameObj.altname) + '<br />');
+         sb.push('id=' + nameObj.id);
+         if (nameObj.explain) {
+            sb.push(stripExplain(nameObj.explain) + '<br />');
          }
          if (photo.name.confidence !== undefined) matchedConfidence = photo.name.confidence.toFixed(2);
-      } else if (photo.names) {
-         for (let nameObj of photo.names) {
-            let name = nameObj.name || 'unknown';
-            sb.push('<b>' + name + '<br />[' + round2(nameObj.match_score) + ']</b> ' + photo.src + ", " + toDateString(photo.updated) + '<br />');
-            if (nameObj.explain) {
-               sb.push(stripExplain(nameObj.explain) + '<br />');
-            }
-         }
       } else {
          sb.push(photo.src + ", " + toDateString(photo.updated));
          sb.push("<br />");
@@ -223,7 +208,7 @@ function createLightboxControl(app) {
       sb.push(photo.id.substring(1+photo.id.lastIndexOf('~')) + "/" + photo.count);
       sb.push(", h=" + photo.h0);
       sb.push(", rto=" + round2(photo.face_ratio));
-      sb.push(", " + (photo.face_ok ? 'ok' : '!ok') + ", " + photo.storage_id);
+      sb.push(", " + photo.storage_id);
       sb.push("<br />conf=" + photo.confidence + "/" + matchedConfidence);
       if (photo.name?.diff) sb.push(", df=" + photo.name.diff_factor + ", d=" + photo.name.diff);
       sb.push('</div>');
@@ -339,12 +324,6 @@ function createLightboxControl(app) {
       return sb.join('');
    }
 
-   function _detectTouch(ev) {
-      _isTouch = true;
-      $(window).off('touchstart', _detectTouch);
-      console.log("touch event: ", ev.originalEvent.type);
-   }
-
    let _openedInfoViaClick;
    function _infoHandler(ev) {
       const $evTarget = $(ev.target);
@@ -368,7 +347,7 @@ function createLightboxControl(app) {
          console.log("INFO: Closing panel by click");
          app.overlay.hideNow();
          return;
-      } else if (_isTouch)
+      } else if (ev.pointerType === "touch")
          return;
 
       //Not a click, not touch
@@ -467,18 +446,16 @@ function createLightboxControl(app) {
       }, 500);
    }
 
-   function _buildFilteredFaceNames(expr) {
-      if (!expr) expr = $("#face_filter").val();
-      if (!expr) expr = ".";
-      console.log("Build names for expr=", expr);
-      const re = new RegExp(expr, "i");
-      const names = _faceNames.sortedNames;
-      let arr = [];
+   function _buildFilteredFaceNames(expr, sorted) {
+      const filtered = _faceNames.getMatchingNames(
+         $("#face_filter").val(), 
+         sorted !== undefined ? sorted : document.getElementById("faces_sort_name").checked
+      );
+      const arr = [];
       arr.push('<ul>')
-      for (let i = 0; i < names.length; i++) {
-         const name = names[i];
-         if (name.id >= 0 && !re.test(name.name)) continue;
-         arr.push('<li data_id="' + name.id + '">' + name.name + '</li>');
+      for (let i = 0; i < filtered.length; i++) {
+         const name = filtered[i];
+         arr.push('<li data_id="' + name.id + '">' + encode.html(name.name) + '</li>');
       }
       arr.push('</ul>')
       const $div = $('#face_list');
@@ -490,31 +467,18 @@ function createLightboxControl(app) {
 
    function _loadFaceNames(fn_follow_up) {
       app.getJSON('facephoto/names', undefined, function (data) {
-         let obj = { chgid: data.chgid };
-         let src = data.names;
-         let dst = {};
-         for (let i = 0; i < src.length; i++) {
-            dst[src[i].id] = src[i];
-
-         }
-         obj.names = dst;
-         obj.sortedNames = src;
-         _faceNames = obj;
+         _faceNames = new FaceNames (data.names, data.chgid);
          if (fn_follow_up) fn_follow_up();
 
          _buildFilteredFaceNames()
       });
    }
 
-   function _getFaceNameById(id) {
-      return _faceNames.names[id].name;
-   }
-
    function _setFaceCursorName(ev) {
       let txt;
       if (ev.ctrlKey) txt = "Ga naar foto";
       else {
-         txt = _getFaceNameById(_draggedFaceId);
+         txt = _faceNames.nameById (_draggedFaceId);
          if (ev.altKey) txt += "<br />(correct-mode)";
       }
       $("#drag_proxy").html(txt);
@@ -605,6 +569,7 @@ function createLightboxControl(app) {
       _setLightboxHtml($elt, sb);
 
       $elt.find('.lb-item').on('click', function (ev) {
+         if (_ctxMenu.isMenuShown()) return;
          if (ev.ctrlKey) {
             ev.stopImmediatePropagation();
          } else {
@@ -788,8 +753,16 @@ function createLightboxControl(app) {
       });
       //pw _lg.zoomFromOrigin = false;
 
-      let proto = Object.getPrototypeOf(_lg);
-      proto['preload'] = _hookedPreload;
+      //Hooking some functions from LightGallery
+      //We have our own preload()
+      //Touchend is wrapped, since it should not do anything if the touchend was caused by a menu click
+      if (_lg_org_touchEnd === undefined) {
+         const proto = Object.getPrototypeOf(_lg);
+         proto['preload'] = _hookedPreload;
+         _lg_org_touchEnd = proto["touchEnd"];
+         proto["touchEnd"] = _hookedTouchEnd; 
+      }
+
 
       let $ctr = $(_lg.$toolbar.firstElement).find('.lg-counter');
       $ctr.before('<div class="txtbadge info-badge info-badge-detail"></div><div class="photo_title "></div>');
@@ -798,6 +771,7 @@ function createLightboxControl(app) {
       _zoomer = createSingleZoomer($inner);
       $inner
          .on('click', function (ev) {
+            if (_ctxMenu.isMenuShown()) return;
             let $lgCurr = $(ev.target).closest('.lg-current');
             let $wrap = $lgCurr.find('.lg-img-wrap');
             if ($wrap.length === 0) $wrap = $lgCurr.find('.lg-video-cont');
@@ -934,6 +908,13 @@ function createLightboxControl(app) {
       }, 50);
    }
 
+   //Wrapped LightGallery.touchend: it caused a nextSlide, which caused for instance the infopanel to close 
+   function _hookedTouchEnd() {
+      //console.log("HOOKED touchend", _ctxMenu.isMenuShown());
+      if (!_ctxMenu.isMenuShown()) _lg_org_touchEnd.apply(this, arguments);
+   }
+
+
    function _getSlideIndex(slide) {
       if (slide) {
          let files = _data.files;
@@ -1031,18 +1012,23 @@ function createLightboxControl(app) {
       _state.clear();
       _updateLightBox();
    });
-   if (document.getElementById("btn_recent_uncertain")) {
-      document.getElementById("btn_recent_uncertain").addEventListener('click', function () {
+   if (document.getElementById("btn_recent_valid")) {
+      function query(status) {
+         let oldQ = _state.q;
+         oldQ = oldQ ? oldQ.replace(/status\:./g, '').trim() : '';
          _state.clear();
-         _state.q = "score:[0.25..0.4] src:A NOT src:U";
+         _state.q = oldQ + " status:" + status;
          _state.sort = "updated";
          _updateLightBox();
+      }
+      document.getElementById("btn_recent_valid").addEventListener('click', function () {
+         query('V');
       });
-      document.getElementById("btn_recent_unassigned").addEventListener('click', function () {
-         _state.clear();
-         _state.q = "src:N";
-         _state.sort = "updated";
-         _updateLightBox();
+      document.getElementById("btn_recent_ignored").addEventListener('click', function () {
+         query('I');
+      });
+      document.getElementById("btn_recent_unknown").addEventListener('click', function () {
+         query('U');
       });
    }
 
@@ -1239,7 +1225,7 @@ function createLightboxControl(app) {
 
       //phones are not considered to be local. The UI is simply too small for forinstance the faces app
       const local = _config.is_local && !device.isPhone;
-      const localVideo = local && curPhoto.mime.startsWith('video');
+      const localVideo = local && curPhoto.mime?.startsWith('video');
       const allowMap = _config.map_settings.active;
 
       this.showMenuItem("#ctx_goto_track", _config.external_tracks_url && curPhoto.trkid);
@@ -1261,13 +1247,18 @@ function createLightboxControl(app) {
    $(window)
       .on('resize', _resizeHandler)
       .on('click', _infoHandler)
-      .on('mouseenter', _infoHandler)
+      .on('pointerenter', _infoHandler)
       .on('keydown', function (ev) {
          if (ev.target.name === 'input' || ev.target.name === 'select') return;
          if (!ev.ctrlKey) return;
+         let elt;
          switch (ev.code) {
-            case 'Home': $('#main').scrollTop(0); break;
-            case 'End': $('#main').scrollTop(1000000); break;
+            case 'Home':
+               elt = _faceMode ? document.getElementById('faces_scroller') : document.documentElement;
+               elt.scrollTop = 0; break;
+            case 'End':
+               elt = _faceMode ? document.getElementById('faces_scroller') : document.documentElement;
+               elt.scrollTop = 1000000; break;
          }
        })
       ;
@@ -1446,6 +1437,10 @@ function createLightboxControl(app) {
       console.log('Drag ', ev.target.textContent);
    };
 
+
+   $("#faces_sort input").on("change", function () {
+      _buildFilteredFaceNames();
+   });
 
    function _syncState() {
       _faceMode = _state.mode === 'faces';
