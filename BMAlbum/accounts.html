@@ -104,14 +104,22 @@
       const btnUpd = document.getElementById("btn_upd");
       const btnDel = document.getElementById("btn_del");
 
-      function escapeHTML(unsafe) {
-         return unsafe
-            .replaceAll("&", "&amp;")
-            .replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;")
-            .replaceAll('"', "&quot;")
-            .replaceAll("'", "&#039;");
-      };
+      window.encode = function () {
+         const entityMap  = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;'
+         };
+         const regexp = new RegExp('[&<>"]', 'g');
+
+         return {
+            html: function (s) {
+               return s.replace(regexp, ch => entityMap[ch]);
+            },
+            url: encodeURIComponent,
+         }
+      }();
 
       function clearUser(name) {
          userElt.value = name;
@@ -167,7 +175,7 @@
             }
             const html = ['<li new_user="true">New user</li>'];
             for (let i = 0; i < fetcher.json.users.length; i++) {
-               html.push('<li>' + escapeHTML(fetcher.json.users[i].u) + '</li>');
+               html.push('<li>' + encode.html(fetcher.json.users[i].u) + '</li>');
             }
             usersList.innerHTML = html.join('');
 
