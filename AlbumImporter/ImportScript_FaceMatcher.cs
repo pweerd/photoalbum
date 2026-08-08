@@ -47,7 +47,7 @@ namespace AlbumImporter {
          CheckLegacyFaceNamesIndex ();
 
          var ctxNode = ctx.DatasourceAdmin.ContextNode;
-         includeAltName = ctxNode.ReadBool ("@include_altname", false);
+         includeAltName = ctxNode.ReadBool ("@include_altname", true);
 
          thresholds = new FaceRecognitionThresholds(ctxNode.SelectMandatoryNode ("thresholds"));
          ctx.ImportLog.Log ("Using recognition thresholds: " + thresholds.ToString ());
