@@ -236,7 +236,13 @@ namespace AlbumImporter.FaceRecognition {
             for (int i = 0; i < arr.Count; i++)
                Embeddings[i] = (float)arr[i];
          }
-         if (FaceCount > 0) Status = strToStatus (src.ReadStr ("status", null));
+
+         //Determine Status.
+         //Note that we only read it in cases of assigned non-unknown faces.
+         //This is to correct from earlier databases where status wasn't or incorrectly filled.
+         if (FaceCount > 0 && (NameSrc & NameSource.NotAssigned) == 0) {
+            Status = (NameSrc & NameSource.Unknown) != 0 ? StatusFlags.Unknown : strToStatus (src.ReadStr ("status", null));
+         }
       }
 
 
