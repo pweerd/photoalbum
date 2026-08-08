@@ -130,17 +130,55 @@ namespace Bitmanager.AlbumTools {
             }
          }
 
+         Regex expr=null;
          if ((flags & FindNameFlags.SearchContains) != 0) {
-            var expr = createRegexForName(name);
+            expr = createRegexForName(name);
             for (int i = 0; i < names.Length; i++) {
                if (expr.IsMatch (names[i].Name))
                   return names[i];
             }
          }
 
+         var sb = new StringBuilder();
+         var lcName = lcLettersAndDigits (sb, name);
+         var lcNames = new string[names.Length];
+         for (int i = 0; i < names.Length; i++) {
+            lcNames[i] = lcLettersAndDigits (sb, names[i].Name);
+         }
+
+         if ((flags & FindNameFlags.SearchEqual) != 0) {
+            for (int i = 0; i < names.Length; i++) {
+               if (lcName.Equals (lcNames[i]))
+                  return names[i];
+            }
+         }
+
+         if ((flags & FindNameFlags.SearchPrefix) != 0) {
+            for (int i = 0; i < names.Length; i++) {
+               if (lcNames[i].StartsWith (lcName))
+                  return names[i];
+            }
+         }
+
+         if ((flags & FindNameFlags.SearchContains) != 0) {
+            for (int i = 0; i < names.Length; i++) {
+               if (expr.IsMatch (lcNames[i]))
+                  return names[i];
+            }
+         }
+
+
       NOT_FOUND:
          if ((flags & FindNameFlags.MustExcept) != 0) throw new BMException ("Face named [{0}] not found.", name);
          return null;
+      }
+
+      private static string lcLettersAndDigits(StringBuilder sb, string x) {
+         sb.Clear ();
+         for (int i=0; i<x.Length; i++) {
+            if (Char.IsLetterOrDigit (x[i])) sb.Append (Char.ToLowerInvariant(x[i]));
+         }
+         return sb.ToString ();
       }
 
       private static Regex createRegexForName (string name) {
@@ -150,7 +188,7 @@ namespace Bitmanager.AlbumTools {
             for (int i = 0; i < name.Length; i++) {
                if (name[i] == ' ') {
                   if (i > 0 && name[i - 1] == ' ') continue;
-                  sb.Append (".+");
+                  sb.Append (".*");
                   continue;
                }
                sb.Append (name[i]);
