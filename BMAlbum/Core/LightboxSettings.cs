@@ -39,9 +39,11 @@ namespace BMAlbum.Core {
       public readonly DeviceSizeSettings[] DeviceSizes;
       public readonly string CacheVersion;
       public readonly bool Paginate;
+      public readonly bool ShowAllNames;
 
 
       public LightboxSettings (XmlNode node) {
+         ShowAllNames = node.ReadBool ("@show_all_names", false);
          PreloadBackward = node.ReadInt ("preload/@backward", 1);
          PreloadForward = node.ReadInt ("preload/@forward", 1);
          XmlNodeList sizesNodes = null;
@@ -79,6 +81,7 @@ namespace BMAlbum.Core {
 
       public void WriteClientConfig (JsonWriter json, BrowserType type) {
          json.WriteStartObject ();
+         json.WriteProperty ("show_all_names", ShowAllNames);
          json.WriteStartObject ("preload");
          json.WriteProperty ("backward", PreloadBackward);
          json.WriteProperty ("forward", PreloadForward);

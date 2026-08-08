@@ -312,11 +312,17 @@ function createLightboxControl(app) {
       }
       if (photo.names) {
          let lines = [];
+         const allNames = _lbSettings.show_all_names;
          for (let i = 0; i < photo.names.length; i++) {
             let name = photo.names[i];
-            lines.push(name.name + " (" + name.match_score.toFixed(2) + ")");
+            if (allNames) 
+               lines.push(name.name + " (" + name.status + ", " + name.match_score.toFixed(2) + ")");
+            else {
+               if (name.status !== "V") continue;
+               lines.push(name.name + " (" + name.match_score.toFixed(2) + ")");
+            }
          }
-         addRow("Namen", lines.join("<br />"));
+         if (lines.length > 0) addRow("Namen", lines.join("<br />"));
       }
       if (photo.score) addRow("Score", photo.score.toFixed(2));
       if (photo.explain) addRow("Explain", photo.explain.join("<br />"));

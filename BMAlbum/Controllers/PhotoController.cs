@@ -496,6 +496,7 @@ namespace BMAlbum.Controllers {
          double minWRatio = 100;
          double meanWRatio = 0;
          json.WriteStartArray ("files");
+         bool allNames = settings.LightboxSettings.ShowAllNames;
          foreach (var doc in docs) {
             var rec = doc._Source;
             int w = doc.ReadInt ("width");
@@ -546,7 +547,10 @@ namespace BMAlbum.Controllers {
                if (explain != null) json.WriteProperty ("explain", (IJsonSerializable)explain);
             }
             var names = doc.ReadArr ("names", null);
-            if (names != null) json.WriteProperty ("names", (IJsonSerializable)names);
+            if (names != null) {
+               if (!allNames) removeIgnoredNames (names);
+               if (names.Count>0) json.WriteProperty ("names", (IJsonSerializable)names);
+            }
             var dt = doc.ReadDate ("date", DateTime.MinValue);
             if (dt != DateTime.MinValue) {
                json.WriteProperty ("date", dt.ToLocalTime ().ToString ("yyyy-MM-dd HH:mm:ss"));
@@ -587,6 +591,15 @@ namespace BMAlbum.Controllers {
          json.WriteProperty ("mean_w_ratio", Math.Round (docs.Count == 0 ? 1 : meanWRatio / docs.Count, 4));
          json.WriteProperty ("min_w_ratio", Math.Round (minWRatio ==100 ? 1 : minWRatio, 4));
          if (gTerms.Count > 0) json.WriteProperty ("all_terms", string.Join ("\n\t", gTerms));
+      }
+
+      private static void removeIgnoredNames(JsonArrayValue arr) {
+         int i=arr.Count;                           
+         while (i>0) {
+            --i;
+            var status = ((JsonObjectValue)arr[i]).ReadStr("status", null);
+            if (status != "V") arr.RemoveAt(i);
+         }
       }
 
       private static void optCopyProperty (JsonBuffer json, string key, JsonObjectValue src, string srckey) {
