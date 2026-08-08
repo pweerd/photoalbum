@@ -77,6 +77,7 @@
             <config select_searchfield="location|names!id" flags="default|FieldCollapseToText"/>
             <config base="default" select_searchfield="all|text_nl" or_flags="useOnlyStem"/>
             <config base="default" select_searchfield="camera|season" not_flags="useStem|allowFuzzy" or_flags="phraseForNormal"/>
+            <config base="default" select_searchfield="names!id" not_flags="useStem|allowFuzzy"/>
             <config select_field="exist|exists" flags="default"/>
             <config name="default" select_field="."  not_flags="useStem" phrase_slop="1" flags="default|constant|FieldCollapseToParenthesis" fuzzy_rewrite="top_terms_boost_6"/>
          </fieldconfigs>
@@ -93,8 +94,15 @@
                       text_location="extra_location"
                       score_distance="true"
                       api_key="YOUR_GOOGLE_API_SERVER_KEY"/>
-            <searcher field="name|naam|persoon" type="name_searcher" searchfield="names!name" />
-            <searcher field="life|leven|portret|portrait" type="portrait_searcher" searchfield="names!id" max_face_count="3" />
+            <searcher field="name|naam|persoon" type="name_searcher" only_valid="true" searchfield="names!name" />
+            <searcher field="life|leven|portret|portrait"
+                      type="portrait_searcher"
+                      searchfield="names!id"
+                      _max_area_position="2"
+                      min_ratio="0.4"
+                      min_raw_score="0.4"
+                      max_photos_per_day="5"
+                      max_face_count="3" />
             <searcher field="personen|gezichten" searchfield="face_count" />
             <searcher field="id" searchfield="file" />
             <searcher field="pin|near" searchfield="location" type="pin_searcher" id_field="file" def_distance="10" />
@@ -164,7 +172,7 @@
 
 
 
-   <lightbox pagesize="1000" album_mincount="4" cache_version="1" paginate="true" >
+   <lightbox pagesize="1000" album_mincount="4" cache_version="1" paginate="true" show_all_names="false" >
       <!-- In case of a single photo view: how many to preload backward/forward -->
       <preload backward="1" forward="2" />
       

@@ -157,6 +157,15 @@
                   url="$$ALBUM_IDS$$" 
                   sleep_after_extract="50">
       </datasource>
+      
+      <datasource name="imghash" importflags_set="ignoreCanceled"
+                  active="false"
+                  type="AlbumImporter.dll#AlbumImporter.IDDatasource"
+                  desc="Computes PerceptualHash from an image and put it in a separate database"
+                  url="$$ALBUM_IDS$$"
+                  sleep_after_extract="50">
+      </datasource>
+
 
       <datasource name="face_extract" importflags_set="ignoreCanceled"
                   active="false" 
@@ -174,6 +183,7 @@
                   type="AlbumImporter.dll#AlbumImporter.IDDatasource"
                   desc="Matches the extracted faces to a set of known faces."
                   url="$$ALBUM_IDS$$"
+                  include_altname="true"
                   log_progress="10s">
          <_filter expr="" />
          <manual include_non_ok="false" ratio_range_lo="0" ratio_range_hi="2" />
@@ -185,7 +195,7 @@
                   type="AlbumImporter.dll#AlbumImporter.IDDatasource"
                   desc="Indexes the photos/videos and combines the metadata with the data from the previous steps."
                   url="$$ALBUM_IDS$$"
-                  _filter="D\\Peter\\2017\\IMG\-20171222\-WA0001">
+                  _filter="">
          <importsettings>
             <album src="fromDirectoryName,fromFileName" />
             <date src="assumeLocal,default" />
