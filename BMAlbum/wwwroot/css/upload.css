@@ -55,3 +55,7 @@ h1 {
 #form {
    margin: 1em;
 }
+.hidden {
+   display: none;
+   visibility: hidden;
+}

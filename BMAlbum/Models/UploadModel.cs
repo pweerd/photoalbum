@@ -10,10 +10,12 @@ namespace BMAlbum.Models {
       public readonly string ActivateAction;
       public readonly string ActivateState;
       public readonly string CommandUrl;
+      public readonly string HiddenClass;
       public readonly bool Disabled;
 
       public UploadModel (BaseController c, ClientState state) {
          RequestCtx = c.RequestCtx;
+         HiddenClass = (RequestCtx.IsInternalIp) ? string.Empty : "hidden";
          State = state;
          var uploadSettings = state.Settings.UploadSettings;
          if (uploadSettings == null) {
