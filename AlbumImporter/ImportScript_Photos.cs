@@ -28,6 +28,7 @@ using Bitmanager.IR;
 using Bitmanager.Json;
 using Bitmanager.Webservices;
 using Bitmanager.Xml;
+using System.Diagnostics;
 using System.Text;
 using System.Xml;
 
@@ -497,7 +498,7 @@ namespace AlbumImporter {
          return src == null || src.Count == 0 ? null : src;
       }
 
-
+      private List<DbFace> tmpFaces = new List<DbFace>(32);
       private void addFaces(JsonObjectValue rec, string id) {
          int i = findFirstFace (id);
          if (i >= faces.Count) goto NO_NAMES;
@@ -509,14 +510,33 @@ namespace AlbumImporter {
          rec["names"] = arr;
          rec["face_count"] = face.FaceCount;
 
-         for (; i<end; i++) {
+         //Sort the faces on descending area, and assign an index to them
+         //Both valid and ignored items will be exported
+         //We can filter them later on status or on the Nth largest face
+         tmpFaces.Clear ();
+         for (; i < end; i++) {
             face = faces[i];
-            if (face.Status != DbFace.StatusFlags.Valid) continue;
+            if (face.Status == DbFace.StatusFlags.Valid || face.Status == DbFace.StatusFlags.Ignored)
+               tmpFaces.Add (face);
+         }
+         if (tmpFaces.Count == 0) return;  //We don't want to overwrite face_count
 
+         tmpFaces.Sort((a,b)=>b.RelPos.GetArea() - a.RelPos.GetArea());
+         int pos = 0;
+         float areaAtPos = tmpFaces[0].RelPos.GetArea ();
+         for (i=0; i<tmpFaces.Count; i++) {
+            face = tmpFaces[i];
+            float area = face.RelPos.GetArea();
+            while (area < areaAtPos) {
+               areaAtPos *= .6f;
+               pos++;
+            }
             var name = face.Name;
             name.UpdateName (this.faceNames);
             var json = new JsonObjectValue();
             json.Add ("id", name.Id);
+            json.Add ("index", pos);
+            json.Add ("status", face.Status == DbFace.StatusFlags.Valid ? "V" : "I");
             json.Add ("name", name.Name);
             json.Add ("match_score", name.Score);
             json.Add ("match_score_raw", name.ScoreRaw);

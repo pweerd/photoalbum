@@ -173,7 +173,9 @@
             "match_score": { "type": "float" },
             "match_score_raw": { "type": "float" },
             "confidence": {"type": "float"},
-            "relarea": {"type": "float"},
+            "relarea": { "type": "float" },
+            "status": { "type": "keyword", "normalizer": "lc_facet", "doc_values": false },
+            "index": { "type": "integer", "doc_values": false },
             "ratio": { "type": "float" },
             "ratio_01": { "type": "float" }
          }},
