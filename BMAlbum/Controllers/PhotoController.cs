@@ -318,12 +318,12 @@ namespace BMAlbum.Controllers {
 
          bool hasAlbumFacet = clientState.ContainsFacetRequest ("album");
          bool oneQueryIsEnough = (hasAlbumFacet || clientState.PerAlbum == TriStateBool.False || hasFuzzy);
-         bool hasPortraitQ = false;
          bool hasLocationQ = false;
+         PortraitSearcher firstPortraitSearcher = null;
          if (valueNodes != null) {
             foreach (var node in valueNodes) {
                if (node.ProcessedBy is PinSearcher || node.ProcessedBy is LocationSearcher) hasLocationQ = true;
-               else if (node.ProcessedBy is PortraitSearcher) hasPortraitQ = true;
+               else if (node.ProcessedBy is PortraitSearcher && firstPortraitSearcher==null) firstPortraitSearcher = (PortraitSearcher)node.ProcessedBy;
             }
          }
 
@@ -395,10 +395,11 @@ namespace BMAlbum.Controllers {
          docs = resp.Documents;
          if ((clientState.DebugFlags & DebugFlags.ONE) != 0 && docs.Count>1)
             docs.RemoveRange (1, docs.Count - 1);
-         if (hasPortraitQ) PortraitSearcher.PostProcess (docs);
+         if (firstPortraitSearcher != null) firstPortraitSearcher.PostProcess (queryGenerator, docs);
+         
          json.WriteProperty ("new_state", (IJsonSerializable)clientState.ToJson ());
-
          json.WriteProperty ("total_hits", resp.TotalHits);
+
          writeFiles (json, docs, debug, queryGenerator);
 
          if (debug) {
@@ -496,6 +497,7 @@ namespace BMAlbum.Controllers {
          double meanWRatio = 0;
          json.WriteStartArray ("files");
          foreach (var doc in docs) {
+            var rec = doc._Source;
             int w = doc.ReadInt ("width");
             int h = doc.ReadInt ("height");
             str = doc.ReadStr ("orientation", null);
@@ -519,22 +521,26 @@ namespace BMAlbum.Controllers {
 
             json.WriteStartObject ();
             json.WriteProperty ("f", doc.Id);
-            json.WriteProperty ("a", doc.ReadStr ("album", null));
-            json.WriteProperty ("y", doc.ReadStr ("year", null));
+            optCopyProperty (json, "a", rec, "album");
+            optCopyProperty (json, "y", rec, "year");
             json.WriteProperty ("w", w);
             json.WriteProperty ("h", h);
             json.WriteProperty ("mime", mime);
-            json.WriteProperty ("t_nl", doc.ReadStr ("text_nl", null));
-            json.WriteProperty ("t_ocr", doc.ReadStr ("ocr", null));
+            optCopyProperty (json, "t_nl", rec, "text_nl");
+            optCopyProperty (json, "t_ocr", rec, "ocr");
+            optCopyProperty (json, rec, "marked");
+
             writeDuration (json, doc);
             int faces = doc.ReadInt ("face_count", 0);
             if (faces>0) json.WriteProperty ("fcnt", faces);
 
             if (dbg) {
-               json.WriteProperty ("t_en", doc.ReadStr ("text_en", null));
-               json.WriteProperty ("t_txt", doc.ReadStr ("text", null));
-               json.WriteProperty ("c_id", doc.ReadStr ("c_id", null));
-               json.WriteProperty ("c_name", doc.ReadStr ("c_name", null));
+               optCopyProperty (json, "t_en",rec, "text_en");
+               optCopyProperty (json, "t_txt", rec, "text");
+               optCopyProperty (json, rec, "c_id");
+               optCopyProperty (json, rec, "c_name");
+               optCopyProperty (json, rec, "ph1");
+               optCopyProperty (json, rec, "ph2");
                json.WriteProperty ("score", doc.Score);
                var explain = doc.FormattedExplain;
                if (explain != null) json.WriteProperty ("explain", (IJsonSerializable)explain);
@@ -546,14 +552,10 @@ namespace BMAlbum.Controllers {
                json.WriteProperty ("date", dt.ToLocalTime ().ToString ("yyyy-MM-dd HH:mm:ss"));
                json.WriteProperty ("year", doc.ReadInt ("year"));
             }
-            str = doc.ReadStr ("camera", null);
-            if (str != null) json.WriteProperty ("c", str);
-            str = doc.ReadStr ("tz", null);
-            if (str != null) json.WriteProperty ("tz", str);
-            str = doc.ReadStr ("trkid", null);
-            if (str != null) json.WriteProperty ("trkid", str);
-            str = doc.ReadStr ("location", null);
-            if (str != null) json.WriteProperty ("l", str);
+            optCopyProperty (json, "c", rec, "camera");
+            optCopyProperty (json, "l", rec, "location");
+            optCopyProperty (json, rec, "tz");
+            optCopyProperty (json, rec, "trkid");
 
             double ratio = w;
             if (w<=h) {
@@ -585,6 +587,15 @@ namespace BMAlbum.Controllers {
          json.WriteProperty ("mean_w_ratio", Math.Round (docs.Count == 0 ? 1 : meanWRatio / docs.Count, 4));
          json.WriteProperty ("min_w_ratio", Math.Round (minWRatio ==100 ? 1 : minWRatio, 4));
          if (gTerms.Count > 0) json.WriteProperty ("all_terms", string.Join ("\n\t", gTerms));
+      }
+
+      private static void optCopyProperty (JsonBuffer json, string key, JsonObjectValue src, string srckey) {
+         var v = src.ReadValue(srckey, false);
+         if (v != null) json.WriteProperty (key, v);
+      }
+      private static void optCopyProperty (JsonBuffer json, JsonObjectValue src, string key) {
+         var v = src.ReadValue(key, false);
+         if (v != null) json.WriteProperty (key, v);
       }
 
       private static void writeDuration (JsonWriter wtr, GenericDocument doc) {

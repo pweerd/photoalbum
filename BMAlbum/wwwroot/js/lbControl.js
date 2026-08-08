@@ -144,7 +144,9 @@ function createLightboxControl(app) {
       } else {
          sb.push(' data-src="' + photo.imgUrl + '"');
       }
-      sb.push('><div class="lb-wrapper"><img class="lb-image lazyload" src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src="');
+      sb.push('><div class="lb-wrapper');
+      if (photo.marked) sb.push(" marked");
+      sb.push('"><img class="lb-image lazyload" src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src="');
       sb.push(photo.imgUrl);
 
       let aspect = lbState.limitRatio(photo.w / photo.h);
@@ -211,10 +213,7 @@ function createLightboxControl(app) {
       sb.push(", " + photo.storage_id);
       sb.push("<br />conf=" + photo.confidence + "/" + matchedConfidence);
       if (photo.name?.diff) sb.push(", df=" + photo.name.diff_factor + ", d=" + photo.name.diff);
-      sb.push('</div>');
-
-      //<div class="txtbadge info-badge bottom-right-4"></div>
-      sb.push('</div></div>');
+      sb.push('</div></div></div>');
    }
 
    //Initializes the lightbox style and returns a LightboxState
@@ -308,6 +307,8 @@ function createLightboxControl(app) {
             addRow("C_Name", photo.c_name);
             addRow("Mime", photo.mime);
          }
+         addRow("PHash1", photo.ph1);
+         addRow("PHash2", photo.ph2);
       }
       if (photo.names) {
          let lines = [];
