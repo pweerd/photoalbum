@@ -161,7 +161,7 @@ namespace BMAlbum.Controllers {
                rec.Remove ("name");
                rec.Remove ("explain");
                rec["src"] = correct ? "CU" : "MU";
-               rec["status"] = "I";
+               rec["status"] = "U";
                resultName = "Unknown";
                break;
             default: //Update
@@ -192,7 +192,8 @@ namespace BMAlbum.Controllers {
                var idUrl = settings.FaceIndex + "/_doc/" + Encoders.UrlDataEncode (d.Id);
                var json = d._Source;
                json.Remove ("name");
-               json["src"] = "U";
+               json["src"] = "N";
+               json["status"] = "N";
                c.Send (HttpMethod.Put, idUrl, HttpPayload.Create (json)).ThrowIfError ();
                cnt++;
             }
