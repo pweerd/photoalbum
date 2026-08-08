@@ -17,44 +17,88 @@
 using Bitmanager.BoolParser;
 using Bitmanager.Elastic;
 using Bitmanager.Query;
+using Bitmanager.Xml;
+using System.Xml;
 
 namespace BMAlbum {
 
    public class NameSearcher : SingleFieldSearcher {
       private readonly string nestField;
       private readonly string scoreField;
+      private readonly string positionField;
+      private readonly ESQuery validFilter;
+      private readonly bool onlyValid;
 
-      public NameSearcher (string field, string searchField, SearchFieldConfig fieldConfig)
+      public NameSearcher (XmlNode node, string field, string searchField, SearchFieldConfig fieldConfig)
          : base (field, searchField.Replace('!', '.'), fieldConfig) {
          var idx = base.SearchField.LastIndexOf('.');
          string rootField = null;
-         if (idx < 0)
+         if (idx < 0) {
             scoreField = "match_score";
-         else {
+            positionField = "index";
+         } else {
             rootField = base.SearchField.Substring (0, idx);
             if (searchField[idx] == '!') nestField = rootField;
             scoreField = rootField + ".match_score";
+            positionField = rootField + ".index";
          }
+         onlyValid = node.ReadBool("@only_valid", true);
+         if (onlyValid && nestField != null) validFilter = new ESTermQuery (rootField + ".status", "v");
       }
 
-      private ESQuery wrapNestedScorer (ESQuery q) {
+      private ESQuery wrapNestedScorer (ESQuery q, int pos) {
+         if (validFilter == null && pos < 0) {
+            q = new ESConstantScoreQuery (q);
+         } else {
+            var bq = new ESBoolQuery();
+            if (validFilter != null) bq.AddFilter (validFilter);
+            if (pos >= 0) bq.AddFilter(new ESTermQuery(positionField, pos.ToString()));
+            bq.AddFilter (q);
+            q = bq;
+         }
+
          var fq = new ESFunctionScoreQuery (q);
          fq.BoostMode = ESBoostMode.replace;
          fq.Functions.Add (new ESFieldScoreFunction (scoreField));
+
          return nestField == null ? fq : new ESNestedQuery (nestField, fq, ESScoreMode.max);
       }
       
       public override ESQuery CreatePhraseQuery (QueryGenerator generator, ParserPhraseValueNode node) {
-         return wrapNestedScorer (base.CreatePhraseQuery (generator, node));
+         var arg = splitNameAndPosition (node.Value, out var pos);
+         if (generator.IndexInfo.GetField (positionField, false) == null) pos = -1;
+         return wrapNestedScorer (base.CreatePhraseQuery (generator, arg), pos);
       }
 
       public override ESQuery CreateRangeQuery (QueryGenerator generator, ParserRangeValueNode node) {
-         return wrapNestedScorer(base.CreateRangeQuery (generator, node));
+         return wrapNestedScorer(base.CreateRangeQuery (generator, node), -1);
       }
 
       public override ESQuery CreateTextQuery (QueryGenerator generator, ParserValueNode node) {
-         return wrapNestedScorer (base.CreateTextQuery (generator, node));
+         var arg = splitNameAndPosition (node.Value, out var pos);
+         if (generator.IndexInfo.GetField (positionField, false) == null) pos = -1;
+         return wrapNestedScorer (base.CreateTextQuery (generator, arg), pos);
       }
 
+      private static string splitNameAndPosition (string arg, out int position) {
+         if (string.IsNullOrEmpty (arg)) goto NO_POSITION;
+         var x = arg.LastIndexOf('@');
+         if (x<0 || (arg.Length - x) < 2) goto NO_POSITION;
+
+         int pos = 0;
+         for (int j=x+1; j<arg.Length; j++) {
+            int ch = arg[j] - '0';
+            if (ch < 0) goto NO_POSITION;
+            if (ch > 9) goto NO_POSITION;
+            pos = 10 * pos + ch;
+         }
+         position = pos;
+         return arg.Substring (0, x);
+
+      NO_POSITION:
+         position = -1;
+         return arg;
+      }
    }
+
 }

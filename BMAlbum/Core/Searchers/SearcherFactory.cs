@@ -24,7 +24,7 @@ namespace BMAlbum {
       public static readonly SearcherFactory Instance = new SearcherFactory();
       private SearcherFactory () { }
       public ISearcher CreateSearcher (XmlNode node, string type, string field, string searchField, SearchFieldConfig cfg) {
-         if (type == "name_searcher") return new NameSearcher (field, searchField, cfg);
+         if (type == "name_searcher") return new NameSearcher (node, field, searchField, cfg);
          if (type == "pin_searcher") return new PinSearcher (node, field, searchField, cfg);
          if (type == "mlt_searcher") return new MoreLikeThisSearcher(node, field, searchField, cfg);
          if (type == "phash_searcher") return new PHashSearcher (node, field, searchField, cfg);
