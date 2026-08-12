@@ -42,7 +42,7 @@ namespace BMAlbum.Controllers {
          if (clientState.PerAlbum == TriStateBool.Unspecified && clientState.User.InitialPerAlbum != TriStateBool.Unspecified)
             clientState.PerAlbum = clientState.User.InitialPerAlbum;
          if (clientState.SortName == null && clientState.User.InitialSortMode != null)
-            clientState.SetSortMode (clientState.User.InitialSortMode);
+            clientState.SetSortMode (clientState.SortName = clientState.User.InitialSortMode);
 
          switch (BMAlbum.User.CheckAccess(clientState.User, RequestCtx.RemoteIPClass, HttpContext.IsAuthenticated ())) {
             case _Access.NotExposed: goto RET_404;
