@@ -37,7 +37,8 @@ function createContextMenu($element, mainSelector, $menu, onClick, onMenuItem) {
    let _touchTarget;
    function _onTouchStart(ev) {
       console.log('TOUCH start');
-      _onTouchCancel();
+      _touchInvokedCtxMenu = false;
+      _hideMenu();
       if (ev.targetTouches.length > 1) return; //more fingers? Not for us
 
       //Cannot stop propagation: we would interfere with other handlers then!
