@@ -18,7 +18,7 @@ namespace BMAlbum {
          RemoveText = node.ReadStr ("@remove_text", null);
          UploadText = node.ReadStr ("@upload_text", "Klik hier om uw files te uploaden (of sleep uw files in deze box)");
          MaxFiles = node.ReadInt ("@max_files", 100);
-         MaxMB = node.ReadInt ("@max_size_mb", 500); ;
+         MaxMB = node.ReadInt ("@max_mb", 500);
          MaxMBPerFile = node.ReadInt ("@max_mb_per_file", 50);
          UploadRoot = node.ReadStr ("@root", "upload"); 
          Active = node.ReadBool ("@active", true);
