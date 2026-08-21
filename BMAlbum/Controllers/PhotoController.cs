@@ -634,7 +634,7 @@ namespace BMAlbum.Controllers {
          for (int i=0; i< aggItems.Count; i++) {
             var item = aggItems[i];
             string album = item.GetKey ();
-            if (i==0) {
+            if (first == null && !album.EndsWith ("whatsapp")) {
                first = album;
                firstCount = item.Count;
             }
