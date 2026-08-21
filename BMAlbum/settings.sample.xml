@@ -57,6 +57,7 @@
    <photocache max_parallel="2">
       <refresh active="false" sleeptime="300" />
       <shrink_small cache="true" quality="80" tag="1" log="false">
+         <!-- If you change this pipeline, all entries in the cache will be stale. Consider clearing the cache -->
          <factor2 bias=".9" />
          <factor15 bias=".1" />
          <sharpen center="10" />
