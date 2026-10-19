@@ -12,6 +12,11 @@
 #references/_disabled
 
 BMAlbum/wwwroot/lib/**
+albumimport/video_frames*.*
+albumimport/face-diffs*.*
+albumimport/face-name-stats*.*
+albumimport/album-faces*.*
+albumimport/album-embeddings*.*
 
 Thumbs.db
 **/obj/**
