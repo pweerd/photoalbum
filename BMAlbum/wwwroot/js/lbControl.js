@@ -1350,7 +1350,7 @@ function createLightboxControl(app) {
       });
    }
 
-   const NO_DRAG_ID = -3;
+   const NO_DRAG_ID = -255; //We have 3 dummy faceID's (with negative numbers). See FacePhotoController
    let _draggedFaceId = NO_DRAG_ID;
    function _faceDragHandler(ev) {
       function stopDragging() {
@@ -1374,7 +1374,8 @@ function createLightboxControl(app) {
       let idx = $target.attr("data_id");
       console.log("NameIDX=", idx);
 
-      if (idx <= NO_DRAG_ID) return; //Not on a name-LI 
+      if (idx === undefined) return; //Not on a name-LI 
+      idx = parseInt(idx);
 
       //OK, pointerdown on a LI
       $allLI.removeClass("dragged_name");
