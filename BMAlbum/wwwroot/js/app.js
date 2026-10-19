@@ -313,6 +313,7 @@ function createApplication(state, fnInit) {
 
 
    function _onPopHistory(ev) {
+      if (!_app) return; //Not yet initialized
       let histState = history.state || {};
       _copyStateParms(_state, histState);
       console.log('HISTORY popped:', history.length, histState, _state);
@@ -320,17 +321,20 @@ function createApplication(state, fnInit) {
          case "faces":
          case "photo":
          case "photos":
+            if (!_app.lbControl) return; //Not yet initialized
             _state.center = undefined;
             _state.zoom = undefined;
-            app.lbControl.onPopHistory(ev);
+            _app.lbControl.onPopHistory(ev);
             _enableOrDisableMap(false);
             break;
          case "map":
-            app.mapControl.onPopHistory(ev);
+            if (!_app.mapControl) return; //Not yet initialized
+            _app.mapControl.onPopHistory(ev);
             _enableOrDisableMap(true);
             break;
          case "facephoto":
-            app.facePhotoControl.onPopHistory(ev);
+            if (!_app.facePhotoControl) return; //Not yet initialized
+            _app.facePhotoControl.onPopHistory(ev);
             break;
          default:
             console.log('INVALID mode: [', histState.mode, ']', histState);
