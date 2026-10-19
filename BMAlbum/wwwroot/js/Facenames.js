@@ -2,6 +2,7 @@
    _chgid;
    _names;
    _sortedNames;
+   _numNegativeIDs;
 
    constructor(sortedNames, chgid) {
       this._chgid = chgid === undefined ? -1 : chgid;
@@ -9,10 +10,16 @@
       const names = Array.from(this._sortedNames);
       names.sort((a, b) => a.id - b.id);
       this._names = names;
+      let numNegative = 0;
+      for (let i = 0; i < names.length; i++) {
+         if (names[i].id >= 0) break;
+         ++numNegative;
+      }
+      this._numNegativeIDs = numNegative;
    }
 
    nameById (id) {
-      return this._names[parseInt(id) + 2].name;
+      return this._names[parseInt(id) + this._numNegativeIDs].name;
    };
    
    getFirstMatchingName (str, sorted)  {
