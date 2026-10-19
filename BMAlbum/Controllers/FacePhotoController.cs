@@ -104,8 +104,10 @@ namespace BMAlbum.Controllers {
          json.WriteStartObject ();
          json.WriteProperty ("chgid", faceNames.ChangeId);
          json.WriteStartArray ("names");
-         writeName (json, -2, "CLEAR");
-         writeName (json, -1, "UNKNOWN");
+         writeName (json, ID_CLEAR, "CLEAR");
+         writeName (json, ID_UNKNOWN, "UNKNOWN");
+         writeName (json, ID_ACCEPT_2ND, "ACCEPT 2nd name");
+         writeName (json, ID_ACCEPT_1ST, "ACCEPT 1st name");
          var names = faceNames.SortedNames;
          for (int i=0; i< names.Length; i++) 
             writeName (json, names[i].Id, names[i].Name);
@@ -127,16 +129,19 @@ namespace BMAlbum.Controllers {
          NOT_FOUND: return new ActionResult404 ();
       }
 
-      private const int ID_MIN = -2;
-      private const int ID_CLEAR = -2;
-      private const int ID_UNKNOWN = -1;
+      private const int ID_CLEAR = -4;
+      private const int ID_UNKNOWN = -3;
+      private const int ID_ACCEPT_2ND = -2;
+      private const int ID_ACCEPT_1ST = -1;
+      private const int ID_MIN = ID_CLEAR;
 
       [HttpPost]
       public IActionResult SetFace () {
          JsonObjectValue json = Request.GetBodyAsJson ();
-         string id = json.ReadStr ("id");
-         int faceId = json.ReadInt ("faceid");
-         bool correct = json.ReadBool ("correct");
+         var id = json.ReadStr ("id");
+         var faceId = json.ReadInt ("faceid");
+         var correct = json.ReadBool ("correct");
+         SiteLog.Log ("Update id={0} to faceid {1}", id, faceId);
 
          var settings = (Settings)base.Settings;
          var names = settings.FacesAdmin.Names;
@@ -149,6 +154,7 @@ namespace BMAlbum.Controllers {
          SiteLog.Log ("Update id=" + id);
          SiteLog.Log ("-- Old record=" + rec.ToJsonString ());
          string resultName;
+         JsonObjectValue nameObj;
          switch (faceId) {
             case ID_CLEAR: 
                rec.Remove ("name");
@@ -157,6 +163,7 @@ namespace BMAlbum.Controllers {
                rec["status"] = "N";
                resultName = string.Empty;
                break;
+
             case ID_UNKNOWN:
                rec.Remove ("name");
                rec.Remove ("explain");
@@ -164,10 +171,36 @@ namespace BMAlbum.Controllers {
                rec["status"] = "U";
                resultName = "Unknown";
                break;
+
+            case ID_ACCEPT_1ST:
+               nameObj = rec.ReadObj ("name");
+               faceId = nameObj.ReadInt ("id", -1);
+               if (faceId < 0) throw new BMException ("No 1st name was found!");
+               
+               rec["src"] = correct ? "CK" : "MK";
+               rec["status"] = "V";
+               nameObj["match_score"] = 1;
+               nameObj["name"] = resultName = names.NameById (faceId);
+               break;
+
+            case ID_ACCEPT_2ND:
+               faceId = rec.ReadInt ("name.altid", -1);
+               if (faceId < 0) throw new BMException ("No 2nd name was found!");
+
+               rec.Remove ("explain");
+               rec["src"] = correct ? "CK" : "MK";
+               nameObj = new JsonObjectValue ();
+               rec["name"] = nameObj;
+               rec["status"] = "V";
+               nameObj["id"] = faceId;
+               nameObj["match_score"] = 1;
+               nameObj["name"] = resultName = names.NameById (faceId);
+               break;
+
             default: //Update
                rec.Remove ("explain");
                rec["src"] = correct ? "CK": "MK";
-               var nameObj = new JsonObjectValue ();
+               nameObj = new JsonObjectValue ();
                rec["name"] = nameObj;
                rec["status"] = "V";
                nameObj["id"] = faceId;
