@@ -60,7 +60,8 @@
                  "boomerang=>frisbee",
                  "boemerang=>frisbee",
                  "tessel=>texel",
-                 "jeannette=>jeannet"
+                 "jeannette=>jeannet",
+                 "niek=>nico"
               ]
             },
 
