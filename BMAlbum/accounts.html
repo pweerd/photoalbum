@@ -187,7 +187,7 @@
                case "add": tmp = "added";
                case "del": tmp = "deleted";
                case "upd": tmp = "updated";
-               case "fetch": return;
+               case "fetch": select(usersList.getElementsByTagName('li')[0]); return;
             }
             arr.push(tmp);
             arr.push(" successful.");
@@ -219,7 +219,6 @@
                   //if (fetcher.isAborted()) msg = 'Aborted: ' + JSON.stringify(msg);
                   err = new Error(msg)
                }
-               err.orgMessage = err.message;
                err.message = err.message + '\r\nUrl=' + _req.url;
                fetcher.error = err;
                cb(fetcher);
@@ -228,26 +227,21 @@
       }
 
       function select(elt) {
+         if (elt.localName !== "li") return;
          const sels = document.getElementsByClassName('selected');
          for (let i = 0; i < sels.length; i++) {
             sels[i].classList.remove('selected');
          }
          elt.classList.add('selected');
+
+         clearUser(elt.getAttribute("new_user") ? '' : elt.innerText);
       }
 
       processUser("fetch");
 
       usersList.addEventListener('click', function (ev) {
          console.log('click');
-         const tgt = ev.target;
-
-         if (tgt.localName !== "li") return;
-         select(tgt);
-         if (ev.target.getAttribute("new_user")) {
-            clearUser('');
-         } else {
-            clearUser(ev.target.innerText);
-         }
+         select(ev.target);
       });
       btnAdd.addEventListener('click', function (ev) {
          processUser("add");

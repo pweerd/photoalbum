@@ -42,6 +42,8 @@ function createOverlay(pane) {
       initialState: 'html',
       states: ['html', 'text', 'json', 'xml'],
       copyFont: true,
+      shiftX: 0,
+      shiftY: 0,
       copyContent: function ($dst, $src) {
          let tmp = $src.html();
          $dst.html(tmp);
@@ -55,9 +57,8 @@ function createOverlay(pane) {
          return states[ix];
       },
       createPositionParms: function ($div, $target) {
-         let ovlOffsetY = _getBorderAndPaddingY($overlay);
-         let offsetX = _getBorderAndPaddingX($overlay) - _getBorderAndPaddingX($target);
-         let offsetY = ovlOffsetY - _getBorderAndPaddingY($target);
+         let offsetX = _getBorderAndPaddingX($overlay) - _getBorderAndPaddingX($target) - this.shiftX;
+         let offsetY = _getBorderAndPaddingY($overlay) - _getBorderAndPaddingY($target) - this.shiftY;
          if (!this.ignoreInnerPadding) {
             offsetX += _getBorderAndPaddingX($div);
             offsetY += _getBorderAndPaddingY($div);
@@ -227,7 +228,6 @@ function createOverlay(pane) {
 
    function _activate(target, behavior, argDelay) {
       _clearActivationTimer();
-      _clearHideTimer();
       const dbg = behavior && behavior.debug;
 
       $target = (target instanceof jQuery) ? target : $(target);
@@ -247,7 +247,6 @@ function createOverlay(pane) {
       //Save if we had the mouse on activation
       const hadMouse = target.matches(':hover');
 
-      console.log("about to activate", _activationTimer);
       if (_activationTimer !== undefined) return;
       _activationTimer = setTimeout(function () {
          if (!target.matches(':hover') && hadMouse) {
@@ -262,7 +261,6 @@ function createOverlay(pane) {
    }
    function _activateNow(behavior, $target) {
       const dbg = behavior.debug;
-      console.log("activateNow");
 
       _clearActivationTimer();
       _clearHideTimer();
@@ -318,6 +316,8 @@ function createOverlay(pane) {
          if (!behavior.useTargetsBackground) {
             if (dbg) console.log("OVL: own background");
             if (behavior.copyFont) _copyFont($div, $target);
+            let d = $target.css('display');
+            if (d && d.includes('inline')) $div.css('display', 'inline-block');
             behavior.copyContent($div, $target);
          } else {
             if (dbg) console.log("OVL: target's background");

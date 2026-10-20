@@ -63,8 +63,8 @@
             panes.css("-webkit-user-select", "none").find("iframe").addClass(opts.iframeClass);
             A._posSplit = A[0][opts.pxSplit] - evt[opts.eventPos];
             $(document)
-               .bind("mousemove" + opts.eventNamespace, doSplitMouse)
-               .bind("mouseup" + opts.eventNamespace, endSplitMouse);
+               .on("mousemove" + opts.eventNamespace, doSplitMouse)
+               .on("mouseup" + opts.eventNamespace, endSplitMouse);
          }
          function doSplitMouse(evt) {
             var pos = A._posSplit + evt[opts.eventPos],
@@ -108,7 +108,7 @@
 
             panes.css("-webkit-user-select", "text").find("iframe").removeClass(opts.iframeClass);
             $(document)
-               .unbind("mousemove" + opts.eventNamespace + " mouseup" + opts.eventNamespace);
+               .off("mousemove" + opts.eventNamespace + " mouseup" + opts.eventNamespace);
          }
          function adjustPaneAdmin(pos) {
             bar._DA = bar[0][opts.pxSplit]; 	// bar size may change during dock
@@ -214,19 +214,20 @@
          // Focuser element, provides keyboard support; title is shown by Opera accessKeys
          var focuser = $('<a href="javascript:void(0)"></a>')
             .attr({ accessKey: opts.accessKey, tabIndex: opts.tabIndex, title: opts.splitbarClass })
-            .bind("focus" + opts.eventNamespace, function () {
+            .on("focus" + opts.eventNamespace, function () {
                this.focus(); bar.addClass(opts.barActiveClass)
             })
-            .bind("keydown" + opts.eventNamespace, function (e) {
-               var key = e.which || e.keyCode;
-               var dir = key === opts["key" + opts.side1] ? 1 : key === opts["key" + opts.side2] ? -1 : 0;
+            .on("keydown" + opts.eventNamespace, function (e) {
+               var key = e.key;
+               var dir = key === opts["Arrow" + opts.side1] ? 1 : key === opts["Arrow" + opts.side2] ? -1 : 0;
                if (dir) {
                   var pos = A[0][opts.pxSplit] + dir * opts.pxPerKey;
                   resplit(pos);
                   adjustPaneAdmin(pos);
+                  e.stopPropagation();
                }
             })
-            .bind("blur" + opts.eventNamespace, function () { bar.removeClass(opts.barActiveClass) });
+            .on("blur" + opts.eventNamespace, function () { bar.removeClass(opts.barActiveClass) });
 
          // Splitbar element
          var bar = $('<div></div>')
@@ -236,11 +237,11 @@
                position: "absolute", "user-select": "none", "-webkit-user-select": "none",
                "-khtml-user-select": "none", "-moz-user-select": "none", "z-index": opts.zIndexBar
             })
-            .bind("mousedown" + opts.eventNamespace, startSplitMouse)
-            .bind("mouseover" + opts.eventNamespace, function () {
+            .on("mousedown" + opts.eventNamespace, startSplitMouse)
+            .on("mouseover" + opts.eventNamespace, function () {
                $(this).addClass(opts.barHoverClass);
             })
-            .bind("mouseout" + opts.eventNamespace, function () {
+            .on("mouseout" + opts.eventNamespace, function () {
                $(this).removeClass(opts.barHoverClass);
             });
          // Use our cursor unless the style specifies a non-default cursor
@@ -319,7 +320,7 @@
          if (opts.resizeTo) {
             splitter._hadjust = dimSum(splitter, "borderTopWidth", "borderBottomWidth", "marginBottom");
             splitter._hmin = Math.max(dimSum(splitter, "minHeight"), 20);
-            $(window).bind("resize" + opts.eventNamespace, function (ev) {
+            $(window).on("resize" + opts.eventNamespace, function (ev) {
                if (ev.target !== window) return;
                var top = splitter.offset().top;
                var eh = $(opts.resizeTo).height();
@@ -328,13 +329,13 @@
             }).trigger("resize" + opts.eventNamespace);
          }
          else if (opts.resizeToWidth) {
-            $(window).bind("resize" + opts.eventNamespace, function (ev) {
+            $(window).on("resize" + opts.eventNamespace, function (ev) {
                if (ev.target !== window) return;
                splitter.triggerHandler("resize");
             });
          }
 
-         splitter.bind("getState" + opts.eventNamespace, function () {
+         splitter.on("getState" + opts.eventNamespace, function () {
             var leading = splitter._leadingPane;
             if (opts.debug) console.log('GETSTATE leading', leading._index, 'f', leading._factor); 
             return {
@@ -342,7 +343,7 @@
                docked: bar._docked ? true : false,
                lastDockWasManual: bar._lastDockWasManual
             };
-         }).bind("setState" + opts.eventNamespace, function (e, state, animate) {
+         }).on("setState" + opts.eventNamespace, function (e, state, animate) {
             var leading = splitter._leadingPane;
             if (opts.debug) console.log('SETSTATE leading', leading._index, 'state', state);
 
@@ -372,9 +373,9 @@
 
 
          // Docking support
-         splitter.bind("toggleDock" + opts.eventNamespace, function () {
+         splitter.on("toggleDock" + opts.eventNamespace, function () {
             splitter.triggerHandler(bar._docked ? "undock" : "dock");
-         }).bind("dock" + opts.eventNamespace, function (e, animate) {
+         }).on("dock" + opts.eventNamespace, function (e, animate) {
             if (opts.debug) console.log('DOCK cur=', bar._docked);
             if (bar._docked) return false;
 
@@ -393,7 +394,7 @@
             if (opts.debug) console.log('-- cur=', bar._docked, 'leading', leading);
             triggerUpdated();
             return true;
-         }).bind("undock" + opts.eventNamespace, function (e, animate) { 
+         }).on("undock" + opts.eventNamespace, function (e, animate) { 
             if (opts.debug) console.log('UNDOCK cur=', bar._docked);
             if (!bar._docked) return false;
 
@@ -419,31 +420,31 @@
             if (opts.dockKey)
                $('<a title="' + opts.splitbarClass + ' toggle dock" href="javascript:void(0)"></a>')
                .attr({ accessKey: opts.dockKey, tabIndex: -1 }).appendTo(bar)
-               .bind("focus", function () {
+               .on("focus", function () {
                   splitter.triggerHandler("toggleDock"); this.blur();
                   bar._dockOperationInitiated = true;
                   bar._lastDockWasManual = true; //Manual intervention detected
                });
-            bar.bind("dblclick", function () {
+            bar.on("dblclick", function () {
                splitter.triggerHandler("toggleDock");
                bar._lastDockWasManual = true; //Manual intervention detected
             })
          }
 
          // Resize event handler; triggered immediately to set initial position
-         splitter.bind("destroy" + opts.eventNamespace, function () {
-            $([window, document]).unbind(opts.eventNamespace);
-            bar.unbind().remove();
+         splitter.on("destroy" + opts.eventNamespace, function () {
+            $([window, document]).off(opts.eventNamespace);
+            bar.off().remove();
             panes.removeClass(opts.paneClass);
             splitter
                .removeClass(opts.splitterClass)
                .add(panes)
-                  .unbind(opts.eventNamespace)
+                  .off(opts.eventNamespace)
                   .attr("style", function (el) {
                      return this._splitter_style || ""; //TODO: save style
                   });
             splitter = bar = focuser = panes = A = B = opts = args = null;
-         }).bind("resize" + opts.eventNamespace, function (e, size) {
+         }).on("resize" + opts.eventNamespace, function (e, size) {
             // Custom events bubble in jQuery 1.3; avoid recursion
             if (e.target !== this) return;
             // Determine new width/height of splitter container

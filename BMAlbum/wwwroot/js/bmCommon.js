@@ -28,19 +28,12 @@ function createClientLog(url, cap, timeout) {
    const _cap = cap ?? 100;
    const _timeout = timeout ?? 5000;
    const _url = url;
-   const _lastReload = new Date();
    let _cache = [];
    let _timer;
 
    function _sendCacheToServer() {
       if (_cache.length > 0) {
-         $.ajax({
-            type: "POST",
-            contentType: "application/json; charset=utf-8",
-            dataType: "json",
-            url: _url,
-            data: JSON.stringify({ msgs: _cache })
-         });
+         _postJSON(_url, { msgs: _cache }, undefined, _timeout);
          _cache = [];
       }
    }
@@ -79,31 +72,21 @@ function createClientLog(url, cap, timeout) {
    }
    function _logErrorToServer(obj) {
       const arr = ["Runtime error: "];
-      arr.push(obj.message);
-      arr.push("\n-- File=");
-      arr.push(obj.filename);
-      arr.push("\n-- Line=");
-      arr.push(obj.lineno);
-      arr.push("\n-- Col=");
-      arr.push(obj.colno);
-      if (obj.stack) {
+      let err = obj;
+      if (!Error.isError(err) && Error.isError(err.error)) err = err.error;
+      arr.push(err.message);
+      if (err.filename) arr.push("\n-- File=" + err.filename);
+      if (err.lineno) arr.push("\n-- Line=" + err.lineno);
+      if (err.colno) arr.push("\n-- Col=" + err.colno);
+      if (err.stack) {
          arr.push("\n-- Stack=");
-         arr.push(obj.stack);
+         arr.push(err.stack);
       }
+      console.error(err);
       _addToCache({ t: 'error', m: arr.join('') });
-
-      //Optional reload
-      if (_reloadOnError) {
-         if (Date.now() - _lastReload > 60000) location.reload(); 
-      }
    }
-
-   function _logErrorToServerAndReload(e) {
-      _logErrorToServer(e);
-      if (Date.now() - _lastReload > 120000) location.reload(); 
-   }
-   function _hookError(reloadOnError) {
-      window.addEventListener("error", reloadOnError===true ? _logErrorToServerAndReload : _logErrorToServer);
+   function _hookError() {
+      window.addEventListener("error", _logErrorToServer);
    }
 
    function _hookConsole(types) {
@@ -137,16 +120,6 @@ function createClientLog(url, cap, timeout) {
       logToServer: _logToServer,
       hookConsole: _hookConsole
    }
-}
-
-function hookVisibilityChange() {
-   const loaded = Date.now();
-   document.body._mykey = 123;
-   document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) {
-         console.log("VISIBLE again. Key=", document.body._mykey, (Date.now() - loaded) / 3600000.0);
-      }
-   });
 }
 
 /**
@@ -199,6 +172,112 @@ function hookHistory() {
       console.log("HISTORY hooked:", history);
    }
 }
+
+/**
+ * Ajax stuff
+ */
+function _getOrPostJsonBackend(req, cb) {
+   if (!cb) cb = function () { };
+
+   function _setTimeout(ms) {
+      if (fetcher._timer) clearTimeout(fetcher._timer);
+      fetcher._timer = setTimeout(function () {
+         fetcher.abort(new Error('timeout ' + ms + 'ms'));
+      }, ms);
+   }
+
+   const fetcher = {
+      controller: new AbortController(),
+      abort: function (reason) {
+         this.controller.abort(reason);
+      },
+      isAborted: function () {
+         return this.controller.signal.aborted;
+      },
+      setTimeout: _setTimeout,
+      errorHandler: _getOrPostJsonBackend.defaultErrorHandler,
+   }
+
+   fetcher.promise = fetch(req, { signal: fetcher.controller.signal })
+      .then(rsp => {
+         fetcher.response = rsp;
+         return rsp.json();
+      })
+      .then(json => {
+         fetcher.json = json;
+         if (!fetcher.response.ok) {
+            let msg = undefined;
+            if (json && json.bm_error) {
+               msg = json.bm_error.message;
+            } else {
+               msg = 'Statuscode ' + resp.status;
+            }
+            throw new Error(msg);
+         }
+         cb(fetcher);
+         return Promise.resolve(fetcher);
+      })
+      .catch(err => {
+         if (!Error.isError(err)) {
+            let msg = err;
+            if (fetcher.isAborted()) msg = 'Aborted: ' + JSON.stringify(msg);
+            err = new Error(msg)
+         }
+         err.message = err.message + '\r\nUrl=' + req.url;
+         fetcher.error = err;
+         if (cb.length > 1) cb(fetcher, err); else fetcher.errorHandler(err);
+         return Promise.resolve(fetcher);
+      })
+      .finally(() => {
+         if (fetcher._timer) {
+            clearTimeout(fetcher._timer); fetcher._timer = undefined;
+         }
+      });
+   fetcher.setTimeout((req.timeout && req.timeout > 0) ? req.timeout : 2000);
+   return fetcher;
+}
+_getOrPostJsonBackend.defaultErrorHandler = function(err) {
+   dispatchError(err);
+   alert(err.message);
+};
+
+
+function _getJSON(url, cb, timeout) {
+   const _url = url;
+   const _req = new Request(_url, {
+      headers: {
+         'Accept': 'application/json'
+      }
+   });
+   _req.timeout = timeout;
+   return _getOrPostJsonBackend(_req, cb);
+}
+function _postJSON(url, value, cb, timeout) {
+   const _url = url;
+   const _req = new Request(_url, {
+      headers: {
+         'Accept': 'application/json',
+         'Content-Type': 'application/json'
+      },
+      method: "POST",
+      body: typeof (value) === 'string' ? value : JSON.stringify(value)
+   });
+   _req.timeout = timeout;
+   return _getOrPostJsonBackend(_req, cb);
+}
+
+function dispatchError(err) {
+   const ev = new ErrorEvent('error', {
+      message: err.message,
+      filename: err.filename,
+      lineno: err.lineno,
+      colno: err.colno,
+      error: err,
+   });
+   return dispatchEvent(ev);
+}
+
+
 
 /**
  * DeviceCharacteristics
@@ -265,7 +344,7 @@ function isArrayLike(item) {
 //Hook _on() and _off()
 (function () {
    function _on() {
-      if (this instanceof HTMLElement) {
+      if (this.addEventListener) {
          this.addEventListener.apply(this, arguments);
          return this;
       }
@@ -279,7 +358,7 @@ function isArrayLike(item) {
       return this;
    }
    function _off() {
-      if (this instanceof HTMLElement) {
+      if (this.removeEventListener) {
          this.removeEventListener.apply(this, arguments);
          return this;
       }
@@ -294,6 +373,8 @@ function isArrayLike(item) {
    }
    HTMLElement.prototype._on = _on;
    HTMLElement.prototype._off = _off;
+   HTMLDocument.prototype._on = _on;
+   HTMLDocument.prototype._off = _off;
    NodeList.prototype._on = _on;
    NodeList.prototype._off = _off;
    // Array.prototype._on = _on;
