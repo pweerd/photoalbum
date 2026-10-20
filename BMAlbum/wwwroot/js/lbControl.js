@@ -473,8 +473,9 @@ function createLightboxControl(app) {
    }
 
    function _loadFaceNames(fn_follow_up) {
-      app.getJSON('facephoto/names', undefined, function (data) {
-         _faceNames = new FaceNames (data.names, data.chgid);
+      app.getJSON('facephoto/names', undefined, function (fetcher) {
+         const data = fetcher.json;
+         _faceNames = new FaceNames(data.names, data.chgid);
          if (fn_follow_up) fn_follow_up();
 
          _buildFilteredFaceNames()
@@ -482,11 +483,13 @@ function createLightboxControl(app) {
    }
 
    function _setFaceCursorName(ev) {
-      let txt;
+      let txt='';
       if (ev.ctrlKey) txt = "Ga naar foto";
       else {
-         txt = _faceNames.nameById (_draggedFaceId);
-         if (ev.altKey) txt += "<br />(correct-mode)";
+         if (_draggedFaceId > NO_DRAG_ID) {
+            txt = _faceNames.nameById(_draggedFaceId);
+            if (ev.altKey) txt += "<br />(correct-mode)";
+         }
       }
       $("#drag_proxy").html(txt);
    }
@@ -590,13 +593,13 @@ function createLightboxControl(app) {
 
          if (_photoWindow !== undefined && !_photoWindow.closed) {
             _photoWindow.requestPhoto(photo.photoUrl, photo.relpos);
+            _photoWindow.focus();
          } else {
             _photoWindow = window.open(app.createUrl("home/facesPhoto"), 'photowindow');
-            setTimeout(function () {
+            _photoWindow.addEventListener("load", function () {
                _photoWindow.requestPhoto(photo.photoUrl, photo.relpos);
-            }, 50);
+            });
          }
-         _photoWindow.focus();
       });
    }
 
@@ -836,7 +839,8 @@ function createLightboxControl(app) {
       }
 
       _prepareTiming();
-      _state.getJSON(_faceMode ? 'facephoto/index' : 'photo/index', function (data) {
+      _state.getJSON(_faceMode ? 'facephoto/index' : 'photo/index', function (fetcher) {
+         const data = fetcher.json;
          _addTiming(data, "Trip");
          _resetAll();
          _data = data;
@@ -973,8 +977,7 @@ function createLightboxControl(app) {
 
    function _onPopHistory(ev) {
       _syncState();
-      let histState = ev.originalEvent.state || {};
-      console.log("OnPopHistLB:", histState);
+      console.log("OnPopHistLB:", history.state);
       if (_state.slide) {
          _positionToSlide(_state.slide);
       } else {
@@ -1185,8 +1188,8 @@ function createLightboxControl(app) {
             _showInfo(ix, true);
             break;
          case 'ctx_copy':
-            app.getJSON('photo/filename', '&id=' + encodeURIComponent(clickedPhoto.f), function (data) {
-               navigator.clipboard.writeText(data.fn);
+            app.getJSON('photo/filename', '&id=' + encodeURIComponent(clickedPhoto.f), function (fetcher) {
+               navigator.clipboard.writeText(fetcher.json.fn);
             });
             break;
          case 'ctx_rot_90':
@@ -1201,8 +1204,9 @@ function createLightboxControl(app) {
       }
 
       if (rot !== 0) {
-         app.getJSON('photo/rotate', '&id=' + encodeURIComponent(clickedPhoto.f) + '&rot=' + rot, function (data) {
-            if (date.result !== 'ok') alert('Rotate failed: ' + data.result);
+         app.getJSON('photo/rotate', '&id=' + encodeURIComponent(clickedPhoto.f) + '&rot=' + rot, function (fetcher) {
+            const data = fetcher.json;
+            if (data.result !== 'ok') alert('Rotate failed: ' + data.result);
             else {
                if (!_rotateWarningShown) {
                   _rotateWarningShown = true;
@@ -1430,7 +1434,8 @@ function createLightboxControl(app) {
             else {
                let file = _data.files[idx];
                let payload = { id: file.id, faceid: _draggedFaceId, correct: ev.altKey };
-               _state.postJSON("facephoto/setface", payload, function (data) {
+               _state.postJSON("facephoto/setface", payload, function (fetcher) {
+                  const data = fetcher.json;
                   console.log("SetFace result: ", data);
                   $elt.find(".face_name").text(data.name);
                });

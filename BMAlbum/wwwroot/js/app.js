@@ -114,21 +114,12 @@ function pinchAndZoom(target, txt) {
 const dbg_overlay = false;
 
 function createApplication(state, fnInit) {
-   hookVisibilityChange();
    const _clientLog = createClientLog(state.home_url + '_clientlog');
    _clientLog.hookError(false);
    if ((state.debug_flags & 0x10000) !== 0) {
       _clientLog.hookConsole();
    }
    hookHistory();
-
-   String.prototype.format = function () {
-      var args = arguments;
-      return this.replace(/{([0-9]+)}/g, function (match, index) {
-         return typeof args[index] == 'undefined' ? match : args[index];
-      });
-   };
-
 
    const _histKeys = [
       'mode',
@@ -177,11 +168,11 @@ function createApplication(state, fnInit) {
       },
 
       getJSON: function (relUrl, callback) {
-         _getOrPostJsonBackend(this.createUrl(relUrl), undefined, callback);
+         window._getJSON(this.createUrl(relUrl), callback);
       },
 
       postJSON: function (relUrl, payload, callback) {
-         _getOrPostJsonBackend(this.createUrl(relUrl), payload, callback);
+         window._postJSON(this.createUrl(relUrl), payload, callback);
       },
 
       saveActiveState: function (newState) {
@@ -258,52 +249,11 @@ function createApplication(state, fnInit) {
       return ret;
    }
 
-   function _getOrPostJsonBackend(url, dataToSend, func) {
-      let method = "GET", payload;
-
-      if (dataToSend) {
-         payload = JSON.stringify(dataToSend);
-         method = "POST"
-      }
-      $.ajax({
-         type: method,
-         dataType: "json",
-         contentType: "application/json",
-         data: payload,
-         url: url,
-         complete: function (jqXHR) {
-            let json;
-            let unknownMsg = 'Unknown error: ';
-            try {
-               json = JSON.parse(jqXHR.responseText);
-            } catch (err) {
-               unknownMsg = err + ': ';
-            }
-            if (jqXHR.status === 200 && json && json.bm_error === undefined) {
-               func(json, jqXHR);
-               return;
-            }
-            let arr = [];
-            if (json && json.bm_error) {
-               arr.push(json.bm_error.message);
-            } else {
-               arr.push(unknownMsg + jqXHR.responseText);
-            }
-            arr.push("\r\n\r\nUrl=");
-            arr.push(url);
-            if ((_state.debug_flags & 4) != 0 && json && json.bm_error.stacktrace) {
-               arr.push("\r\nTrace=");
-               arr.push(json.bm_error.stacktrace);
-            }
-            alert(arr.join(''));
-         }
-      });
+   function _getJSON(relUrl, parms, callback, timeout) {
+      return window._getJSON(_createUrl(relUrl, parms), callback, timeout);
    }
-   function _getJSON(relUrl, parms, callback) {
-      return _getOrPostJsonBackend(_createUrl(relUrl, parms), undefined, callback);
-   }
-   function _postJSON(relUrl, payload, parms, func) {
-      return _getOrPostJsonBackend(_createUrl(relUrl, parms), payload, func);
+   function _postJSON(relUrl, payload, parms, callback, timeout) {
+      return window._postJSON(_createUrl(relUrl, parms), payload, callback, timeout);
    }
 
 
@@ -314,7 +264,7 @@ function createApplication(state, fnInit) {
 
    function _onPopHistory(ev) {
       if (!_app) return; //Not yet initialized
-      let histState = history.state || {};
+      const histState = history.state || {};
       _copyStateParms(_state, histState);
       console.log('HISTORY popped:', history.length, histState, _state);
       switch (_state.mode) {
@@ -348,10 +298,6 @@ function createApplication(state, fnInit) {
       console.log("Start: from=", from, ", history=", history.state);
       _overlay.hideNow();
 
-      //document.body.style.transform = "";
-      //document.body.style.WebkitTransform = "";
-      //document.body.style.zIndex = "";
-
       switch (_state.mode) {
          case "faces":
          case "photo":
@@ -375,7 +321,7 @@ function createApplication(state, fnInit) {
       }
    }
 
-   $(window).on('popstate', _onPopHistory)
+   window.addEventListener('popstate', _onPopHistory)
    const _overlay = createOverlay('#overlay');
    _overlay.setDefaultBehaviorProp('maxWStrategy', '100%');
    _overlay.setDefaultBehaviorProp('maxHStrategy', '100%');
@@ -441,8 +387,8 @@ function createApplication(state, fnInit) {
       if (device.isTablet) return TABLET;
       return DESKTOP;
    }
-   _getJSON("home/config", "dvt=" + getDeviceType(), function (data) {
-      _app.config = data;
+   _getJSON("home/config", "dvt=" + getDeviceType(), function (fetcher) {
+      _app.config = fetcher.json;
       fnInit(_app)
    });
    return _app; //Experiment: remove this for pinchAndZoom
