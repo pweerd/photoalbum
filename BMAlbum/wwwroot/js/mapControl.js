@@ -312,7 +312,8 @@ function createMapControl(app) {
       zoom = (zoom < googleZoomToEsZoom.length) ? googleZoomToEsZoom[zoom] : maxEsZoom;
       parms.push("&zoom=" + zoom);
 
-      app.postJSON('map/clusters', _lastColors, parms, function (json) {
+      app.postJSON('map/clusters', _lastColors, parms, function (fetcher) {
+         const json = fetcher.json;
          //Process clusters (groups)
          let markers = _markersOnMap.clusters;
          let clusters = json.clusters;
