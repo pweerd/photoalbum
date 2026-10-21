@@ -127,8 +127,8 @@ function createApplication(state, fnInit) {
       'pin',
       'per_album',
       'sort',
+      'year',   //Year must be exported *before* album, it makes sense to have album as the last facet. This is a hack though. 
       'album',
-      'year',
       'slide',
       'center',
       'zoom',
